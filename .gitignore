@@ -1,0 +1,23 @@
+docs/rules/*
+
+# Node / build
+node_modules/
+dist/
+build/
+coverage/
+*.log
+.env*
+*.tsbuildinfo
+
+# Test output
+test-results/
+playwright-report/
+eval/voice/candidates/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.vscode/
+.idea/

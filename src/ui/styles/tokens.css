@@ -1,0 +1,64 @@
+/* Design tokens. Every interactive element is at least --tap tall and wide (FR-101). */
+:root {
+  --tap: 48px;
+  --tap-lg: 72px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  --radius-sm: 6px;
+  --radius: 10px;
+  --radius-lg: 16px;
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-md: 16px;
+  --text-lg: 20px;
+  --text-xl: 28px;
+  --text-xxl: 40px;
+
+  --bg: #f5f5f2;
+  --surface: #ffffff;
+  --surface-2: #ecece7;
+  --border: #d4d4ce;
+  --text: #17181b;
+  --text-muted: #5d6068;
+  --accent: #1d5fd1;
+  --accent-text: #ffffff;
+  --ok: #1f7a3a;
+  --warn: #9a6200;
+  --warn-bg: #fff2d6;
+  --danger: #b3261e;
+  --danger-bg: #fde5e2;
+  --shadow: 0 2px 10px rgb(0 0 0 / 0.12);
+  --overlay: rgb(0 0 0 / 0.45);
+
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14161a;
+    --surface: #1e2127;
+    --surface-2: #272b33;
+    --border: #3a3f49;
+    --text: #eceef2;
+    --text-muted: #a2a8b3;
+    --accent: #6ea0ff;
+    --accent-text: #0d1117;
+    --ok: #5cc27a;
+    --warn: #f0b44c;
+    --warn-bg: #3a2c10;
+    --danger: #ff8a80;
+    --danger-bg: #3d1a18;
+    --shadow: 0 2px 12px rgb(0 0 0 / 0.5);
+    --overlay: rgb(0 0 0 / 0.6);
+    color-scheme: dark;
+  }
+}

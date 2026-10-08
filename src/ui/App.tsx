@@ -1,0 +1,96 @@
+import { Component, useMemo, useState, type ReactNode } from "react";
+import { AppProvider } from "../app/AppProvider";
+import { useHasSession } from "../app/useSession";
+import { NavContext, type Nav, type Screen } from "./nav";
+import { CustomGame } from "./screens/CustomGame";
+import { Home } from "./screens/Home";
+import { NewSession } from "./screens/NewSession";
+import { Table } from "./screens/Table";
+
+function Placeholder({ title, onBack }: { title: string; onBack: () => void }) {
+  return (
+    <main className="screen">
+      <header className="topbar">
+        <button className="ghost" aria-label="Volver" onClick={onBack}>
+          ←
+        </button>
+        <h1 className="topbar-center">{title}</h1>
+      </header>
+    </main>
+  );
+}
+
+function Screens({ screen, go }: { screen: Screen; go: (s: Screen) => void }): ReactNode {
+  const hasSession = useHasSession();
+  const needsSession = screen.name === "table" || screen.name === "history" || screen.name === "market";
+  if (needsSession && !hasSession) return <Home />;
+  switch (screen.name) {
+    case "home":
+      return <Home />;
+    case "newSession":
+      return <NewSession />;
+    case "customGame":
+      return <CustomGame />;
+    case "table":
+      return <Table />;
+    case "history":
+      return <Placeholder title="Historial" onBack={() => go({ name: "table" })} />;
+    case "market":
+      return <Placeholder title="Mercado" onBack={() => go({ name: "table" })} />;
+    case "settings":
+      return <Placeholder title="Ajustes" onBack={() => go({ name: hasSession ? "table" : "home" })} />;
+  }
+}
+
+interface BoundaryState {
+  readonly error: Error | null;
+}
+
+class ErrorBoundary extends Component<{ children: ReactNode; onReset: () => void }, BoundaryState> {
+  override state: BoundaryState = { error: null };
+
+  static getDerivedStateFromError(error: Error): BoundaryState {
+    return { error };
+  }
+
+  override render() {
+    if (this.state.error) {
+      return (
+        <main className="screen">
+          <div className="screen-body">
+            <h1>Algo salió mal</h1>
+            <p className="muted">{this.state.error.message}</p>
+            <button
+              className="primary"
+              onClick={() => {
+                this.setState({ error: null });
+                this.props.onReset();
+              }}
+            >
+              Volver al inicio
+            </button>
+          </div>
+        </main>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+export function App({ dbName }: { dbName?: string }) {
+  const [screen, setScreen] = useState<Screen>({ name: "home" });
+  const nav = useMemo<Nav>(() => ({ screen, go: setScreen }), [screen]);
+  return (
+    <AppProvider {...(dbName !== undefined ? { dbName } : {})}>
+      <NavContext.Provider value={nav}>
+        <ErrorBoundary
+          onReset={() => {
+            setScreen({ name: "home" });
+          }}
+        >
+          <Screens screen={screen} go={setScreen} />
+        </ErrorBoundary>
+      </NavContext.Provider>
+    </AppProvider>
+  );
+}

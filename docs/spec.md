@@ -1,6 +1,7 @@
 # 18xx Companion — Product Spec
 
-Status: Draft v0.1 · 2026-10-07
+Status: Draft v0.2 · 2026-10-07 · Detailed v1 requirements:
+[specs/001-companion-mvp/spec.md](../specs/001-companion-mvp/spec.md)
 
 ## 1. Vision
 
@@ -30,14 +31,15 @@ the table. When the app and the table disagree, the table wins: every value can 
 ### 2.1 MVP (v1)
 
 - Game selection from built-in definitions: **1830**, **1848**, **21Moon**, plus a **custom
-  game** option.
+  game** option (a copy of a built-in game with edited values).
 - Local session on one device: players, companies, bank, chips.
 - Player grid: each player's cash, in the style of Commander life-counter apps.
 - Company grid: treasury, share price, president, shares in IPO/pool, trains (optional).
 - Bank tracking with chip breakdown for every bank transaction, using configurable chip
   denominations and colors.
 - Share ownership tracking (player, IPO/treasury, pool).
-- Automated dividends: full payout, withhold, and half-pay where the game allows it, with
+- Automated dividends: full payout, withhold, and half-pay where the game allows it, or
+  revenue split into fixed-destination parts (21Moon), with
   correct routing of dividends for unowned shares.
 - Stock market price tracking, with automatic standard moves and manual override.
 - Turn tracking: current round (SR/OR n.m), current operating company, operating order.
@@ -51,7 +53,8 @@ the table. When the app and the table disagree, the table wins: every value can 
 - Mergers, conversions, and company closures (18CZ, Railways of the Lost Atlas).
 - Multi-device game rooms with private wallets.
 - More games and voice languages.
-- Loans for the 1817 family (unless 1848 needs a subset in v1; see §5.2).
+- Loans for the 1817 family, beyond what 1848 needs in v1 (see §5.2).
+- Custom games authored from scratch (new market grids, phases, dividend rules).
 - Backend proxy for the AI key.
 - Native wrapper (Capacitor) for hardware push-to-talk and offline speech recognition.
 
@@ -63,7 +66,7 @@ the table. When the app and the table disagree, the table wins: every value can 
 
 ## 3. Users & Context
 
-- 3–6 players around a table, often noisy, with one device in the middle or held by a "banker".
+- 2–7 players around a table (each game sets its own range; the app caps it at 7), often noisy, with one device in the middle or held by a "banker".
 - Players know the game. The app needs no rules tutorials.
 - Sessions last 3–6 hours, so state must survive the screen sleeping, a reload, or a dead
   battery followed by a restore.
@@ -86,7 +89,7 @@ never change state directly. They emit **actions**, which pass validation and be
 ```
  voice ─┐                         ┌─> validate ─> confirm ─> append Event ─> reduce ─> State
         ├─> Action[] (proposed) ──┤
- touch ─┘                         └─> (touch actions may skip the confirmation card)
+ touch ─┘                         └─> (touch actions skip the card: applied at once, with undo)
 ```
 
 - **Undo**: marks the last event (or group) as reverted. Reverted events stay in the log.
@@ -131,24 +134,28 @@ rulebook for each game before implementation.
 | `floatPercent` | % sold needed to float |
 | `unownedDividends.ipo` | Who receives dividends for IPO/treasury shares: `company`, `bank`, `none` ⚠ |
 | `unownedDividends.pool` | Same, for pool shares ⚠ |
+| `playerCount` | Supported range (min–max), never more than 7 |
 | `payoutModes` | Subset of `full`, `withhold`, `half` |
+| `revenueParts` | Optional: revenue parts with fixed destinations (treasury or dividends), e.g. 21Moon local base and Space Port base |
 | `roundingRule` | How per-share amounts and half-pays are rounded ⚠ |
 | `market` | Grid cells with prices plus movement rules: payout, withhold, sell (per share / per sale), sold-out ⚠ |
 | `phases[]` | Name, triggering train, ORs per set, rusting/obsolescence events, private closure |
 | `trains[]` | Type, cost, count, rusts-on |
-| `loans` | Optional block (amount, interest, limits) for games like 1848 ⚠ |
+| `loans` | Optional block (amount, lender, interest, repayable, limits, market effect). 1848: £100 from the Bank of England, no interest, never repaid |
 | `endTrigger` | e.g. bank broken, plus how the final OR set is handled |
 | `customRules` | Escape hatch: named flags handled by small per-game code hooks, used sparingly |
 
 **v1 games.** The values for each game come from its rulebook. They are not written from memory.
 - **1830**: classic baseline. 10-share companies, full capitalization, finite bank, privates
   with income.
-- **1848**: verify loans and the special entities (e.g. Bank of England, Commonwealth Railway),
-  receivership, and capitalization ⚠.
+- **1848**: full support in v1, including loans, the special entities (Bank of England,
+  Commonwealth Railway), and receivership. Exact rules and capitalization come from the
+  rulebook ⚠.
 - **21Moon**: verify capitalization, payout options, and anything unusual about its structure ⚠.
 
-Open item **G-1**: if 1848's special entities don't fit this config, decide whether to add
-small, targeted hooks or ship 1848 with a reduced feature set.
+**G-1 (resolved 2026-10-07)**: 1848 ships with full support. Mechanics that don't fit the config
+are built as named, reusable mechanics (via `customRules`) that other games can enable later,
+not as one-off 1848 logic.
 
 ### 5.3 Designing ahead for mergers (not implemented in v1)
 
@@ -183,7 +190,7 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 | Stock | `buyShare(player, company, source, count?)` | shares + money (+ capitalization) |
 | Stock | `sellShares(player, company, count)` | shares + money + market move |
 | Stock | `buyPrivate(player/company, private, price)` | |
-| Loans | `takeLoan / repayLoan(company, n)` | only if the game defines loans |
+| Loans | `takeLoan(company, n)` | only if the game defines loans. Repayment and interest are definition fields for future games; v1 builds no repay action |
 | Flow | `nextCompany / startSR / startOR / endSR` | turn events, sold-out market moves at the end of the SR |
 | Manual | `adjust(holder, amount)` / `setPrice(company, position)` | overrides, recorded as events |
 
@@ -303,13 +310,13 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 
 | Id | Item |
 |---|---|
-| G-1 | 1848 special entities and loans: fit them in the config or reduce scope (§5.2) |
+| G-1 | ~~1848 special entities and loans: fit them in the config or reduce scope (§5.2)~~ **Resolved**: full support, built as reusable mechanics |
 | G-2 | Fill in and verify all ⚠ fields for 1830, 1848, 21Moon from the rulebooks |
 | G-3 | Market movement edge cases (multiple sells in one action, ceiling/floor cells) |
 | AI-1 | Confirm the current Claude API features to use (strict tools, caching), and the browser-side SDK setup for a user-supplied key |
 | AI-2 | Build a small eval set (~50 Spanish transcripts with expected actions) and use it to choose the default model on latency and accuracy |
 | AI-3 | Decide whether to evaluate the "decisions API" the user mentioned (not yet identified; needs a link) |
-| UX-1 | Whether touch actions also show the confirmation card, or apply immediately with undo |
+| UX-1 | ~~Whether touch actions also show the confirmation card, or apply immediately with undo~~ **Resolved**: apply immediately, with one-tap undo |
 | UX-2 | Voice confirmation ("sí") vs tap-only confirmation |
 
 ## 12. Success Criteria (v1)

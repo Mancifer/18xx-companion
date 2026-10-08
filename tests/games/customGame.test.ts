@@ -1,0 +1,58 @@
+import { describe, expect, it } from "vitest";
+import { getBuiltInGame } from "../../src/domain/games";
+import { createCustomGame, editCustomGame } from "../../src/domain/games/customGame";
+
+describe("custom games (FR-007, contracts/game-definition.md rule 4)", () => {
+  it("copies a built-in with a new id and basedOn", () => {
+    const custom = createCustomGame(getBuiltInGame("1830"), "1830 corto");
+    expect(custom.id).not.toBe("1830");
+    expect(custom.id).toMatch(/^custom-/);
+    expect(custom.basedOn).toBe("1830");
+    expect(custom.name).toBe("1830 corto");
+  });
+
+  it("edits the bank and a company name without touching the built-in (US1-5)", () => {
+    const builtIn = getBuiltInGame("1830");
+    const before = JSON.stringify(builtIn);
+    const custom = createCustomGame(builtIn, "Variante");
+    const result = editCustomGame(custom, {
+      bank: { total: 15000 },
+      companies: { PRR: { name: "Pennsylvania Railroad" } },
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.definition.bank).toEqual({ total: 15000 });
+    expect(result.definition.companies.find((c) => c.id === "PRR")?.name).toBe("Pennsylvania Railroad");
+    expect(JSON.stringify(builtIn)).toBe(before);
+  });
+
+  it("edits starting cash, private cost/income, train cost/count and the chip preset", () => {
+    const custom = createCustomGame(getBuiltInGame("1830"), "Variante");
+    const result = editCustomGame(custom, {
+      startingCash: { "4": 650 },
+      privates: { SV: { cost: 25, income: 6 } },
+      trains: { "2": { cost: 90, count: 5 } },
+      chipPreset: [{ value: 100, color: "#000" }],
+    });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.definition.startingCash["4"]).toBe(650);
+    expect(result.definition.privates.find((p) => p.id === "SV")).toMatchObject({ cost: 25, income: 6 });
+    const two = result.definition.trains.find((t) => t.type === "2");
+    expect(two?.count).toBe(5);
+    expect(two?.variants[0]?.cost).toBe(90);
+  });
+
+  it("rejects edits to non-editable fields", () => {
+    const custom = createCustomGame(getBuiltInGame("1830"), "Variante");
+    for (const field of ["market", "phases", "payoutModes", "revenueParts", "rounding", "capitalization", "roundSchedule", "customRules"]) {
+      const result = editCustomGame(custom, { [field]: [] });
+      expect(result.ok, field).toBe(false);
+    }
+  });
+
+  it("rejects an edit that fails validation (starting cash × max players > bank)", () => {
+    const custom = createCustomGame(getBuiltInGame("1830"), "Variante");
+    expect(editCustomGame(custom, { bank: { total: 1000 } }).ok).toBe(false);
+  });
+});

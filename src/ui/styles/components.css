@@ -1,0 +1,364 @@
+/* Components. Every interactive element keeps the --tap minimum from layout.css. */
+
+.big {
+  min-height: var(--tap-lg);
+  font-size: var(--text-lg);
+}
+
+.label {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.negative {
+  color: var(--danger);
+}
+
+.badge {
+  display: inline-block;
+  margin-left: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+
+.badge.danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.badge.warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.badge-button {
+  font-weight: 700;
+}
+
+.badge-button.danger {
+  background: var(--danger-bg);
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+button[aria-pressed="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+}
+
+/* Top bar */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  padding-top: calc(var(--space-2) + env(safe-area-inset-top));
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.topbar-center {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--text-lg);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-bank {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-weight: 600;
+}
+
+/* Company badge: short name over color */
+.company-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.company-badge-sm {
+  padding: 1px 6px;
+  font-size: var(--text-xs);
+}
+
+.company-badge-md {
+  padding: 2px 8px;
+  font-size: var(--text-sm);
+}
+
+.company-badge-lg {
+  padding: 4px 10px;
+  font-size: var(--text-md);
+}
+
+/* Player tile */
+.player-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  text-align: left;
+  border-left-width: 6px;
+  border-radius: var(--radius-lg);
+  min-height: 120px;
+}
+
+.player-tile-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.player-name {
+  font-weight: 600;
+  font-size: var(--text-lg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-cash {
+  font-size: var(--text-xxl);
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.player-meta,
+.company-meta {
+  font-size: var(--text-sm);
+}
+
+.holdings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+}
+
+.holding {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--text-sm);
+}
+
+/* Company card */
+.company-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  text-align: left;
+  border-radius: var(--radius-lg);
+}
+
+.company-card.current {
+  outline: 3px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.company-card.status-unstarted {
+  opacity: 0.7;
+}
+
+.company-card.status-receivership,
+.company-card.status-bankrupt {
+  border-style: dashed;
+  border-color: var(--danger);
+}
+
+.company-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.company-figures {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+/* Sheets */
+.sheet-figure {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  margin: 0;
+}
+
+.choice-fieldset {
+  border: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.choice-fieldset legend {
+  padding: 0;
+  margin-bottom: var(--space-2);
+  font-weight: 600;
+}
+
+.holders {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.holders li {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.stepper-value {
+  min-width: 2ch;
+  text-align: center;
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.checkbox {
+  flex-direction: row;
+  align-items: center;
+  min-height: var(--tap);
+}
+
+.checkbox input {
+  width: 24px;
+  height: 24px;
+}
+
+/* Keypad */
+.keypad {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.keypad-display {
+  display: block;
+  min-height: var(--tap-lg);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xxl);
+  font-weight: 700;
+  text-align: right;
+  background: var(--surface-2);
+  border-radius: var(--radius);
+}
+
+.keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-2);
+}
+
+.keypad-grid button {
+  min-height: 56px;
+  font-size: var(--text-xl);
+}
+
+.keypad-quick {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2);
+}
+
+/* Toast */
+.toast-summary {
+  font-weight: 600;
+}
+
+.toast-warning {
+  font-size: var(--text-sm);
+}
+
+/* Home and forms */
+.session-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.session-item {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+}
+
+.player-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.player-row {
+  display: grid;
+  grid-template-columns: var(--tap) 1fr;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.player-row input[type="color"] {
+  width: var(--tap);
+  padding: 2px;
+}
+
+.player-row > :nth-child(3),
+.player-row > :nth-child(4) {
+  grid-column: 1 / -1;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: var(--space-2);
+  align-items: end;
+  margin-bottom: var(--space-2);
+}
+
+.session-name {
+  font-size: var(--text-md);
+}

@@ -1,0 +1,95 @@
+import type { LogEntry } from "../domain/ledger/entries";
+import type { Snapshot } from "../domain/ledger/snapshots";
+import type { SessionMeta } from "../domain/session";
+import type { CompanionDb } from "./db";
+
+/** The store's write port (tests can fake it). Snapshot methods are optional: an optimization. */
+export interface EntryWriter {
+  appendEntry(sessionId: string, entry: LogEntry): Promise<void>;
+  putSnapshot?(sessionId: string, snapshot: Snapshot): Promise<void>;
+  deleteSnapshotsFrom?(sessionId: string, seq: number): Promise<void>;
+}
+
+export interface LoadedSession {
+  readonly meta: SessionMeta;
+  readonly entries: LogEntry[];
+  /** The latest stored snapshot, if any. */
+  readonly snapshot?: Snapshot;
+}
+
+const STRICT = { durability: "strict" } as const;
+
+export class SessionRepo implements EntryWriter {
+  constructor(private readonly db: CompanionDb) {}
+
+  async createSession(meta: SessionMeta): Promise<void> {
+    await this.db.put("sessions", meta);
+  }
+
+  /**
+   * Writes the entry and the session's updatedAt/entryCount in one strict transaction, and
+   * resolves only once it has committed (FR-090, research R6).
+   */
+  async appendEntry(sessionId: string, entry: LogEntry): Promise<void> {
+    const tx = this.db.transaction(["entries", "sessions"], "readwrite", STRICT);
+    const meta = await tx.objectStore("sessions").get(sessionId);
+    if (!meta) throw new Error(`Unknown session ${sessionId}`);
+    await tx.objectStore("entries").add({ sessionId, seq: entry.seq, entry });
+    await tx.objectStore("sessions").put({
+      ...meta,
+      updatedAt: entry.at,
+      entryCount: meta.entryCount + 1,
+    });
+    await tx.done;
+  }
+
+  async loadSession(id: string): Promise<LoadedSession | undefined> {
+    const meta = await this.db.get("sessions", id);
+    if (!meta) return undefined;
+    const rows = await this.db.getAllFromIndex("entries", "bySession", id);
+    const snapshots = await this.db.getAllFromIndex("snapshots", "bySession", id);
+    const latest = snapshots.sort((a, b) => b.seq - a.seq)[0];
+    return {
+      meta,
+      entries: rows.sort((a, b) => a.seq - b.seq).map((r) => r.entry),
+      ...(latest ? { snapshot: latest.snapshot } : {}),
+    };
+  }
+
+  async putSnapshot(sessionId: string, snapshot: Snapshot): Promise<void> {
+    await this.db.put("snapshots", { sessionId, seq: snapshot.seq, snapshot });
+  }
+
+  /** Drops snapshots at or after seq (a revert or amend made them stale). */
+  async deleteSnapshotsFrom(sessionId: string, seq: number): Promise<void> {
+    const tx = this.db.transaction("snapshots", "readwrite", STRICT);
+    const range = IDBKeyRange.bound([sessionId, seq], [sessionId, Number.MAX_SAFE_INTEGER]);
+    await tx.store.delete(range);
+    await tx.done;
+  }
+
+  async listSessions(): Promise<SessionMeta[]> {
+    const all = await this.db.getAll("sessions");
+    return all.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  }
+
+  async updateMeta(id: string, patch: Partial<Omit<SessionMeta, "id">>): Promise<SessionMeta> {
+    const tx = this.db.transaction("sessions", "readwrite", STRICT);
+    const meta = await tx.store.get(id);
+    if (!meta) throw new Error(`Unknown session ${id}`);
+    const next = { ...meta, ...patch };
+    await tx.store.put(next);
+    await tx.done;
+    return next;
+  }
+
+  async deleteSession(id: string): Promise<void> {
+    const tx = this.db.transaction(["sessions", "entries", "snapshots"], "readwrite", STRICT);
+    await tx.objectStore("sessions").delete(id);
+    for (const store of ["entries", "snapshots"] as const) {
+      const keys = await tx.objectStore(store).index("bySession").getAllKeys(id);
+      for (const key of keys) await tx.objectStore(store).delete(key);
+    }
+    await tx.done;
+  }
+}

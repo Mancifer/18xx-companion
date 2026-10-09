@@ -1,0 +1,2172 @@
+{
+  "format": "18xx-companion/session",
+  "version": 1,
+  "exportedAt": "2026-10-09T20:00:00.000Z",
+  "appVersion": "0.1.0",
+  "session": {
+    "id": "fixture-1848-sr",
+    "name": "eval 1848-sr",
+    "createdAt": "2026-10-09T20:00:00.000Z",
+    "updatedAt": "2026-10-09T20:00:00.000Z",
+    "game": {
+      "id": "1848",
+      "name": "1848 Australia",
+      "version": "1.0.0",
+      "currency": {
+        "symbol": "£"
+      },
+      "playerCount": {
+        "min": 3,
+        "max": 6
+      },
+      "options": [],
+      "bank": {
+        "total": 10000
+      },
+      "initialTreasuries": [
+        {
+          "company": "BOE",
+          "money": 2000,
+          "assets": [
+            "loan:1",
+            "loan:2",
+            "loan:3",
+            "loan:4",
+            "loan:5",
+            "loan:6",
+            "loan:7",
+            "loan:8",
+            "loan:9",
+            "loan:10",
+            "loan:11",
+            "loan:12",
+            "loan:13",
+            "loan:14",
+            "loan:15",
+            "loan:16",
+            "loan:17",
+            "loan:18",
+            "loan:19",
+            "loan:20"
+          ]
+        }
+      ],
+      "startingCash": {
+        "3": 840,
+        "4": 630,
+        "5": 510,
+        "6": 430
+      },
+      "companies": [
+        {
+          "id": "BOE",
+          "shortName": "BoE",
+          "name": "Bank of England",
+          "aliases": [
+            "banco de inglaterra",
+            "bank of england",
+            "el banco de inglaterra",
+            "be o e"
+          ],
+          "color": "#5b5b5b",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 0,
+          "certificates": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "national"
+        },
+        {
+          "id": "QR",
+          "shortName": "QR",
+          "name": "Queensland Government Railway",
+          "aliases": [
+            "queensland",
+            "cu erre"
+          ],
+          "color": "#7b1f3a",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [
+            70,
+            80,
+            90,
+            100
+          ],
+          "kind": "public"
+        },
+        {
+          "id": "COM",
+          "shortName": "COM",
+          "name": "Commonwealth Railways",
+          "aliases": [
+            "commonwealth",
+            "la com"
+          ],
+          "color": "#1c3f8f",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [
+            70,
+            80,
+            90,
+            100
+          ],
+          "kind": "public"
+        },
+        {
+          "id": "FED",
+          "shortName": "FED",
+          "name": "Federal Territory Railway",
+          "aliases": [
+            "federal",
+            "la federal"
+          ],
+          "color": "#2f7d4f",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [
+            70,
+            80,
+            90,
+            100
+          ],
+          "kind": "public"
+        },
+        {
+          "id": "VR",
+          "shortName": "VR",
+          "name": "Victorian Railway",
+          "aliases": [
+            "victoria",
+            "victorian",
+            "la victoria"
+          ],
+          "color": "#e7c32b",
+          "textColor": "#1b1b1b",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [
+            70,
+            80,
+            90,
+            100
+          ],
+          "kind": "public"
+        },
+        {
+          "id": "SAR",
+          "shortName": "SAR",
+          "name": "South Australian Railway",
+          "aliases": [
+            "south australian",
+            "sur de australia",
+            "sar"
+          ],
+          "color": "#c8242b",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [
+            70,
+            80,
+            90,
+            100
+          ],
+          "kind": "public"
+        },
+        {
+          "id": "WA",
+          "shortName": "WA",
+          "name": "West Australian Railway",
+          "aliases": [
+            "west australian",
+            "australia occidental",
+            "uve a"
+          ],
+          "color": "#111111",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [
+            70,
+            80,
+            90,
+            100
+          ],
+          "kind": "public"
+        },
+        {
+          "id": "NSW",
+          "shortName": "NSW",
+          "name": "New South Wales Railway",
+          "aliases": [
+            "new south wales",
+            "nueva gales"
+          ],
+          "color": "#ef7d1a",
+          "textColor": "#1b1b1b",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [
+            70,
+            80,
+            90,
+            100
+          ],
+          "kind": "public"
+        },
+        {
+          "id": "CAR",
+          "shortName": "CAR",
+          "name": "Central Australian Railway",
+          "aliases": [
+            "central australian",
+            "central",
+            "car"
+          ],
+          "color": "#7a4b2a",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [
+            100
+          ],
+          "kind": "public",
+          "fixedPar": 100
+        }
+      ],
+      "privates": [
+        {
+          "id": "P1",
+          "name": "Melbourne & Hobson's Bay Railway",
+          "aliases": [
+            "melbourne",
+            "hobson"
+          ],
+          "cost": 30,
+          "income": 5,
+          "companyPriceRange": {
+            "range": [
+              1,
+              40
+            ]
+          },
+          "closesOn": [
+            {
+              "type": "phase",
+              "phase": "5"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "name": "Oodnadatta Railway",
+          "aliases": [
+            "oodnadatta"
+          ],
+          "cost": 70,
+          "income": 10,
+          "companyPriceRange": {
+            "range": [
+              1,
+              80
+            ]
+          },
+          "closesOn": [
+            {
+              "type": "phase",
+              "phase": "5"
+            }
+          ]
+        },
+        {
+          "id": "P3",
+          "name": "Tasmanian Railways",
+          "aliases": [
+            "tasmania",
+            "tasmanian"
+          ],
+          "cost": 110,
+          "income": 15,
+          "companyPriceRange": {
+            "range": [
+              1,
+              140
+            ]
+          },
+          "closesOn": [
+            {
+              "type": "phase",
+              "phase": "5"
+            }
+          ]
+        },
+        {
+          "id": "P4",
+          "name": "The Ghan",
+          "aliases": [
+            "ghan",
+            "el ghan"
+          ],
+          "cost": 170,
+          "income": 20,
+          "companyPriceRange": {
+            "range": [
+              1,
+              220
+            ]
+          },
+          "closesOn": [
+            {
+              "type": "phase",
+              "phase": "5"
+            }
+          ]
+        },
+        {
+          "id": "P5",
+          "name": "Trans-Australian Railway",
+          "aliases": [
+            "trans australian",
+            "transaustraliano"
+          ],
+          "cost": 170,
+          "income": 25,
+          "grants": [
+            {
+              "company": "QR",
+              "units": 1,
+              "source": "ipo"
+            }
+          ],
+          "closesOn": [
+            {
+              "type": "phase",
+              "phase": "5"
+            }
+          ]
+        },
+        {
+          "id": "P6",
+          "name": "North Australian Railway",
+          "aliases": [
+            "north australian",
+            "norte de australia"
+          ],
+          "cost": 230,
+          "income": 30,
+          "grants": [
+            {
+              "company": "CAR",
+              "units": 2,
+              "presidency": true,
+              "source": "ipo",
+              "par": 100
+            }
+          ],
+          "closesOn": [
+            {
+              "type": "phase",
+              "phase": "5"
+            },
+            {
+              "type": "companyBuysTrain",
+              "company": "CAR"
+            }
+          ]
+        }
+      ],
+      "capitalization": {
+        "type": "full",
+        "timing": "onFloat"
+      },
+      "ipoPrice": "par",
+      "floatPercent": 60,
+      "floatCounts": "soldFromIpo",
+      "unownedDividends": {
+        "ipo": "none",
+        "pool": "none",
+        "treasury": "none"
+      },
+      "revenueParts": [
+        {
+          "id": "revenue",
+          "label": "Ingresos",
+          "to": "choice"
+        }
+      ],
+      "payoutModes": [
+        "full",
+        "withhold"
+      ],
+      "rounding": {
+        "perShare": "floor",
+        "halfRetain": "floorToCompany",
+        "unit": 1
+      },
+      "market": {
+        "shape": "2d",
+        "cells": [
+          [
+            {
+              "price": 0,
+              "tags": [
+                "receivership"
+              ]
+            },
+            {
+              "price": 70
+            },
+            {
+              "price": 80
+            },
+            {
+              "price": 90
+            },
+            {
+              "price": 100
+            },
+            {
+              "price": 110
+            },
+            {
+              "price": 120
+            },
+            {
+              "price": 140
+            },
+            {
+              "price": 160
+            },
+            {
+              "price": 190
+            },
+            {
+              "price": 220
+            },
+            {
+              "price": 250
+            },
+            {
+              "price": 280
+            },
+            {
+              "price": 320
+            },
+            {
+              "price": 360
+            },
+            {
+              "price": 400
+            },
+            {
+              "price": 450,
+              "tags": [
+                "top"
+              ]
+            }
+          ],
+          [
+            {
+              "price": 0,
+              "tags": [
+                "receivership"
+              ]
+            },
+            {
+              "price": 60
+            },
+            {
+              "price": 70
+            },
+            {
+              "price": 80
+            },
+            {
+              "price": 90
+            },
+            {
+              "price": 100,
+              "tags": [
+                "par"
+              ]
+            },
+            {
+              "price": 110
+            },
+            {
+              "price": 130
+            },
+            {
+              "price": 150
+            },
+            {
+              "price": 180
+            },
+            {
+              "price": 210
+            },
+            {
+              "price": 240
+            },
+            {
+              "price": 270
+            },
+            {
+              "price": 310
+            },
+            {
+              "price": 350
+            },
+            {
+              "price": 390
+            },
+            {
+              "price": 440
+            }
+          ],
+          [
+            {
+              "price": 0,
+              "tags": [
+                "receivership"
+              ]
+            },
+            {
+              "price": 50
+            },
+            {
+              "price": 60
+            },
+            {
+              "price": 70
+            },
+            {
+              "price": 80
+            },
+            {
+              "price": 90,
+              "tags": [
+                "par"
+              ]
+            },
+            {
+              "price": 100
+            },
+            {
+              "price": 120
+            },
+            {
+              "price": 140
+            },
+            {
+              "price": 170
+            },
+            {
+              "price": 200
+            },
+            {
+              "price": 230
+            },
+            {
+              "price": 260
+            },
+            {
+              "price": 300
+            }
+          ],
+          [
+            {
+              "price": 0,
+              "tags": [
+                "receivership"
+              ]
+            },
+            {
+              "price": 40
+            },
+            {
+              "price": 50
+            },
+            {
+              "price": 60
+            },
+            {
+              "price": 70
+            },
+            {
+              "price": 80,
+              "tags": [
+                "par"
+              ]
+            },
+            {
+              "price": 90
+            },
+            {
+              "price": 110
+            },
+            {
+              "price": 130
+            },
+            {
+              "price": 160
+            },
+            {
+              "price": 190
+            }
+          ],
+          [
+            {
+              "price": 0,
+              "tags": [
+                "receivership"
+              ]
+            },
+            {
+              "price": 30
+            },
+            {
+              "price": 40
+            },
+            {
+              "price": 50
+            },
+            {
+              "price": 60
+            },
+            {
+              "price": 70,
+              "tags": [
+                "par"
+              ]
+            },
+            {
+              "price": 80
+            },
+            {
+              "price": 100
+            },
+            {
+              "price": 120
+            }
+          ],
+          [
+            {
+              "price": 0,
+              "tags": [
+                "receivership"
+              ]
+            },
+            {
+              "price": 20
+            },
+            {
+              "price": 30
+            },
+            {
+              "price": 40
+            },
+            {
+              "price": 50
+            },
+            {
+              "price": 60
+            },
+            {
+              "price": 70
+            }
+          ]
+        ],
+        "edges": {
+          "right": "up",
+          "left": "none"
+        },
+        "moves": {
+          "payout": [
+            {
+              "dir": "right",
+              "n": 1
+            }
+          ],
+          "withhold": [
+            {
+              "dir": "left",
+              "n": 1
+            }
+          ],
+          "sell": {
+            "per": "sale",
+            "n": 1,
+            "onlyIfOperated": false
+          },
+          "soldOut": {
+            "heldBy": "players",
+            "at": "endSR"
+          }
+        },
+        "tracks": {
+          "BOE": {
+            "startPrice": 70,
+            "byLoansIssued": [
+              80,
+              90,
+              100,
+              110,
+              120,
+              130,
+              140,
+              150,
+              160,
+              170,
+              180,
+              195,
+              210,
+              225,
+              240,
+              260,
+              280,
+              300,
+              320,
+              340
+            ],
+            "endGameAtIndex": 15
+          }
+        }
+      },
+      "trains": [
+        {
+          "type": "2",
+          "variants": [
+            {
+              "name": "2",
+              "cost": 100
+            },
+            {
+              "name": "2+",
+              "cost": 120
+            }
+          ],
+          "count": 6,
+          "rustsOnPhase": "4",
+          "permanent": false,
+          "countsForLimit": true
+        },
+        {
+          "type": "3",
+          "variants": [
+            {
+              "name": "3",
+              "cost": 200
+            },
+            {
+              "name": "3+",
+              "cost": 230
+            }
+          ],
+          "count": 5,
+          "rustsOnPhase": "6",
+          "permanent": false,
+          "countsForLimit": true
+        },
+        {
+          "type": "4",
+          "variants": [
+            {
+              "name": "4",
+              "cost": 300
+            },
+            {
+              "name": "4+",
+              "cost": 340
+            }
+          ],
+          "count": 4,
+          "rustsOnPhase": "8",
+          "permanent": false,
+          "countsForLimit": true
+        },
+        {
+          "type": "5",
+          "variants": [
+            {
+              "name": "5",
+              "cost": 500
+            },
+            {
+              "name": "5+",
+              "cost": 550
+            }
+          ],
+          "count": 3,
+          "permanent": true,
+          "countsForLimit": true
+        },
+        {
+          "type": "6",
+          "variants": [
+            {
+              "name": "6",
+              "cost": 600
+            },
+            {
+              "name": "6+",
+              "cost": 660
+            }
+          ],
+          "count": 2,
+          "permanent": true,
+          "countsForLimit": true
+        },
+        {
+          "type": "8",
+          "variants": [
+            {
+              "name": "8",
+              "cost": 800
+            },
+            {
+              "name": "D",
+              "cost": 1100
+            }
+          ],
+          "count": "unlimited",
+          "permanent": true,
+          "tradeIn": {
+            "fromTypes": [
+              "4"
+            ],
+            "cost": 800
+          },
+          "countsForLimit": true
+        },
+        {
+          "type": "2E",
+          "variants": [
+            {
+              "name": "2E",
+              "cost": 200
+            }
+          ],
+          "count": "unlimited",
+          "availableFromPhase": "5",
+          "permanent": true,
+          "countsForLimit": false
+        }
+      ],
+      "trainLimitScope": "company",
+      "discardedTrainsTo": "removed",
+      "phases": [
+        {
+          "id": "start",
+          "triggeredBy": null,
+          "orsPerSet": 1,
+          "trainLimit": 4,
+          "effects": []
+        },
+        {
+          "id": "2",
+          "triggeredBy": "2",
+          "orsPerSet": 1,
+          "trainLimit": 4,
+          "effects": []
+        },
+        {
+          "id": "3",
+          "triggeredBy": "3",
+          "orsPerSet": 2,
+          "trainLimit": 4,
+          "effects": []
+        },
+        {
+          "id": "4",
+          "triggeredBy": "4",
+          "orsPerSet": 2,
+          "trainLimit": 3,
+          "effects": []
+        },
+        {
+          "id": "5",
+          "triggeredBy": "5",
+          "orsPerSet": 3,
+          "trainLimit": 2,
+          "effects": [
+            {
+              "type": "closePrivates"
+            }
+          ]
+        },
+        {
+          "id": "6",
+          "triggeredBy": "6",
+          "orsPerSet": 3,
+          "trainLimit": 2,
+          "effects": []
+        },
+        {
+          "id": "8",
+          "triggeredBy": "8",
+          "orsPerSet": 3,
+          "trainLimit": 2,
+          "effects": []
+        }
+      ],
+      "roundSchedule": {
+        "type": "byPhase"
+      },
+      "srOrder": "priorityDeal",
+      "orOrder": {
+        "by": "priceDesc",
+        "ties": [
+          "stackTop",
+          "columnRight"
+        ],
+        "before": [
+          "BOE"
+        ],
+        "dynamic": true
+      },
+      "limits": {
+        "certificates": {
+          "3": 20,
+          "4": 17,
+          "5": 14,
+          "6": 12
+        },
+        "perCompanyPercent": 60,
+        "perCompanyPercentByPlayers": {
+          "3": 70
+        },
+        "pool": {
+          "maxPercent": 50
+        }
+      },
+      "loans": {
+        "amount": 100,
+        "lender": "company:BOE",
+        "supply": 20,
+        "interestPerOR": 0,
+        "repayable": false,
+        "voluntaryLimit": 5,
+        "availableFromPhase": "3",
+        "marketEffect": {
+          "first": 2,
+          "subsequentInOR": 3,
+          "nationalTrackStep": 1
+        }
+      },
+      "endTriggers": [
+        {
+          "type": "bankBroken"
+        },
+        {
+          "type": "topCell"
+        },
+        {
+          "type": "loansIssued",
+          "count": 16
+        },
+        {
+          "type": "takeovers",
+          "count": 5
+        }
+      ],
+      "customRules": [
+        {
+          "id": "loans",
+          "config": {}
+        },
+        {
+          "id": "nationalBank",
+          "config": {
+            "company": "BOE",
+            "dividendSource": "bank",
+            "minDividendByPhase": {
+              "3": 100,
+              "5": 200,
+              "8": 300
+            }
+          }
+        },
+        {
+          "id": "nationalTakeover",
+          "config": {
+            "compensation": "parPerNonDirectorShare",
+            "directorLiable": true,
+            "removeCheapestPermanentTrainAt": [
+              2,
+              5
+            ],
+            "endGameAt": 5
+          }
+        },
+        {
+          "id": "bankDebt",
+          "config": {
+            "debtors": [
+              "player"
+            ],
+            "interest": 0,
+            "autoRepayFromIncome": true
+          }
+        },
+        {
+          "id": "manualFloatCondition",
+          "config": {
+            "company": "COM",
+            "question": "¿Hay enlace Sídney–Adelaida?",
+            "droppedAtPhase": "6"
+          }
+        },
+        {
+          "id": "privateGrants",
+          "config": {}
+        }
+      ],
+      "chipPreset": [
+        {
+          "value": 500,
+          "color": "#6a1b9a",
+          "label": "500"
+        },
+        {
+          "value": 100,
+          "color": "#212121",
+          "label": "100"
+        },
+        {
+          "value": 50,
+          "color": "#ef6c00",
+          "label": "50"
+        },
+        {
+          "value": 20,
+          "color": "#2e7d32",
+          "label": "20"
+        },
+        {
+          "value": 10,
+          "color": "#1565c0",
+          "label": "10"
+        },
+        {
+          "value": 5,
+          "color": "#c62828",
+          "label": "5"
+        },
+        {
+          "value": 1,
+          "color": "#f5f5f5",
+          "label": "1"
+        }
+      ],
+      "verification": {
+        "bank": "verified",
+        "initialTreasuries": "verified",
+        "startingCash": "verified",
+        "companies": "verified",
+        "privates": "verified",
+        "capitalization": "verified",
+        "floatPercent": "verified",
+        "unownedDividends": "verified",
+        "payoutModes": "verified",
+        "rounding": "verified",
+        "market": "verified",
+        "trains": "verified",
+        "phases": "verified",
+        "orOrder": "verified",
+        "limits": "verified",
+        "loans": "verified",
+        "endTriggers": "verified",
+        "customRules": "verified"
+      }
+    },
+    "options": {},
+    "players": [
+      {
+        "id": "p1",
+        "name": "Ana",
+        "aliases": [],
+        "color": "#e53935",
+        "seat": 1
+      },
+      {
+        "id": "p2",
+        "name": "Anabel",
+        "aliases": [],
+        "color": "#1e88e5",
+        "seat": 2
+      },
+      {
+        "id": "p3",
+        "name": "Bruno",
+        "aliases": [],
+        "color": "#43a047",
+        "seat": 3
+      },
+      {
+        "id": "p4",
+        "name": "Carla",
+        "aliases": [],
+        "color": "#fdd835",
+        "seat": 4
+      }
+    ],
+    "walletMode": "appTruth",
+    "chipSet": {
+      "chips": [
+        {
+          "value": 500,
+          "color": "#6a1b9a",
+          "label": "500"
+        },
+        {
+          "value": 100,
+          "color": "#212121",
+          "label": "100"
+        },
+        {
+          "value": 50,
+          "color": "#ef6c00",
+          "label": "50"
+        },
+        {
+          "value": 20,
+          "color": "#2e7d32",
+          "label": "20"
+        },
+        {
+          "value": 10,
+          "color": "#1565c0",
+          "label": "10"
+        },
+        {
+          "value": 5,
+          "color": "#c62828",
+          "label": "5"
+        },
+        {
+          "value": 1,
+          "color": "#f5f5f5",
+          "label": "1"
+        }
+      ]
+    }
+  },
+  "entries": [
+    {
+      "kind": "group",
+      "seq": 1,
+      "id": "g1",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "createSession",
+        "players": [
+          {
+            "id": "p1",
+            "name": "Ana",
+            "aliases": [],
+            "color": "#e53935",
+            "seat": 1
+          },
+          {
+            "id": "p2",
+            "name": "Anabel",
+            "aliases": [],
+            "color": "#1e88e5",
+            "seat": 2
+          },
+          {
+            "id": "p3",
+            "name": "Bruno",
+            "aliases": [],
+            "color": "#43a047",
+            "seat": 3
+          },
+          {
+            "id": "p4",
+            "name": "Carla",
+            "aliases": [],
+            "color": "#fdd835",
+            "seat": 4
+          }
+        ],
+        "walletMode": "appTruth"
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p1",
+          "amount": 630
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p2",
+          "amount": 630
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p3",
+          "amount": 630
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p4",
+          "amount": 630
+        },
+        {
+          "t": "companyStatus",
+          "company": "BOE",
+          "status": "floated"
+        },
+        {
+          "t": "marketMove",
+          "company": "BOE",
+          "to": {
+            "index": 0
+          },
+          "reason": "par"
+        },
+        {
+          "t": "turnAdvance",
+          "round": "PRIVATES",
+          "phase": "start"
+        }
+      ],
+      "touches": [
+        "market:BOE",
+        "money:bank",
+        "money:player:p1",
+        "money:player:p2",
+        "money:player:p3",
+        "money:player:p4",
+        "status:BOE",
+        "turn"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 2,
+      "id": "g2",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyPrivate",
+        "buyer": "p1",
+        "private": "P1",
+        "price": 30,
+        "par": null
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "player:p1",
+          "to": "bank",
+          "amount": 30
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "private:P1",
+          "from": "bank",
+          "to": "player:p1"
+        }
+      ],
+      "touches": [
+        "asset:private:P1",
+        "money:bank",
+        "money:player:p1"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 3,
+      "id": "g3",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyPrivate",
+        "buyer": "p2",
+        "private": "P2",
+        "price": 70,
+        "par": null
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "player:p2",
+          "to": "bank",
+          "amount": 70
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "private:P2",
+          "from": "bank",
+          "to": "player:p2"
+        }
+      ],
+      "touches": [
+        "asset:private:P2",
+        "money:bank",
+        "money:player:p2"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 4,
+      "id": "g4",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyPrivate",
+        "buyer": "p3",
+        "private": "P3",
+        "price": 110,
+        "par": null
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "player:p3",
+          "to": "bank",
+          "amount": 110
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "private:P3",
+          "from": "bank",
+          "to": "player:p3"
+        }
+      ],
+      "touches": [
+        "asset:private:P3",
+        "money:bank",
+        "money:player:p3"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 5,
+      "id": "g5",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "startSR"
+      },
+      "events": [
+        {
+          "t": "turnAdvance",
+          "round": "SR",
+          "srNumber": 1,
+          "company": null
+        }
+      ],
+      "touches": [
+        "turn"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 6,
+      "id": "g6",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "parCompany",
+        "player": "p1",
+        "company": "QR",
+        "price": 80
+      },
+      "events": [
+        {
+          "t": "companyStatus",
+          "company": "QR",
+          "status": "parred",
+          "parPrice": 80
+        },
+        {
+          "t": "marketMove",
+          "company": "QR",
+          "to": {
+            "row": 3,
+            "col": 5
+          },
+          "reason": "par"
+        },
+        {
+          "t": "shareTransfer",
+          "company": "QR",
+          "from": "ipo:QR",
+          "to": "player:p1",
+          "units": 2,
+          "presidency": true
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p1",
+          "to": "bank",
+          "amount": 160
+        }
+      ],
+      "touches": [
+        "market:QR",
+        "money:bank",
+        "money:player:p1",
+        "shares:QR",
+        "status:QR"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 7,
+      "id": "g7",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyShare",
+        "buyer": "player:p2",
+        "company": "QR",
+        "source": "ipo",
+        "count": 2
+      },
+      "events": [
+        {
+          "t": "shareTransfer",
+          "company": "QR",
+          "from": "ipo:QR",
+          "to": "player:p2",
+          "units": 2
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p2",
+          "to": "bank",
+          "amount": 160
+        }
+      ],
+      "touches": [
+        "money:bank",
+        "money:player:p2",
+        "shares:QR"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 8,
+      "id": "g8",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyShare",
+        "buyer": "player:p1",
+        "company": "QR",
+        "source": "ipo",
+        "count": 2
+      },
+      "events": [
+        {
+          "t": "shareTransfer",
+          "company": "QR",
+          "from": "ipo:QR",
+          "to": "player:p1",
+          "units": 2
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p1",
+          "to": "bank",
+          "amount": 160
+        },
+        {
+          "t": "companyStatus",
+          "company": "QR",
+          "status": "floated"
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "company:QR",
+          "amount": 800
+        }
+      ],
+      "touches": [
+        "money:bank",
+        "money:company:QR",
+        "money:player:p1",
+        "shares:QR",
+        "status:QR"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 9,
+      "id": "g9",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyShare",
+        "buyer": "player:p3",
+        "company": "QR",
+        "source": "ipo",
+        "count": 1
+      },
+      "events": [
+        {
+          "t": "shareTransfer",
+          "company": "QR",
+          "from": "ipo:QR",
+          "to": "player:p3",
+          "units": 1
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p3",
+          "to": "bank",
+          "amount": 80
+        }
+      ],
+      "touches": [
+        "money:bank",
+        "money:player:p3",
+        "shares:QR"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 10,
+      "id": "g10",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "parCompany",
+        "player": "p4",
+        "company": "VR",
+        "price": 70
+      },
+      "events": [
+        {
+          "t": "companyStatus",
+          "company": "VR",
+          "status": "parred",
+          "parPrice": 70
+        },
+        {
+          "t": "marketMove",
+          "company": "VR",
+          "to": {
+            "row": 4,
+            "col": 5
+          },
+          "reason": "par"
+        },
+        {
+          "t": "shareTransfer",
+          "company": "VR",
+          "from": "ipo:VR",
+          "to": "player:p4",
+          "units": 2,
+          "presidency": true
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p4",
+          "to": "bank",
+          "amount": 140
+        }
+      ],
+      "touches": [
+        "market:VR",
+        "money:bank",
+        "money:player:p4",
+        "shares:VR",
+        "status:VR"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 11,
+      "id": "g11",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyShare",
+        "buyer": "player:p3",
+        "company": "VR",
+        "source": "ipo",
+        "count": 2
+      },
+      "events": [
+        {
+          "t": "shareTransfer",
+          "company": "VR",
+          "from": "ipo:VR",
+          "to": "player:p3",
+          "units": 2
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p3",
+          "to": "bank",
+          "amount": 140
+        }
+      ],
+      "touches": [
+        "money:bank",
+        "money:player:p3",
+        "shares:VR"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 12,
+      "id": "g12",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyShare",
+        "buyer": "player:p4",
+        "company": "VR",
+        "source": "ipo",
+        "count": 2
+      },
+      "events": [
+        {
+          "t": "shareTransfer",
+          "company": "VR",
+          "from": "ipo:VR",
+          "to": "player:p4",
+          "units": 2
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p4",
+          "to": "bank",
+          "amount": 140
+        },
+        {
+          "t": "companyStatus",
+          "company": "VR",
+          "status": "floated"
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "company:VR",
+          "amount": 700
+        }
+      ],
+      "touches": [
+        "money:bank",
+        "money:company:VR",
+        "money:player:p4",
+        "shares:VR",
+        "status:VR"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 13,
+      "id": "g13",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyShare",
+        "buyer": "player:p2",
+        "company": "VR",
+        "source": "ipo",
+        "count": 1
+      },
+      "events": [
+        {
+          "t": "shareTransfer",
+          "company": "VR",
+          "from": "ipo:VR",
+          "to": "player:p2",
+          "units": 1
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p2",
+          "to": "bank",
+          "amount": 70
+        }
+      ],
+      "touches": [
+        "money:bank",
+        "money:player:p2",
+        "shares:VR"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 14,
+      "id": "g14",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "endSR"
+      },
+      "events": [],
+      "touches": [],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 15,
+      "id": "g15",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "startOR"
+      },
+      "events": [
+        {
+          "t": "turnAdvance",
+          "round": "OR",
+          "orSet": 1,
+          "orIndex": 1,
+          "orsInSet": 1,
+          "operatingOrder": [
+            "BOE",
+            "QR",
+            "VR"
+          ],
+          "company": "BOE"
+        }
+      ],
+      "touches": [
+        "turn"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 16,
+      "id": "g16",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "nextCompany"
+      },
+      "events": [
+        {
+          "t": "counterChange",
+          "subject": "company:BOE",
+          "key": "runs",
+          "delta": 1
+        },
+        {
+          "t": "turnAdvance",
+          "operatingOrder": [
+            "BOE",
+            "QR",
+            "VR"
+          ],
+          "company": "QR"
+        }
+      ],
+      "touches": [
+        "counter:company:BOE",
+        "turn"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 17,
+      "id": "g17",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyTrain",
+        "company": "QR",
+        "trainType": "2",
+        "variant": null,
+        "from": "bank",
+        "seller": null,
+        "price": null,
+        "tradeIn": null
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "company:QR",
+          "to": "bank",
+          "amount": 100
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "train:2:1",
+          "from": "bank",
+          "to": "company:QR"
+        },
+        {
+          "t": "turnAdvance",
+          "phase": "2"
+        }
+      ],
+      "touches": [
+        "asset:train:2:1",
+        "money:bank",
+        "money:company:QR",
+        "turn"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 18,
+      "id": "g18",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "runAndPayout",
+        "company": "QR",
+        "parts": [
+          {
+            "part": "revenue",
+            "amount": 60
+          }
+        ],
+        "mode": "full"
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p1",
+          "amount": 24
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p2",
+          "amount": 12
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p3",
+          "amount": 6
+        },
+        {
+          "t": "marketMove",
+          "company": "QR",
+          "to": {
+            "row": 3,
+            "col": 6
+          },
+          "reason": "payout"
+        },
+        {
+          "t": "counterChange",
+          "subject": "company:QR",
+          "key": "runs",
+          "delta": 1
+        }
+      ],
+      "touches": [
+        "counter:company:QR",
+        "market:QR",
+        "money:bank",
+        "money:player:p1",
+        "money:player:p2",
+        "money:player:p3"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 19,
+      "id": "g19",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "nextCompany"
+      },
+      "events": [
+        {
+          "t": "turnAdvance",
+          "operatingOrder": [
+            "BOE",
+            "QR",
+            "VR"
+          ],
+          "company": "VR"
+        }
+      ],
+      "touches": [
+        "turn"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 20,
+      "id": "g20",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyTrain",
+        "company": "VR",
+        "trainType": "2",
+        "variant": null,
+        "from": "bank",
+        "seller": null,
+        "price": null,
+        "tradeIn": null
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "company:VR",
+          "to": "bank",
+          "amount": 100
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "train:2:2",
+          "from": "bank",
+          "to": "company:VR"
+        }
+      ],
+      "touches": [
+        "asset:train:2:2",
+        "money:bank",
+        "money:company:VR"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 21,
+      "id": "g21",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "runAndPayout",
+        "company": "VR",
+        "parts": [
+          {
+            "part": "revenue",
+            "amount": 40
+          }
+        ],
+        "mode": "full"
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p2",
+          "amount": 4
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p3",
+          "amount": 8
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p4",
+          "amount": 16
+        },
+        {
+          "t": "marketMove",
+          "company": "VR",
+          "to": {
+            "row": 4,
+            "col": 6
+          },
+          "reason": "payout"
+        },
+        {
+          "t": "counterChange",
+          "subject": "company:VR",
+          "key": "runs",
+          "delta": 1
+        }
+      ],
+      "touches": [
+        "counter:company:VR",
+        "market:VR",
+        "money:bank",
+        "money:player:p2",
+        "money:player:p3",
+        "money:player:p4"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 22,
+      "id": "g22",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "nextCompany"
+      },
+      "events": [
+        {
+          "t": "turnAdvance",
+          "company": null
+        }
+      ],
+      "touches": [
+        "turn"
+      ],
+      "warnings": [
+        {
+          "code": "setComplete",
+          "messageEs": "Fin de las rondas de operaciones: empieza la ronda de acciones.",
+          "severity": "info"
+        }
+      ]
+    },
+    {
+      "kind": "group",
+      "seq": 23,
+      "id": "g23",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "startSR"
+      },
+      "events": [
+        {
+          "t": "turnAdvance",
+          "round": "SR",
+          "srNumber": 2,
+          "company": null
+        }
+      ],
+      "touches": [
+        "turn"
+      ],
+      "warnings": []
+    }
+  ],
+  "stateHash": "8076addc6d4997f6c9af8b2a153fc1d84c534458d57344992a5377c4a12e6697"
+}

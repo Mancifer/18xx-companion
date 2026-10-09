@@ -1,0 +1,112 @@
+import { describe, expect, it } from "vitest";
+import { SessionStore } from "../../src/app/SessionStore";
+import { getBuiltInGame } from "../../src/domain/games";
+import { touchesOf, type GroupEntry, type LogEntry } from "../../src/domain/ledger/entries";
+import { replay } from "../../src/domain/ledger/replay";
+import { replayFromSnapshot, snapshotsFor } from "../../src/domain/ledger/snapshots";
+import { openCompanionDb } from "../../src/persistence/db";
+import { SessionRepo } from "../../src/persistence/sessionRepo";
+import { TestSession, makePlayers } from "../helpers/dispatch";
+import { FLOW, candidates, rng } from "../helpers/randomWalk";
+import { freshDbName, makeMeta } from "../helpers/session";
+
+/**
+ * T163 (plan performance goals): replay of a long game, snapshot load and one write. Times are
+ * medians of several runs after a warm-up, so a slow machine or a GC pause does not flake.
+ */
+
+const GROUPS = 1500;
+const game = getBuiltInGame("1830");
+const players = makePlayers(["Ana", "Bruno", "Carla", "Dani"]);
+
+function median(xs: readonly number[]): number {
+  const sorted = [...xs].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
+}
+
+function timeIt(fn: () => void, runs = 7): number {
+  fn(); // warm-up
+  const times: number[] = [];
+  for (let i = 0; i < runs; i++) {
+    const t = performance.now();
+    fn();
+    times.push(performance.now() - t);
+  }
+  return median(times);
+}
+
+/** A 1,500-group 1830 log from a seeded random walk, ending with a company about to run. */
+function longGame(): { log: LogEntry[]; payout: unknown } {
+  const s = TestSession.start(game, players);
+  const log: LogEntry[] = [];
+  const rand = rng(42);
+  const push = (action: { type: string }) => {
+    s.do(action);
+    const group: GroupEntry = {
+      kind: "group",
+      seq: log.length + 1,
+      id: `g${log.length + 1}`,
+      at: "2026-10-09T20:00:00.000Z",
+      source: "touch",
+      action: action as GroupEntry["action"],
+      events: s.lastEvents,
+      touches: touchesOf(s.lastEvents),
+      warnings: [...s.lastWarnings],
+    };
+    log.push(group);
+  };
+  push({ type: "createSession", players, walletMode: "appTruth" } as never);
+  while (log.length < GROUPS) {
+    const next = [...candidates(s, rand), ...FLOW].find((a) => s.tryDo(a).kind === "ok");
+    if (!next) throw new Error(`walk stalled at ${log.length}`);
+    push(next);
+  }
+  const payout = { type: "runAndPayout", company: null, parts: [{ part: "revenue", amount: 240 }], mode: "full" };
+  while (s.tryDo(payout).kind !== "ok") {
+    const next = [...candidates(s, rand), ...FLOW].find((a) => a.type !== "runAndPayout" && s.tryDo(a).kind === "ok");
+    if (!next) throw new Error("no way to reach a payout");
+    push(next);
+  }
+  return { log, payout };
+}
+
+describe("performance (T163)", () => {
+  const { log, payout } = longGame();
+
+  it(`replays a ${GROUPS}-group log in under 50 ms`, () => {
+    expect(log.length).toBeGreaterThanOrEqual(GROUPS);
+    const ms = timeIt(() => replay(game, players, log));
+    expect(ms).toBeLessThan(50);
+  });
+
+  it("loads from the latest snapshot plus the tail well under that", () => {
+    const latest = snapshotsFor(game, players, log).at(-1)!;
+    expect(latest).toBeDefined();
+    const full = replay(game, players, log).state;
+    expect(replayFromSnapshot(game, log, latest).state).toEqual(full);
+    const ms = timeIt(() => new SessionStore({ appendEntry: () => Promise.resolve() }, makeMeta({ game, players }), log, { snapshot: latest }));
+    expect(ms).toBeLessThan(25);
+  });
+
+  it("dispatches a payout (pipeline + IndexedDB write) in under 100 ms", async () => {
+    const db = await openCompanionDb(freshDbName());
+    try {
+      const repo = new SessionRepo(db);
+      const meta = makeMeta({ game, players, entryCount: log.length });
+      await repo.importSession(meta, log);
+      for (const snapshot of snapshotsFor(game, players, log).slice(-1)) await repo.putSnapshot(meta.id, snapshot);
+      const store = (await SessionStore.open(repo, meta.id))!;
+      const times: number[] = [];
+      for (let i = 0; i < 5; i++) {
+        const t = performance.now();
+        const result = await store.dispatch(payout);
+        times.push(performance.now() - t);
+        expect(result.ok).toBe(true);
+        await store.revert(); // back to the same position for the next run
+      }
+      expect(median(times)).toBeLessThan(100);
+    } finally {
+      db.close();
+    }
+  });
+});

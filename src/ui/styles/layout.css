@@ -199,7 +199,8 @@ h3 {
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  z-index: 20;
+  /* Above the mic (20), so it never covers a sheet's last buttons; below voice cards and toasts. */
+  z-index: 22;
 }
 
 .sheet {

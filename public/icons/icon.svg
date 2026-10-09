@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 18xx Companion: a bank chip. Source for the PNG icons (scripts/build-icons.ts). -->
+  <rect width="512" height="512" rx="112" fill="#14161a"/>
+  <g transform="translate(256 256)">
+    <circle r="196" fill="#f2b632"/>
+    <g fill="#fff7e0">
+      <rect x="-22" y="-196" width="44" height="48" rx="6"/>
+      <rect x="-22" y="-196" width="44" height="48" rx="6" transform="rotate(45)"/>
+      <rect x="-22" y="-196" width="44" height="48" rx="6" transform="rotate(90)"/>
+      <rect x="-22" y="-196" width="44" height="48" rx="6" transform="rotate(135)"/>
+      <rect x="-22" y="-196" width="44" height="48" rx="6" transform="rotate(180)"/>
+      <rect x="-22" y="-196" width="44" height="48" rx="6" transform="rotate(225)"/>
+      <rect x="-22" y="-196" width="44" height="48" rx="6" transform="rotate(270)"/>
+      <rect x="-22" y="-196" width="44" height="48" rx="6" transform="rotate(315)"/>
+    </g>
+    <circle r="136" fill="#14161a"/>
+    <circle r="136" fill="none" stroke="#f2b632" stroke-width="6" stroke-dasharray="10 12"/>
+    <text y="34" text-anchor="middle" font-family="Bahnschrift, 'Arial Black', Arial, sans-serif" font-weight="700" font-size="104" fill="#f2b632">18xx</text>
+  </g>
+</svg>

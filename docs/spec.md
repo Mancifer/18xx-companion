@@ -292,7 +292,10 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 
 ### 9.1 Screens
 
-1. **Home**: resume session, new session, settings (API key, voice locale, model).
+1. **Home**: resume session, new session, settings (masked API key with show/hide and a "no
+   recordar la clave en este dispositivo" option, voice locale, model, and a privacy note: audio
+   goes to the browser's speech service, transcripts and state to Anthropic; use a dedicated
+   Console workspace with a monthly spend limit).
 2. **New session**: pick game → players (names, colors, aliases) → chip set (preset +
    colors) → wallet mode.
 3. **Table** (main screen):
@@ -304,7 +307,8 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
      (warnings only).
    - **Player grid**: large tiles with name, cash, and share summary. Tap opens a detail sheet;
      ± gestures allow quick adjustments.
-   - **Company grid** (tab or second row): treasury, price, president, trains.
+   - **Company grid** (tab or second row): treasury, price, president, trains. On phones the
+     stock and corporate rounds open on this tab, so a buy or sell stays two taps.
    - Floating **mic button** (push-to-talk) and **undo** button.
 4. **Operate sheet** (touch path for an OR turn): revenue keypad, Pay / Withhold / Half,
    buy-train picker, pay-cost.
@@ -332,7 +336,8 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
   corrections) plus a hash of the replayed state. On import the log is replayed: a hash mismatch
   is shown as a warning but the session still imports. A session that already exists on the
   device can be replaced or imported as a copy.
-- API key stored locally on the device, never exported.
+- API key stored locally on the device, never exported. With "no recordar la clave" it is kept
+  in memory only and is gone after a reload.
 
 ## 11. Open Items
 
@@ -342,7 +347,7 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 | G-2 | Fill in and verify all ⚠ fields for 1830, 1848, 21Moon from the rulebooks |
 | G-3 | Market movement edge cases (multiple sells in one action, ceiling/floor cells) |
 | AI-1 | Confirm the current Claude API features to use (strict tools, caching), and the browser-side SDK setup for a user-supplied key |
-| AI-2 | Build a small eval set (~50 Spanish transcripts with expected actions) and use it to choose the default model on latency and accuracy |
+| AI-2 | Build a small eval set (~50 Spanish transcripts with expected actions) and use it to choose the default model on latency and accuracy. **In progress**: 60 seed cases, six fixtures and a deterministic harness exist (`eval/voice/`, `npm run eval:voice`); the transcripts still need rephrasing in the user's regional Spanish before the first scored run |
 | AI-3 | Decide whether to evaluate the "decisions API" the user mentioned (not yet identified; needs a link) |
 | UX-1 | ~~Whether touch actions also show the confirmation card, or apply immediately with undo~~ **Resolved**: apply immediately, with one-tap undo |
 | UX-2 | Voice confirmation ("sí") vs tap-only confirmation |

@@ -1,0 +1,2013 @@
+{
+  "format": "18xx-companion/session",
+  "version": 1,
+  "exportedAt": "2026-10-09T20:00:00.000Z",
+  "appVersion": "0.1.0",
+  "session": {
+    "id": "fixture-21moon-cr",
+    "name": "eval 21moon-cr",
+    "createdAt": "2026-10-09T20:00:00.000Z",
+    "updatedAt": "2026-10-09T20:00:00.000Z",
+    "game": {
+      "id": "21moon",
+      "name": "21Moon",
+      "version": "1.0.0",
+      "currency": {
+        "symbol": "₡"
+      },
+      "playerCount": {
+        "min": 2,
+        "max": 5
+      },
+      "options": [
+        {
+          "id": "lateCompany",
+          "label": "Compañía disponible desde SR3",
+          "default": null,
+          "choices": [
+            {
+              "value": "SWP",
+              "label": "SWP",
+              "companyAvailableFrom": "SR3"
+            },
+            {
+              "value": "HMQ",
+              "label": "HMQ",
+              "companyAvailableFrom": "SR3"
+            },
+            {
+              "value": "VH",
+              "label": "VH",
+              "companyAvailableFrom": "SR3"
+            },
+            {
+              "value": "ITC",
+              "label": "ITC",
+              "companyAvailableFrom": "SR3"
+            },
+            {
+              "value": "SSF",
+              "label": "SSF",
+              "companyAvailableFrom": "SR3"
+            },
+            {
+              "value": "LG",
+              "label": "LG",
+              "companyAvailableFrom": "SR3"
+            },
+            {
+              "value": "KR",
+              "label": "KR",
+              "companyAvailableFrom": "SR3"
+            }
+          ]
+        }
+      ],
+      "bank": "unlimited",
+      "initialTreasuries": [],
+      "startingCash": {
+        "2": 600,
+        "3": 540,
+        "4": 410,
+        "5": 340
+      },
+      "companies": [
+        {
+          "id": "SWP",
+          "shortName": "SWP",
+          "name": "Suijin Water Plants",
+          "aliases": [
+            "suijin",
+            "water plants"
+          ],
+          "color": "#1f5fbf",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [
+            60,
+            70,
+            80,
+            90
+          ],
+          "kind": "public"
+        },
+        {
+          "id": "HMQ",
+          "shortName": "HMQ",
+          "name": "Hematite Low-G Mining and Quarry",
+          "aliases": [
+            "hematite",
+            "hache eme cu"
+          ],
+          "color": "#c62828",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [
+            60,
+            70,
+            80,
+            90
+          ],
+          "kind": "public"
+        },
+        {
+          "id": "VH",
+          "shortName": "VH",
+          "name": "Varuna Hydroculture",
+          "aliases": [
+            "varuna",
+            "uve hache",
+            "la uve"
+          ],
+          "color": "#f4c20d",
+          "textColor": "#1b1b1b",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [
+            60,
+            70,
+            80,
+            90
+          ],
+          "kind": "public"
+        },
+        {
+          "id": "ITC",
+          "shortName": "ITC",
+          "name": "International Tritium Consortium",
+          "aliases": [
+            "tritium",
+            "i te ce"
+          ],
+          "color": "#7b3fa0",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [
+            60,
+            70,
+            80,
+            90
+          ],
+          "kind": "public"
+        },
+        {
+          "id": "SSF",
+          "shortName": "SSF",
+          "name": "Shamsum Solar Farms",
+          "aliases": [
+            "shamsum",
+            "solar"
+          ],
+          "color": "#ef7d1a",
+          "textColor": "#1b1b1b",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [
+            60,
+            70,
+            80,
+            90
+          ],
+          "kind": "public"
+        },
+        {
+          "id": "LG",
+          "shortName": "LG",
+          "name": "Lunar Geodynamics",
+          "aliases": [
+            "lunar",
+            "geodynamics",
+            "ele ge"
+          ],
+          "color": "#2e7d32",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [
+            60,
+            70,
+            80,
+            90
+          ],
+          "kind": "public"
+        },
+        {
+          "id": "KR",
+          "shortName": "KR",
+          "name": "Kiviuq Rovertech",
+          "aliases": [
+            "kiviuq",
+            "rovertech",
+            "ka erre"
+          ],
+          "color": "#7a4b2a",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [
+            60,
+            70,
+            80,
+            90
+          ],
+          "kind": "public",
+          "availableFrom": "SR3"
+        }
+      ],
+      "privates": [
+        {
+          "id": "P1",
+          "name": "Old Landing Site",
+          "aliases": [
+            "ols",
+            "landing site"
+          ],
+          "cost": 30,
+          "income": 0,
+          "companyPriceRange": {
+            "range": [
+              1,
+              1
+            ]
+          },
+          "closesOn": [
+            {
+              "type": "boughtByCompany"
+            },
+            {
+              "type": "scheduled",
+              "slot": "OR4.1"
+            }
+          ]
+        },
+        {
+          "id": "P2",
+          "name": "UN Contract",
+          "aliases": [
+            "un contract",
+            "contrato"
+          ],
+          "cost": 30,
+          "income": 5,
+          "companyPriceRange": {
+            "range": [
+              1,
+              45
+            ]
+          },
+          "closesOn": [
+            {
+              "type": "boughtByCompany"
+            },
+            {
+              "type": "scheduled",
+              "slot": "OR4.1"
+            }
+          ]
+        },
+        {
+          "id": "P3",
+          "name": "Space Bridge Company",
+          "aliases": [
+            "space bridge",
+            "puente"
+          ],
+          "cost": 40,
+          "income": 10,
+          "companyPriceRange": {
+            "range": [
+              1,
+              60
+            ]
+          },
+          "closesOn": [
+            {
+              "type": "manual"
+            },
+            {
+              "type": "scheduled",
+              "slot": "OR4.1"
+            }
+          ]
+        },
+        {
+          "id": "P4",
+          "name": "Research Lab",
+          "aliases": [
+            "research lab",
+            "laboratorio"
+          ],
+          "cost": 60,
+          "income": 10,
+          "companyPriceRange": {
+            "range": [
+              1,
+              90
+            ]
+          },
+          "closesOn": [
+            {
+              "type": "manual"
+            },
+            {
+              "type": "scheduled",
+              "slot": "OR4.1"
+            }
+          ]
+        },
+        {
+          "id": "P5",
+          "name": "Passenger Terminal",
+          "aliases": [
+            "terminal"
+          ],
+          "cost": 80,
+          "income": 15,
+          "companyPriceRange": {
+            "range": [
+              1,
+              120
+            ]
+          },
+          "closesOn": [
+            {
+              "type": "manual"
+            },
+            {
+              "type": "scheduled",
+              "slot": "OR4.1"
+            }
+          ]
+        },
+        {
+          "id": "P6",
+          "name": "Tunnel Company",
+          "aliases": [
+            "tunnel",
+            "tunel"
+          ],
+          "cost": 100,
+          "income": 15,
+          "companyPriceRange": {
+            "range": [
+              1,
+              150
+            ]
+          },
+          "exchange": {
+            "company": "*",
+            "units": 1,
+            "source": "pool"
+          },
+          "closesOn": [
+            {
+              "type": "exchanged"
+            },
+            {
+              "type": "scheduled",
+              "slot": "OR4.1"
+            }
+          ]
+        }
+      ],
+      "capitalization": {
+        "type": "incremental"
+      },
+      "ipoPrice": "market",
+      "floatPercent": 50,
+      "floatCounts": "soldFromIpo",
+      "unownedDividends": {
+        "ipo": "none",
+        "pool": "none",
+        "treasury": "company"
+      },
+      "revenueParts": [
+        {
+          "id": "local",
+          "label": "Base local",
+          "to": "treasury"
+        },
+        {
+          "id": "spacePort",
+          "label": "Puerto espacial",
+          "to": "dividend"
+        }
+      ],
+      "payoutModes": [],
+      "rounding": {
+        "perShare": "floor",
+        "halfRetain": "floorToCompany",
+        "unit": 1
+      },
+      "market": {
+        "shape": "2d",
+        "cells": [
+          [
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            {
+              "price": 330,
+              "leftEdge": "down"
+            },
+            {
+              "price": 360
+            },
+            {
+              "price": 395
+            },
+            {
+              "price": 430
+            }
+          ],
+          [
+            null,
+            null,
+            {
+              "price": 100,
+              "leftEdge": "down"
+            },
+            {
+              "price": 110
+            },
+            {
+              "price": 120
+            },
+            {
+              "price": 130
+            },
+            {
+              "price": 140
+            },
+            {
+              "price": 150
+            },
+            {
+              "price": 160
+            },
+            {
+              "price": 175
+            },
+            {
+              "price": 195
+            },
+            {
+              "price": 215
+            },
+            {
+              "price": 240
+            },
+            {
+              "price": 265
+            },
+            {
+              "price": 295
+            },
+            {
+              "price": 325
+            },
+            {
+              "price": 360
+            },
+            {
+              "price": 395,
+              "rightEdge": "up"
+            }
+          ],
+          [
+            {
+              "price": 70,
+              "leftEdge": "down"
+            },
+            {
+              "price": 80
+            },
+            {
+              "price": 90,
+              "tags": [
+                "par"
+              ]
+            },
+            {
+              "price": 100
+            },
+            {
+              "price": 110
+            },
+            {
+              "price": 120
+            },
+            {
+              "price": 130
+            },
+            {
+              "price": 140
+            },
+            {
+              "price": 150
+            },
+            {
+              "price": 160
+            },
+            {
+              "price": 175
+            },
+            {
+              "price": 190
+            },
+            {
+              "price": 215
+            },
+            {
+              "price": 235
+            },
+            {
+              "price": 260
+            },
+            {
+              "price": 285
+            },
+            {
+              "price": 315
+            },
+            {
+              "price": 345,
+              "rightEdge": "up"
+            }
+          ],
+          [
+            {
+              "price": 60,
+              "leftEdge": "down"
+            },
+            {
+              "price": 70
+            },
+            {
+              "price": 80,
+              "tags": [
+                "par"
+              ]
+            },
+            {
+              "price": 90
+            },
+            {
+              "price": 100
+            },
+            {
+              "price": 110
+            },
+            {
+              "price": 120
+            },
+            {
+              "price": 130
+            },
+            {
+              "price": 140
+            },
+            {
+              "price": 150
+            },
+            {
+              "price": 160
+            },
+            {
+              "price": 175
+            },
+            {
+              "price": 190
+            },
+            {
+              "price": 200
+            },
+            {
+              "price": 220
+            },
+            {
+              "price": 250
+            },
+            {
+              "price": 275
+            },
+            {
+              "price": 300,
+              "rightEdge": "up"
+            }
+          ],
+          [
+            {
+              "price": 50,
+              "leftEdge": "down"
+            },
+            {
+              "price": 60
+            },
+            {
+              "price": 70,
+              "tags": [
+                "par"
+              ]
+            },
+            {
+              "price": 80
+            },
+            {
+              "price": 90
+            },
+            {
+              "price": 100
+            },
+            {
+              "price": 110
+            },
+            {
+              "price": 120
+            },
+            {
+              "price": 130
+            },
+            {
+              "price": 140
+            },
+            {
+              "price": 150
+            },
+            {
+              "price": 160
+            },
+            {
+              "price": 175
+            },
+            {
+              "price": 190,
+              "rightEdge": "up"
+            }
+          ],
+          [
+            {
+              "price": 40,
+              "leftEdge": "down"
+            },
+            {
+              "price": 50
+            },
+            {
+              "price": 60,
+              "tags": [
+                "par"
+              ]
+            },
+            {
+              "price": 70
+            },
+            {
+              "price": 80
+            },
+            {
+              "price": 90
+            },
+            {
+              "price": 100
+            },
+            {
+              "price": 110
+            },
+            {
+              "price": 120
+            },
+            {
+              "price": 130
+            },
+            {
+              "price": 140
+            },
+            {
+              "price": 150,
+              "rightEdge": "up"
+            }
+          ],
+          [
+            {
+              "price": 0,
+              "tags": [
+                "closed"
+              ]
+            },
+            {
+              "price": 40
+            },
+            {
+              "price": 50
+            },
+            {
+              "price": 60
+            },
+            {
+              "price": 70
+            },
+            {
+              "price": 80
+            },
+            {
+              "price": 90
+            },
+            {
+              "price": 100
+            },
+            {
+              "price": 110
+            },
+            {
+              "price": 120,
+              "rightEdge": "up"
+            }
+          ]
+        ],
+        "edges": {
+          "right": "none",
+          "left": "none"
+        },
+        "moves": {
+          "payout": [
+            {
+              "when": {
+                "dividendEquals": 0
+              },
+              "dir": "left",
+              "n": 1
+            },
+            {
+              "when": {
+                "dividendAtLeast": {
+                  "priceTimes": 2
+                }
+              },
+              "dir": "right",
+              "n": 2
+            },
+            {
+              "when": {
+                "dividendAtLeast": {
+                  "priceTimes": 0.5
+                }
+              },
+              "dir": "right",
+              "n": 1
+            }
+          ],
+          "withhold": [
+            {
+              "dir": "left",
+              "n": 1
+            }
+          ],
+          "sell": {
+            "per": "sale",
+            "n": 1,
+            "onlyIfOperated": true
+          },
+          "soldOut": {
+            "heldBy": "playersAndCompanies",
+            "at": "endCR"
+          },
+          "poolPenalty": {
+            "at": "endCR",
+            "onlyIfOperated": true
+          },
+          "issue": {
+            "onlyIfFloated": true,
+            "n": 1
+          }
+        }
+      },
+      "trains": [
+        {
+          "type": "2",
+          "variants": [
+            {
+              "name": "2",
+              "cost": 120
+            }
+          ],
+          "count": 5,
+          "rustsOnPhase": "5",
+          "permanent": false,
+          "countsForLimit": true
+        },
+        {
+          "type": "3",
+          "variants": [
+            {
+              "name": "3",
+              "cost": 150
+            }
+          ],
+          "count": 4,
+          "rustsOnPhase": "6",
+          "permanent": false,
+          "countsForLimit": true,
+          "reserve": 1
+        },
+        {
+          "type": "4",
+          "variants": [
+            {
+              "name": "4",
+              "cost": 240
+            }
+          ],
+          "count": 3,
+          "rustsOnPhase": "10",
+          "permanent": false,
+          "countsForLimit": true,
+          "reserve": 1
+        },
+        {
+          "type": "5",
+          "variants": [
+            {
+              "name": "5",
+              "cost": 500
+            }
+          ],
+          "count": 2,
+          "permanent": true,
+          "countsForLimit": true,
+          "reserve": 1
+        },
+        {
+          "type": "6",
+          "variants": [
+            {
+              "name": "6",
+              "cost": 540
+            }
+          ],
+          "count": 2,
+          "permanent": true,
+          "countsForLimit": true,
+          "reserve": 1
+        },
+        {
+          "type": "10",
+          "variants": [
+            {
+              "name": "10",
+              "cost": 730
+            }
+          ],
+          "count": "unlimited",
+          "permanent": true,
+          "countsForLimit": true
+        }
+      ],
+      "trainLimitScope": {
+        "perBase": 2,
+        "bases": [
+          "local",
+          "spacePort"
+        ]
+      },
+      "phases": [
+        {
+          "id": "2",
+          "triggeredBy": null,
+          "orsPerSet": 2,
+          "trainLimit": 4,
+          "effects": []
+        },
+        {
+          "id": "3",
+          "triggeredBy": "3",
+          "orsPerSet": 2,
+          "trainLimit": 4,
+          "effects": []
+        },
+        {
+          "id": "4",
+          "triggeredBy": "4",
+          "orsPerSet": 2,
+          "trainLimit": 4,
+          "effects": []
+        },
+        {
+          "id": "5",
+          "triggeredBy": "5",
+          "orsPerSet": 2,
+          "trainLimit": 4,
+          "effects": []
+        },
+        {
+          "id": "6",
+          "triggeredBy": "6",
+          "orsPerSet": 2,
+          "trainLimit": 4,
+          "effects": []
+        },
+        {
+          "id": "10",
+          "triggeredBy": "10",
+          "orsPerSet": 2,
+          "trainLimit": 4,
+          "effects": []
+        }
+      ],
+      "roundSchedule": {
+        "type": "fixed",
+        "sequence": [
+          "PRIVATES",
+          "SR1",
+          "CR1",
+          "OR1.1",
+          "OR1.2",
+          "SR2",
+          "CR2",
+          "OR2.1",
+          "OR2.2",
+          "SR3",
+          "CR3",
+          "OR3.1",
+          "OR3.2",
+          "SR4",
+          "CR4",
+          "OR4.1",
+          "OR4.2",
+          "SR5",
+          "CR5",
+          "OR5.1",
+          "OR5.2",
+          "OR5.3"
+        ],
+        "events": [
+          {
+            "at": "OR3.1",
+            "effect": {
+              "type": "note",
+              "text": "El puerto espacial vale 30"
+            }
+          },
+          {
+            "at": "OR4.1",
+            "effect": {
+              "type": "closePrivates"
+            }
+          },
+          {
+            "at": "OR5.1",
+            "effect": {
+              "type": "note",
+              "text": "El puerto espacial vale 40"
+            }
+          }
+        ]
+      },
+      "srOrder": "priorityDeal",
+      "orOrder": {
+        "by": "priceDesc",
+        "ties": [
+          "columnRight",
+          "stackTop"
+        ],
+        "dynamic": true
+      },
+      "limits": {
+        "certificates": {
+          "2": 15,
+          "3": 15,
+          "4": 12,
+          "5": 10
+        },
+        "perCompanyPercent": 50,
+        "perCompanyPercentByPlayers": {
+          "2": 60
+        },
+        "pool": {
+          "maxPercent": 50
+        }
+      },
+      "endTriggers": [
+        {
+          "type": "lastRound"
+        },
+        {
+          "type": "bankruptcy"
+        }
+      ],
+      "customRules": [
+        {
+          "id": "corporateRound",
+          "config": {}
+        },
+        {
+          "id": "forcedWithhold",
+          "config": {}
+        },
+        {
+          "id": "corporateBankruptcy",
+          "config": {
+            "trigger": "closedCell"
+          }
+        },
+        {
+          "id": "privateGrants",
+          "config": {}
+        }
+      ],
+      "chipPreset": [
+        {
+          "value": 500,
+          "color": "#6a1b9a",
+          "label": "500"
+        },
+        {
+          "value": 100,
+          "color": "#212121",
+          "label": "100"
+        },
+        {
+          "value": 50,
+          "color": "#ef6c00",
+          "label": "50"
+        },
+        {
+          "value": 20,
+          "color": "#2e7d32",
+          "label": "20"
+        },
+        {
+          "value": 10,
+          "color": "#1565c0",
+          "label": "10"
+        },
+        {
+          "value": 5,
+          "color": "#c62828",
+          "label": "5"
+        },
+        {
+          "value": 1,
+          "color": "#f5f5f5",
+          "label": "1"
+        }
+      ],
+      "verification": {
+        "bank": "verified",
+        "startingCash": "verified",
+        "companies": "verified",
+        "privates": "verified",
+        "capitalization": "verified",
+        "ipoPrice": "verified",
+        "floatPercent": "verified",
+        "unownedDividends": "verified",
+        "revenueParts": "verified",
+        "rounding": "verified",
+        "market": "verified",
+        "trains": "verified",
+        "phases": "verified",
+        "roundSchedule": "verified",
+        "orOrder": "verified",
+        "limits": "verified",
+        "endTriggers": "verified",
+        "customRules": "verified"
+      }
+    },
+    "options": {
+      "lateCompany": "KR"
+    },
+    "players": [
+      {
+        "id": "p1",
+        "name": "Ana",
+        "aliases": [],
+        "color": "#e53935",
+        "seat": 1
+      },
+      {
+        "id": "p2",
+        "name": "Bruno",
+        "aliases": [],
+        "color": "#1e88e5",
+        "seat": 2
+      },
+      {
+        "id": "p3",
+        "name": "Carla",
+        "aliases": [],
+        "color": "#43a047",
+        "seat": 3
+      },
+      {
+        "id": "p4",
+        "name": "Dani",
+        "aliases": [],
+        "color": "#fdd835",
+        "seat": 4
+      }
+    ],
+    "walletMode": "appTruth",
+    "chipSet": {
+      "chips": [
+        {
+          "value": 500,
+          "color": "#6a1b9a",
+          "label": "500"
+        },
+        {
+          "value": 100,
+          "color": "#212121",
+          "label": "100"
+        },
+        {
+          "value": 50,
+          "color": "#ef6c00",
+          "label": "50"
+        },
+        {
+          "value": 20,
+          "color": "#2e7d32",
+          "label": "20"
+        },
+        {
+          "value": 10,
+          "color": "#1565c0",
+          "label": "10"
+        },
+        {
+          "value": 5,
+          "color": "#c62828",
+          "label": "5"
+        },
+        {
+          "value": 1,
+          "color": "#f5f5f5",
+          "label": "1"
+        }
+      ]
+    }
+  },
+  "entries": [
+    {
+      "kind": "group",
+      "seq": 1,
+      "id": "g1",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "createSession",
+        "players": [
+          {
+            "id": "p1",
+            "name": "Ana",
+            "aliases": [],
+            "color": "#e53935",
+            "seat": 1
+          },
+          {
+            "id": "p2",
+            "name": "Bruno",
+            "aliases": [],
+            "color": "#1e88e5",
+            "seat": 2
+          },
+          {
+            "id": "p3",
+            "name": "Carla",
+            "aliases": [],
+            "color": "#43a047",
+            "seat": 3
+          },
+          {
+            "id": "p4",
+            "name": "Dani",
+            "aliases": [],
+            "color": "#fdd835",
+            "seat": 4
+          }
+        ],
+        "walletMode": "appTruth"
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p1",
+          "amount": 410
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p2",
+          "amount": 410
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p3",
+          "amount": 410
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p4",
+          "amount": 410
+        },
+        {
+          "t": "turnAdvance",
+          "round": "PRIVATES",
+          "scheduleIndex": 0,
+          "phase": "2"
+        }
+      ],
+      "touches": [
+        "money:bank",
+        "money:player:p1",
+        "money:player:p2",
+        "money:player:p3",
+        "money:player:p4",
+        "turn"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 2,
+      "id": "g2",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyPrivate",
+        "buyer": "p1",
+        "private": "P2",
+        "price": 30,
+        "par": null
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "player:p1",
+          "to": "bank",
+          "amount": 30
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "private:P2",
+          "from": "bank",
+          "to": "player:p1"
+        }
+      ],
+      "touches": [
+        "asset:private:P2",
+        "money:bank",
+        "money:player:p1"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 3,
+      "id": "g3",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyPrivate",
+        "buyer": "p2",
+        "private": "P4",
+        "price": 60,
+        "par": null
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "player:p2",
+          "to": "bank",
+          "amount": 60
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "private:P4",
+          "from": "bank",
+          "to": "player:p2"
+        }
+      ],
+      "touches": [
+        "asset:private:P4",
+        "money:bank",
+        "money:player:p2"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 4,
+      "id": "g4",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "startSR"
+      },
+      "events": [
+        {
+          "t": "turnAdvance",
+          "round": "SR",
+          "srNumber": 1,
+          "scheduleIndex": 1,
+          "company": null
+        }
+      ],
+      "touches": [
+        "turn"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 5,
+      "id": "g5",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "parCompany",
+        "player": "p1",
+        "company": "VH",
+        "price": 70
+      },
+      "events": [
+        {
+          "t": "companyStatus",
+          "company": "VH",
+          "status": "parred",
+          "parPrice": 70
+        },
+        {
+          "t": "marketMove",
+          "company": "VH",
+          "to": {
+            "row": 4,
+            "col": 2
+          },
+          "reason": "par"
+        },
+        {
+          "t": "shareTransfer",
+          "company": "VH",
+          "from": "ipo:VH",
+          "to": "player:p1",
+          "units": 2,
+          "presidency": true
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p1",
+          "to": "company:VH",
+          "amount": 140
+        }
+      ],
+      "touches": [
+        "market:VH",
+        "money:company:VH",
+        "money:player:p1",
+        "shares:VH",
+        "status:VH"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 6,
+      "id": "g6",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyShare",
+        "buyer": "player:p2",
+        "company": "VH",
+        "source": "ipo",
+        "count": 1
+      },
+      "events": [
+        {
+          "t": "shareTransfer",
+          "company": "VH",
+          "from": "ipo:VH",
+          "to": "player:p2",
+          "units": 1
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p2",
+          "to": "company:VH",
+          "amount": 70
+        }
+      ],
+      "touches": [
+        "money:company:VH",
+        "money:player:p2",
+        "shares:VH"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 7,
+      "id": "g7",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyShare",
+        "buyer": "player:p3",
+        "company": "VH",
+        "source": "ipo",
+        "count": 1
+      },
+      "events": [
+        {
+          "t": "shareTransfer",
+          "company": "VH",
+          "from": "ipo:VH",
+          "to": "player:p3",
+          "units": 1
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p3",
+          "to": "company:VH",
+          "amount": 70
+        }
+      ],
+      "touches": [
+        "money:company:VH",
+        "money:player:p3",
+        "shares:VH"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 8,
+      "id": "g8",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "parCompany",
+        "player": "p3",
+        "company": "SSF",
+        "price": 80
+      },
+      "events": [
+        {
+          "t": "companyStatus",
+          "company": "SSF",
+          "status": "parred",
+          "parPrice": 80
+        },
+        {
+          "t": "marketMove",
+          "company": "SSF",
+          "to": {
+            "row": 3,
+            "col": 2
+          },
+          "reason": "par"
+        },
+        {
+          "t": "shareTransfer",
+          "company": "SSF",
+          "from": "ipo:SSF",
+          "to": "player:p3",
+          "units": 2,
+          "presidency": true
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p3",
+          "to": "company:SSF",
+          "amount": 160
+        }
+      ],
+      "touches": [
+        "market:SSF",
+        "money:company:SSF",
+        "money:player:p3",
+        "shares:SSF",
+        "status:SSF"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 9,
+      "id": "g9",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyShare",
+        "buyer": "player:p4",
+        "company": "SSF",
+        "source": "ipo",
+        "count": 1
+      },
+      "events": [
+        {
+          "t": "shareTransfer",
+          "company": "SSF",
+          "from": "ipo:SSF",
+          "to": "player:p4",
+          "units": 1
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p4",
+          "to": "company:SSF",
+          "amount": 80
+        }
+      ],
+      "touches": [
+        "money:company:SSF",
+        "money:player:p4",
+        "shares:SSF"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 10,
+      "id": "g10",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyShare",
+        "buyer": "player:p1",
+        "company": "VH",
+        "source": "ipo",
+        "count": 1
+      },
+      "events": [
+        {
+          "t": "shareTransfer",
+          "company": "VH",
+          "from": "ipo:VH",
+          "to": "player:p1",
+          "units": 1
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p1",
+          "to": "company:VH",
+          "amount": 70
+        },
+        {
+          "t": "companyStatus",
+          "company": "VH",
+          "status": "floated"
+        }
+      ],
+      "touches": [
+        "money:company:VH",
+        "money:player:p1",
+        "shares:VH",
+        "status:VH"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 11,
+      "id": "g11",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "endSR"
+      },
+      "events": [],
+      "touches": [],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 12,
+      "id": "g12",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "startOR"
+      },
+      "events": [
+        {
+          "t": "turnAdvance",
+          "round": "OR",
+          "orSet": 1,
+          "orIndex": 1,
+          "orsInSet": 2,
+          "scheduleIndex": 3,
+          "operatingOrder": [
+            "VH"
+          ],
+          "company": "VH"
+        }
+      ],
+      "touches": [
+        "turn"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 13,
+      "id": "g13",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyTrain",
+        "company": "VH",
+        "trainType": "2",
+        "variant": null,
+        "from": "bank",
+        "seller": null,
+        "price": null,
+        "tradeIn": null
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "company:VH",
+          "to": "bank",
+          "amount": 120
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "train:2:1",
+          "from": "bank",
+          "to": "company:VH"
+        }
+      ],
+      "touches": [
+        "asset:train:2:1",
+        "money:bank",
+        "money:company:VH"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 14,
+      "id": "g14",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "runAndPayout",
+        "company": "VH",
+        "parts": [
+          {
+            "part": "local",
+            "amount": 40
+          },
+          {
+            "part": "spacePort",
+            "amount": 20
+          }
+        ],
+        "mode": null
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "company:VH",
+          "amount": 40
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p1",
+          "amount": 6
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p2",
+          "amount": 2
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p3",
+          "amount": 2
+        },
+        {
+          "t": "counterChange",
+          "subject": "company:VH",
+          "key": "runs",
+          "delta": 1
+        }
+      ],
+      "touches": [
+        "counter:company:VH",
+        "money:bank",
+        "money:company:VH",
+        "money:player:p1",
+        "money:player:p2",
+        "money:player:p3"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 15,
+      "id": "g15",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "nextCompany"
+      },
+      "events": [
+        {
+          "t": "turnAdvance",
+          "round": "OR",
+          "orSet": 1,
+          "orIndex": 2,
+          "orsInSet": 2,
+          "scheduleIndex": 4,
+          "operatingOrder": [
+            "VH"
+          ],
+          "company": "VH"
+        }
+      ],
+      "touches": [
+        "turn"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 16,
+      "id": "g16",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyTrain",
+        "company": "SSF",
+        "trainType": "2",
+        "variant": null,
+        "from": "bank",
+        "seller": null,
+        "price": null,
+        "tradeIn": null
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "company:SSF",
+          "to": "bank",
+          "amount": 120
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "train:2:2",
+          "from": "bank",
+          "to": "company:SSF"
+        }
+      ],
+      "touches": [
+        "asset:train:2:2",
+        "money:bank",
+        "money:company:SSF"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 17,
+      "id": "g17",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "runAndPayout",
+        "company": "SSF",
+        "parts": [
+          {
+            "part": "local",
+            "amount": 30
+          },
+          {
+            "part": "spacePort",
+            "amount": 20
+          }
+        ],
+        "mode": null
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "company:SSF",
+          "amount": 30
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p3",
+          "amount": 4
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p4",
+          "amount": 2
+        },
+        {
+          "t": "counterChange",
+          "subject": "company:SSF",
+          "key": "runs",
+          "delta": 1
+        }
+      ],
+      "touches": [
+        "counter:company:SSF",
+        "money:bank",
+        "money:company:SSF",
+        "money:player:p3",
+        "money:player:p4"
+      ],
+      "warnings": [
+        {
+          "code": "notFloated",
+          "messageEs": "La compañía no está flotada.",
+          "severity": "warn"
+        }
+      ]
+    },
+    {
+      "kind": "group",
+      "seq": 18,
+      "id": "g18",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "nextCompany"
+      },
+      "events": [
+        {
+          "t": "counterChange",
+          "subject": "company:VH",
+          "key": "runs",
+          "delta": 1
+        },
+        {
+          "t": "turnAdvance",
+          "company": null
+        }
+      ],
+      "touches": [
+        "counter:company:VH",
+        "turn"
+      ],
+      "warnings": [
+        {
+          "code": "setComplete",
+          "messageEs": "Fin de las rondas de operaciones: empieza la ronda de acciones.",
+          "severity": "info"
+        }
+      ]
+    },
+    {
+      "kind": "group",
+      "seq": 19,
+      "id": "g19",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "startSR"
+      },
+      "events": [
+        {
+          "t": "turnAdvance",
+          "round": "SR",
+          "srNumber": 2,
+          "scheduleIndex": 5,
+          "company": null
+        }
+      ],
+      "touches": [
+        "turn"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 20,
+      "id": "g20",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "startCR"
+      },
+      "events": [
+        {
+          "t": "turnAdvance",
+          "round": "CR",
+          "scheduleIndex": 6,
+          "company": null
+        }
+      ],
+      "touches": [
+        "turn"
+      ],
+      "warnings": []
+    }
+  ],
+  "stateHash": "071315940af153a3d0b155726a36cffac2a16700efc6f3ccc234c260cbc45d52"
+}

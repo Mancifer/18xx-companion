@@ -37,7 +37,8 @@ export class SettingsRepo {
     return merged;
   }
 
-  async set(patch: Partial<Settings>): Promise<Settings> {
+  /** An `undefined` value removes that setting (e.g. clearing the key). */
+  async set(patch: { readonly [K in keyof Settings]?: Settings[K] | undefined }): Promise<Settings> {
     const current = await this.get();
     const next = { ...current, ...patch };
     const tx = this.db.transaction("settings", "readwrite", { durability: "strict" });

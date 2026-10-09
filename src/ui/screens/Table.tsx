@@ -61,14 +61,22 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
     else setTab("companies");
   };
   const { go } = useNav();
-  const [tab, setTab] = useState<"players" | "companies">("players");
+  // FR-100: in stock and corporate rounds the companies are what gets tapped, so a phone opens
+  // on them (and switches when the round changes); tablets show both panes anyway.
+  const round = state.turn.round;
+  const tabFor = (r: typeof round) => (r === "SR" || r === "CR" ? "companies" : "players");
+  const [tab, setTab] = useState<"players" | "companies">(tabFor(round));
+  const [tabRound, setTabRound] = useState(round);
+  if (tabRound !== round) {
+    setTabRound(round);
+    setTab(tabFor(round));
+  }
   const [open, setOpen] = useState<Open>(null);
   useWakeLock(true);
 
   const close = () => setOpen(null);
   const players = [...meta.players].sort((a, b) => a.seat - b.seat);
   const companyName = (id: CompanyId) => meta.game.companies.find((c) => c.id === id)?.shortName ?? id;
-  const round = state.turn.round;
   const companyView = round === "OR" ? "operate" : "stock";
   const hasCR = isEnabled(meta.game, "corporateRound");
   const current = state.turn.currentCompany;

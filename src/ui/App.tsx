@@ -8,22 +8,10 @@ import { History } from "./screens/History";
 import { Market } from "./screens/Market";
 import { Home } from "./screens/Home";
 import { NewSession } from "./screens/NewSession";
+import { Settings } from "./screens/Settings";
 import { Table } from "./screens/Table";
 
-function Placeholder({ title, onBack }: { title: string; onBack: () => void }) {
-  return (
-    <main className="screen">
-      <header className="topbar">
-        <button className="ghost" aria-label="Volver" onClick={onBack}>
-          ←
-        </button>
-        <h1 className="topbar-center">{title}</h1>
-      </header>
-    </main>
-  );
-}
-
-function Screens({ screen, go }: { screen: Screen; go: (s: Screen) => void }): ReactNode {
+function Screens({ screen }: { screen: Screen }): ReactNode {
   const hasSession = useHasSession();
   const needsSession = screen.name === "table" || screen.name === "history" || screen.name === "market";
   if (needsSession && !hasSession) return <Home />;
@@ -41,7 +29,7 @@ function Screens({ screen, go }: { screen: Screen; go: (s: Screen) => void }): R
     case "market":
       return <Market />;
     case "settings":
-      return <Placeholder title="Ajustes" onBack={() => go({ name: hasSession ? "table" : "home" })} />;
+      return <Settings />;
   }
 }
 
@@ -92,7 +80,7 @@ export function App({ dbName, voiceDeps = defaultVoiceDeps }: { dbName?: string;
             setScreen({ name: "home" });
           }}
         >
-          <Screens screen={screen} go={setScreen} />
+          <Screens screen={screen} />
         </ErrorBoundary>
       </NavContext.Provider>
       </VoiceDepsContext.Provider>

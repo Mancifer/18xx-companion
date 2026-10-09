@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
+import { privateResaleOpen } from "../../domain/actions/expand/stock";
 import { holderName } from "../../domain/i18n/es";
 import { formatMoney } from "../../domain/i18n/format";
 import { parPricesFor } from "../../domain/mechanics/market";
@@ -7,8 +8,9 @@ import { Keypad } from "../components/Keypad";
 import { Sheet } from "../components/Sheet";
 
 /**
- * Private purchases by players (US4): the initial sale (PRIVATES round) and later deals, at the
- * price actually paid. A private that grants a presidency asks for the par price (1830 BO).
+ * Private purchases by players (US4): the initial sale (PRIVATES round) and, where the game allows
+ * it, later deals between players (privateResaleOpen), at the price actually paid. A private that
+ * grants a presidency asks for the par price (1830 BO).
  */
 export function PrivatesSheet({ onClose }: { onClose: () => void }) {
   const { meta, state } = useSession();
@@ -17,7 +19,11 @@ export function PrivatesSheet({ onClose }: { onClose: () => void }) {
   const [buyer, setBuyer] = useState<string | null>(null);
   const [price, setPrice] = useState<number | null>(null);
   const [par, setPar] = useState<number | null>(null);
-  const open = meta.game.privates.filter((p) => state.assets[`private:${p.id}`] !== "removed");
+  const resale = privateResaleOpen(meta.game, state);
+  const open = meta.game.privates.filter((p) => {
+    const holder = state.assets[`private:${p.id}`] ?? "bank";
+    return holder !== "removed" && (holder === "bank" || resale);
+  });
   const def = meta.game.privates.find((p) => p.id === chosen);
   const ownerPar = def?.grants?.find((g) => g.par === "ownerChooses");
 

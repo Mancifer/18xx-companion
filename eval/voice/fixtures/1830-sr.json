@@ -505,6 +505,7 @@
           ]
         }
       ],
+      "privateTrading": "players",
       "capitalization": {
         "type": "full",
         "timing": "endOfSR"
@@ -1248,6 +1249,7 @@
         }
       ],
       "verification": {
+        "privateTrading": "verified",
         "bank": "verified",
         "startingCash": "verified",
         "companies": "verified",

@@ -82,6 +82,8 @@ export const g21moon: GameDefinition = {
       closesOn: [{ type: "exchanged" }, closesAtOR41] },
   ],
   // §9.2, §10.1.2: IPO purchases and issues pay the company at the current market price.
+  /** Only corporations buy privates from players; players never trade them. */
+  privateTrading: "none",
   capitalization: { type: "incremental" },
   ipoPrice: "market",
   floatPercent: 50,
@@ -174,6 +176,7 @@ export const g21moon: GameDefinition = {
     { value: 1, color: "#f5f5f5", label: "1" },
   ],
   verification: {
+    privateTrading: "verified",
     bank: "verified",
     startingCash: "verified",
     companies: "verified",

@@ -87,6 +87,8 @@ export const g1848: GameDefinition = {
       grants: [{ company: "CAR", units: 2, presidency: true, source: "ipo", par: 100 }],
       closesOn: [closesOnFirst5, { type: "companyBuysTrain", company: "CAR" }] },
   ],
+  /** §4.1: privates are never traded between players. */
+  privateTrading: "none",
   capitalization: { type: "full", timing: "onFloat" },
   ipoPrice: "par",
   floatPercent: 60,
@@ -194,6 +196,7 @@ export const g1848: GameDefinition = {
     { value: 1, color: "#f5f5f5", label: "1" },
   ],
   verification: {
+    privateTrading: "verified",
     bank: "verified",
     initialTreasuries: "verified",
     startingCash: "verified",

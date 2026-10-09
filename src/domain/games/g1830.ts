@@ -93,6 +93,8 @@ export const g1830: GameDefinition = {
       grants: [{ company: "B&O", units: 2, presidency: true, source: "ipo", par: "ownerChooses" }],
       closesOn: [closesOnFirst5, { type: "companyBuysTrain", company: "B&O" }] },
   ],
+  /** §4.1: players may trade privates in any SR but the first. */
+  privateTrading: "players",
   capitalization: { type: "full", timing: "endOfSR" },
   ipoPrice: "par",
   floatPercent: 60,
@@ -165,6 +167,7 @@ export const g1830: GameDefinition = {
     { value: 1, color: "#f5f5f5", label: "1" },
   ],
   verification: {
+    privateTrading: "verified",
     bank: "verified",
     startingCash: "verified",
     companies: "verified",

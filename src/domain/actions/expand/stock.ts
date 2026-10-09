@@ -2,6 +2,7 @@ import { reduceAll } from "../../events/reduce";
 import { hasOperated, unitsOf, type SessionState } from "../../events/state";
 import type { PrimitiveEvent } from "../../events/types";
 import type { GameDefinition } from "../../games/schema";
+import { holderName } from "../../i18n/es";
 import { formatMoney } from "../../i18n/format";
 import { hooksOf, isEnabled } from "../../mechanics/custom";
 import { moveTarget, parCellFor, parPricesFor, priceOf } from "../../mechanics/market";
@@ -16,6 +17,15 @@ import { payWarnings } from "./manual";
 type BuyShare = ActionOf<"buyShare">;
 type SellShares = ActionOf<"sellShares">;
 type ParCompany = ActionOf<"parCompany">;
+
+/**
+ * Whether a private can change hands between players right now: only when the game allows it
+ * (privateTrading, default "players") and in a stock round other than the first (1830 §4.1).
+ */
+export function privateResaleOpen(game: GameDefinition, state: SessionState): boolean {
+  if ((game.privateTrading ?? "players") === "none") return false;
+  return state.turn.round === "SR" && state.turn.srNumber >= 2;
+}
 
 const def = (game: GameDefinition, company: CompanyId) => game.companies.find((c) => c.id === company);
 
@@ -239,6 +249,14 @@ export const stockHandlers: HandlerMap = {
       if (!holder) return unavailable(`Privada desconocida: ${a.private}`);
       if (holder === "removed") return unavailable("Esa privada está cerrada");
       if (holder === `player:${a.buyer}`) return unavailable("Ya es suya");
+      if (holder !== "bank" && !privateResaleOpen(ctx.game, ctx.state)) {
+        const owner = holderName(holder, ctx.game, ctx.players);
+        return unavailable(
+          ctx.game.privateTrading === "none"
+            ? `La ${a.private} ya es de ${owner}; en ${ctx.game.name} las privadas no se traspasan`
+            : `La ${a.private} ya es de ${owner}; solo se traspasa en una ronda de acciones a partir de la segunda`,
+        );
+      }
       return AVAILABLE;
     },
     validate: (ctx, a) => {

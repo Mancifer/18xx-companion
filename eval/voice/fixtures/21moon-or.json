@@ -450,6 +450,7 @@
           ]
         }
       ],
+      "privateTrading": "none",
       "capitalization": {
         "type": "incremental"
       },
@@ -1144,6 +1145,7 @@
         }
       ],
       "verification": {
+        "privateTrading": "verified",
         "bank": "verified",
         "startingCash": "verified",
         "companies": "verified",

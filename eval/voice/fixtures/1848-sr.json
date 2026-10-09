@@ -479,6 +479,7 @@
           ]
         }
       ],
+      "privateTrading": "none",
       "capitalization": {
         "type": "full",
         "timing": "onFloat"
@@ -1164,6 +1165,7 @@
         }
       ],
       "verification": {
+        "privateTrading": "verified",
         "bank": "verified",
         "initialTreasuries": "verified",
         "startingCash": "verified",

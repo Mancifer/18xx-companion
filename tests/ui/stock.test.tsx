@@ -102,3 +102,16 @@ describe("BatchSheet (US4-5)", () => {
     expect(cashText("p4")).toBe("$520");
   });
 });
+
+describe("PrivatesSheet (bug private-company-ownership)", () => {
+  it("1848 does not offer a private a player already owns", async () => {
+    const { user } = await openSeededTable({
+      game: "1848",
+      actions: [{ type: "buyPrivate", buyer: "p1", private: "P1", price: 30, par: null }],
+    });
+    await user.click(screen.getByRole("button", { name: "Comprar privada" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByRole("button", { name: /Melbourne/ })).toBeNull();
+    expect(within(dialog).getByRole("button", { name: /Oodnadatta/ })).toBeTruthy();
+  });
+});

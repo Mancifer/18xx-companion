@@ -234,6 +234,11 @@ export const GameDefinitionSchema = z.object({
   startingCash: z.record(z.string(), posInt),
   companies: z.array(CompanyDefSchema).min(1),
   privates: z.array(PrivateDefSchema),
+  /**
+   * Whether players may sell privates to each other: "players" in stock rounds after the first
+   * (1830 §4.1, the default) or "none" (1848 §4.1, 21Moon). The Bank's initial sale is unaffected.
+   */
+  privateTrading: z.enum(["none", "players"]).optional(),
   capitalization: z.discriminatedUnion("type", [
     z.object({ type: z.literal("full"), timing: z.enum(["onFloat", "endOfSR"]) }),
     z.object({ type: z.literal("incremental") }),

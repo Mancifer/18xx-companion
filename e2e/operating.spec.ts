@@ -14,9 +14,8 @@ test("quickstart 3: PRR pays 240 with Ana 60%, Bruno 20%, pool 20% (US3-1)", asy
   await trade(page, "PRR", "Vender Dani", 2);
   await expect(page.getByTestId("price-PRR")).toHaveText("$82");
 
-  await page.getByRole("button", { name: "Fin de ronda de acciones" }).click();
-  await expect(page.getByTestId("treasury-PRR")).toHaveText("$1.000");
   await page.getByRole("button", { name: "Empezar OR" }).click();
+  await expect(page.getByTestId("treasury-PRR")).toHaveText("$1.000");
 
   const operate = await openCompany(page, "PRR");
   await typeAmount(page, 240);
@@ -89,7 +88,6 @@ test("the operating turn: no Siguiente, a no-run company, an out-of-turn action 
     await trade(page, company, `IPO ${president}`, 2);
     await trade(page, company, other, 2);
   }
-  await page.getByRole("button", { name: "Fin de ronda de acciones" }).click();
   await page.getByRole("button", { name: "Empezar OR" }).click();
 
   await expect(page.getByRole("button", { name: "Siguiente" })).toHaveCount(0);

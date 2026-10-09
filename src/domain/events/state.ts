@@ -33,6 +33,8 @@ export interface TurnState {
   readonly loansThisOR: Readonly<Record<CompanyId, number>>;
   /** Derived: companies with a recorded run in this OR. */
   readonly operatedThisOR: readonly CompanyId[];
+  /** Derived: the current round's end step has been applied. */
+  readonly roundEnded?: true;
 }
 
 export interface SessionState {

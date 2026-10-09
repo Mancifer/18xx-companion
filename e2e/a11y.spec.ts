@@ -61,7 +61,6 @@ test("FR-101 tap targets and company names on the main screens", async ({ page }
   await trade(page, "NYC", "IPO Bruno", 3);
   await trade(page, "NYC", "IPO Carla", 1);
 
-  await page.getByRole("button", { name: "Fin de ronda de acciones" }).click();
   await page.getByRole("button", { name: "Empezar OR" }).click();
   await showCompanies(page);
   await audit(page, info, "table-or");

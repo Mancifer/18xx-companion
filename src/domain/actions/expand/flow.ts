@@ -1,9 +1,8 @@
 import { reduceAll } from "../../events/reduce";
 import type { PrimitiveEvent } from "../../events/types";
-import { pendingCapitalEvents } from "../../mechanics/capitalization";
 import { nextToOperate, operatingOrder } from "../../mechanics/operatingOrder";
 import { phaseIndex } from "../../mechanics/phases";
-import { endOfRoundMoves } from "../../mechanics/roundEnd";
+import { roundEndEvents } from "../../mechanics/roundEnd";
 import { slotIndex, startOREvents } from "../../mechanics/schedule";
 import { AVAILABLE, unavailable, warning, type ActionContext, type ActionHandler, type HandlerMap } from "../context";
 import type { Warning } from "../schemas";
@@ -45,26 +44,41 @@ function nextCompanyEvents(ctx: ActionContext): { events: PrimitiveEvent[]; setC
 }
 
 export const flowHandlers: HandlerMap = {
+  /** The end step of the round being left (feature 003), then the next SR. */
   startSR: {
     expand: (ctx) => {
       const srNumber = ctx.state.turn.srNumber + 1;
       const scheduleIndex = slotIndex(ctx.game, `SR${srNumber}`);
-      return [{ t: "turnAdvance", round: "SR", srNumber, ...(scheduleIndex !== undefined ? { scheduleIndex } : {}), company: null }];
+      return [
+        ...roundEndEvents(ctx.game, ctx.state),
+        { t: "turnAdvance", round: "SR", srNumber, ...(scheduleIndex !== undefined ? { scheduleIndex } : {}), company: null },
+      ];
     },
   },
 
-  /** Capital of companies floated during the SR (1830 §6.3), then sold-out moves (§5.5). */
+  /** Voice only: the SR end step (1830 §6.3, §5.5), at most once per SR (feature 003). */
   endSR: {
-    expand: (ctx) => [...pendingCapitalEvents(ctx.game, ctx.state), ...endOfRoundMoves(ctx.game, ctx.state, "endSR")],
+    available: (ctx) => {
+      if (ctx.state.turn.round !== "SR") return unavailable("Solo en la ronda de acciones");
+      if (ctx.state.turn.roundEnded) return unavailable("Ya se aplicó el fin de la ronda de acciones");
+      return AVAILABLE;
+    },
+    expand: (ctx) => roundEndEvents(ctx.game, ctx.state),
   },
 
-  /** The next OR in the set, or a new set: scheduled events, order and the first company. */
+  /**
+   * The end step of the round being left (feature 003), then the next OR in the set, or a new
+   * set: scheduled events, order and the first company, from the prices after the end step.
+   */
   startOR: {
     validate: (ctx) =>
       ctx.state.turn.round === "OR" && ctx.state.turn.orIndex >= ctx.state.turn.orsInSet
         ? [warning("newSet", "Las ORs de este set ya se jugaron: empieza un set nuevo sin ronda de acciones.", "info")]
         : [],
-    expand: (ctx) => startOREvents(ctx.game, ctx.state),
+    expand: (ctx) => {
+      const end = roundEndEvents(ctx.game, ctx.state);
+      return [...end, ...startOREvents(ctx.game, reduceAll(ctx.state, end))];
+    },
   },
 
   nextCompany: {

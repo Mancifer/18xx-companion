@@ -54,6 +54,8 @@ export type PrimitiveEvent =
       readonly operatingOrder?: readonly CompanyId[];
       readonly company?: CompanyId | null;
       readonly phase?: string;
+      /** This round's end step was applied (marker). */
+      readonly roundEnd?: "SR" | "CR";
     }
   /** Standard keys: debt, eastWestTokens, runs, bankrupt, nationalTakeovers. */
   | { readonly t: "counterChange"; readonly subject: HolderRef; readonly key: string; readonly delta: number }

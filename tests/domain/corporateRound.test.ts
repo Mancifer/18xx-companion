@@ -96,6 +96,75 @@ describe("corporate round (§10)", () => {
       seedCompany(s, "SSF", { cell: { row: 4, col: 5 }, holders: { "player:p2": 10 } }); // 100
       s.do({ type: "endCR" });
       expect(eventsOf(s.lastEvents, "marketMove").map((e) => e.company)).toEqual(["SSF", "VH"]);
+      expect(s.lastEvents.at(-1)).toEqual({ t: "turnAdvance", roundEnd: "CR" });
+    });
+
+    it("a second endCR is not available (feature 003)", () => {
+      const s = cr().do({ type: "endCR" });
+      expect(s.tryDo({ type: "endCR" })).toMatchObject({
+        kind: "unavailable",
+        reasonEs: "Ya se aplicó el fin de la ronda corporativa",
+      });
+    });
+
+    it("endCR is only available in the CR (feature 003)", () => {
+      const s = TestSession.start(g21, players).do({ type: "startSR" });
+      expect(s.tryDo({ type: "endCR" })).toMatchObject({ kind: "unavailable", reasonEs: "Solo en la ronda corporativa" });
+    });
+  });
+
+  describe("round transitions (feature 003, US4)", () => {
+    const moves = (s: TestSession) => eventsOf(s.lastEvents, "marketMove");
+    const markerAt = (s: TestSession, roundEnd: "SR" | "CR") =>
+      s.lastEvents.findIndex((e) => e.t === "turnAdvance" && e.roundEnd === roundEnd);
+    const roundAt = (s: TestSession, round: string) => s.lastEvents.findIndex((e) => e.t === "turnAdvance" && e.round === round);
+
+    it("startOR from the CR applies the pool penalty, then the CR marker, then the OR start", () => {
+      const s = cr().do({ type: "issueShares", company: "VH", count: 1 }); // row 5
+      s.apply({ t: "counterChange", subject: "company:VH", key: "runs", delta: 1 });
+      s.do({ type: "startOR" });
+      expect(moves(s)).toEqual([{ t: "marketMove", company: "VH", to: { row: 6, col: 3 }, reason: "poolPenalty" }]);
+      const penalty = s.lastEvents.findIndex((e) => e.t === "marketMove");
+      expect(penalty).toBeLessThan(markerAt(s, "CR"));
+      expect(markerAt(s, "CR")).toBeLessThan(roundAt(s, "OR"));
+      expect(s.state.companies["VH"]!.position).toEqual({ row: 6, col: 3 });
+    });
+
+    it("startOR from the CR moves a company held 100% by players and companies up 1", () => {
+      const s = TestSession.start(g21, players).do({ type: "startSR" }).do({ type: "startCR" });
+      seedCompany(s, "VH", { cell: { row: 4, col: 3 }, holders: { "player:p1": 6, "company:SSF": 4 } });
+      s.do({ type: "startOR" });
+      expect(moves(s)).toEqual([{ t: "marketMove", company: "VH", to: { row: 3, col: 3 }, reason: "soldOut" }]);
+    });
+
+    it("startCR closes the SR: the SR marker first, then the CR, with no market move", () => {
+      const s = TestSession.start(g21, players).do({ type: "startSR" });
+      seedCompany(s, "VH", { cell: { row: 4, col: 3 }, holders: { "player:p1": 6, "player:p2": 4 } });
+      s.do({ type: "startCR" });
+      expect(s.lastEvents[0]).toEqual({ t: "turnAdvance", roundEnd: "SR" });
+      expect(s.lastEvents[1]).toMatchObject({ t: "turnAdvance", round: "CR" });
+      expect(moves(s)).toEqual([]);
+      expect(s.state.turn.roundEnded).toBeUndefined();
+    });
+
+    it("SR → OR directly skips the CR end step (FR-011)", () => {
+      const s = TestSession.start(g21, players).do({ type: "startSR" });
+      seedCompany(s, "VH", { cell: { row: 4, col: 3 }, holders: { "player:p1": 6, "player:p2": 4 } });
+      seedCompany(s, "SSF", { cell: { row: 3, col: 2 }, holders: { "player:p3": 2, pool: 2 } });
+      s.apply({ t: "counterChange", subject: "company:SSF", key: "runs", delta: 1 });
+      s.do({ type: "startOR" });
+      expect(moves(s).filter((e) => e.reason === "soldOut" || e.reason === "poolPenalty")).toEqual([]);
+      expect(markerAt(s, "SR")).toBe(0);
+      expect(markerAt(s, "CR")).toBe(-1);
+    });
+
+    it("startSR from the CR applies the CR end step first", () => {
+      const s = TestSession.start(g21, players).do({ type: "startSR" }).do({ type: "startCR" });
+      seedCompany(s, "VH", { cell: { row: 4, col: 3 }, holders: { "player:p1": 6, "company:SSF": 4 } });
+      s.do({ type: "startSR" });
+      expect(moves(s)).toEqual([{ t: "marketMove", company: "VH", to: { row: 3, col: 3 }, reason: "soldOut" }]);
+      expect(markerAt(s, "CR")).toBeGreaterThan(0);
+      expect(markerAt(s, "CR")).toBeLessThan(roundAt(s, "SR"));
     });
   });
 });

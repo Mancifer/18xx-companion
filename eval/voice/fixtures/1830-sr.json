@@ -1954,6 +1954,10 @@
           "company": "NYC",
           "status": "floated",
           "capitalPending": false
+        },
+        {
+          "t": "turnAdvance",
+          "roundEnd": "SR"
         }
       ],
       "touches": [
@@ -1961,7 +1965,8 @@
         "money:company:NYC",
         "money:company:PRR",
         "status:NYC",
-        "status:PRR"
+        "status:PRR",
+        "turn"
       ],
       "warnings": []
     },

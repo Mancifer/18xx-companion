@@ -23,7 +23,6 @@ async function floatPrr(page: Page) {
   await parSheet.getByRole("button", { name: "$100", exact: true }).click();
   await parSheet.getByRole("button", { name: "Ana", exact: true }).click();
   await trade(page, "PRR", "IPO Ana", 4);
-  await page.getByRole("button", { name: "Fin de ronda de acciones" }).click();
   await page.getByRole("button", { name: "Empezar OR" }).click();
 }
 

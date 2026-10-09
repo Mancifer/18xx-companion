@@ -2,6 +2,7 @@ import { hasOperated, holdersOf, type SessionState } from "../events/state";
 import type { PrimitiveEvent } from "../events/types";
 import type { GameDefinition } from "../games/schema";
 import { parseHolder, type CompanyId } from "../types";
+import { pendingCapitalEvents } from "./capitalization";
 import { moveTarget, priceOf } from "./market";
 
 const MOVING = new Set(["parred", "floated", "receivership"]);
@@ -49,4 +50,27 @@ export function endOfRoundMoves(game: GameDefinition, state: SessionState, at: "
     }
   }
   return events;
+}
+
+/**
+ * The end step of the current round (feature 003, data-model §3), applied at most once per round:
+ * - SR: the capital of companies floated during the SR (1830 §6.3), then the sold-out moves
+ *   (1830 §5.5, 1848 §12.6.1), then the `roundEnd: "SR"` marker.
+ * - CR: the sold-out moves and pool penalty (21Moon §10.3), then the `roundEnd: "CR"` marker.
+ * - OR, PRIVATES, or a round whose end step was already applied: nothing.
+ */
+export function roundEndEvents(game: GameDefinition, state: SessionState): PrimitiveEvent[] {
+  if (state.turn.roundEnded) return [];
+  switch (state.turn.round) {
+    case "SR":
+      return [
+        ...pendingCapitalEvents(game, state),
+        ...endOfRoundMoves(game, state, "endSR"),
+        { t: "turnAdvance", roundEnd: "SR" },
+      ];
+    case "CR":
+      return [...endOfRoundMoves(game, state, "endCR"), { t: "turnAdvance", roundEnd: "CR" }];
+    default:
+      return [];
+  }
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { reduce, reduceAll } from "../../src/domain/events/reduce";
 import { initialState, cashOf, unitsOf, presidencyHolder } from "../../src/domain/events/state";
 import type { PrimitiveEvent } from "../../src/domain/events/types";
+import { PrimitiveEventSchema } from "../../src/domain/events/schema";
 import { miniGame, miniPlayers } from "../helpers/miniGame";
 
 const base = () => initialState(miniGame, miniPlayers);
@@ -196,5 +197,85 @@ describe("purity", () => {
     const b = reduceAll(s0, events);
     expect(a).toEqual(b);
     expect(JSON.stringify(s0)).toBe(snapshot);
+  });
+});
+
+describe("round end marker (feature 003, data-model §1–§2)", () => {
+  it("the schema accepts roundEnd SR and CR and rejects OR", () => {
+    expect(PrimitiveEventSchema.safeParse({ t: "turnAdvance", roundEnd: "SR" }).success).toBe(true);
+    expect(PrimitiveEventSchema.safeParse({ t: "turnAdvance", roundEnd: "CR" }).success).toBe(true);
+    expect(PrimitiveEventSchema.safeParse({ t: "turnAdvance", roundEnd: "OR" }).success).toBe(false);
+  });
+
+  it("is absent in the initial state", () => {
+    expect(base().turn.roundEnded).toBeUndefined();
+  });
+
+  it("the marker sets roundEnded and leaves the other turn fields unchanged", () => {
+    const before = reduce(base(), { t: "turnAdvance", round: "SR", srNumber: 1 });
+    const after = reduce(before, { t: "turnAdvance", roundEnd: "SR" });
+    expect(after.turn.roundEnded).toBe(true);
+    const { roundEnded: _r, ...rest } = after.turn;
+    expect(rest).toEqual(before.turn);
+  });
+
+  it.each([
+    ["round", { round: "OR" }],
+    ["srNumber", { srNumber: 2 }],
+    ["orSet", { orSet: 2 }],
+    ["orIndex", { orIndex: 2 }],
+  ] as const)("a turnAdvance that changes %s clears roundEnded", (_field, change) => {
+    let s = reduceAll(base(), [
+      { t: "turnAdvance", round: "SR", srNumber: 1, orSet: 1, orIndex: 1 },
+      { t: "turnAdvance", roundEnd: "SR" },
+    ]);
+    s = reduce(s, { t: "turnAdvance", ...change });
+    expect("roundEnded" in s.turn).toBe(false);
+  });
+
+  it("a turnAdvance that only changes company or phase keeps roundEnded", () => {
+    let s = reduceAll(base(), [
+      { t: "turnAdvance", round: "SR", srNumber: 1 },
+      { t: "turnAdvance", roundEnd: "SR" },
+    ]);
+    s = reduce(s, { t: "turnAdvance", company: "AA" });
+    s = reduce(s, { t: "turnAdvance", phase: "3" });
+    s = reduce(s, { t: "turnAdvance", company: null });
+    expect(s.turn.roundEnded).toBe(true);
+  });
+
+  it.each(["soldOut", "poolPenalty"] as const)("a %s market move sets roundEnded (legacy inference)", (reason) => {
+    const s = reduce(reduce(base(), { t: "turnAdvance", round: "SR", srNumber: 1 }), {
+      t: "marketMove",
+      company: "AA",
+      to: { row: 0, col: 0 },
+      reason,
+    });
+    expect(s.turn.roundEnded).toBe(true);
+  });
+
+  it.each(["sell", "manual", "payout"] as const)("a %s market move does not set roundEnded", (reason) => {
+    const s = reduce(reduce(base(), { t: "turnAdvance", round: "SR", srNumber: 1 }), {
+      t: "marketMove",
+      company: "AA",
+      to: { row: 0, col: 0 },
+      reason,
+    });
+    expect(s.turn.roundEnded).toBeUndefined();
+  });
+
+  it("a companyStatus with capitalPending false sets roundEnded (legacy inference)", () => {
+    const s = reduce(reduce(base(), { t: "turnAdvance", round: "SR", srNumber: 1 }), {
+      t: "companyStatus",
+      company: "AA",
+      status: "floated",
+      capitalPending: false,
+    });
+    expect(s.turn.roundEnded).toBe(true);
+  });
+
+  it("a companyStatus without capitalPending false does not set it", () => {
+    const s = reduce(base(), { t: "companyStatus", company: "AA", status: "floated", capitalPending: true });
+    expect(s.turn.roundEnded).toBeUndefined();
   });
 });

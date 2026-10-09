@@ -217,8 +217,6 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
           <button onClick={() => setOpen({ kind: "privates" })}>Comprar privada</button>
         ) : null}
         {round === "SR" ? <button onClick={() => setOpen({ kind: "batch" })}>Lote de acciones</button> : null}
-        {round === "SR" ? <button onClick={() => void dispatch({ type: "endSR" })}>Fin de ronda de acciones</button> : null}
-        {round === "CR" ? <button onClick={() => void dispatch({ type: "endCR" })}>Fin de ronda corporativa</button> : null}
         {round !== "SR" ? (
           <button className={round === "OR" && !current ? "primary" : undefined} onClick={() => void dispatch({ type: "startSR" })}>
             Empezar ronda de acciones

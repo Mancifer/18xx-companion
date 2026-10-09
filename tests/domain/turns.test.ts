@@ -33,6 +33,22 @@ describe("round labels", () => {
 });
 
 describe("startOR and nextCompany (US7-1, US7-2)", () => {
+  it("startOR from the SR sets the operating order from the prices after the sold-out moves (feature 003, R4)", () => {
+    const s = start("1830").do({ type: "startSR" });
+    seedCompany(s, "PRR", { cell: { row: 1, col: 7 }, holders: { "player:p1": 6, "player:p3": 4 } }); // 100, sold out → 112
+    seedCompany(s, "NYC", { cell: { row: 2, col: 9 }, holders: { "player:p2": 6 } }); // 111
+    s.do({ type: "startOR" });
+    expect(s.state.turn.operatingOrder).toEqual(["PRR", "NYC"]);
+    expect(s.state.turn.currentCompany).toBe("PRR");
+  });
+
+  it("startOR from an SR with nothing owed and nothing sold out adds only the marker", () => {
+    const s = withTwo().do({ type: "startOR" });
+    expect(eventsOf(s.lastEvents, "moneyTransfer")).toEqual([]);
+    expect(eventsOf(s.lastEvents, "marketMove")).toEqual([]);
+    expect(s.lastEvents[0]).toEqual({ t: "turnAdvance", roundEnd: "SR" });
+  });
+
   it("startOR shows OR n.1, sets the order and the first company, and private income is offered", () => {
     const s = withTwo().do({ type: "startOR" });
     expect(roundLabel(s.state.turn)).toBe("OR 1.1");
@@ -135,6 +151,7 @@ describe("21Moon fixed schedule (§3, §11)", () => {
     const s = start("21moon");
     seedCompany(s, "VH", { cell: { row: 4, col: 3 }, holders: { "player:p1": 6 } });
     s.do({ type: "startSR" }).do({ type: "startCR" }).do({ type: "startOR" });
+    expect(s.lastEvents).toContainEqual({ t: "turnAdvance", roundEnd: "CR" });
     expect(s.state.turn).toMatchObject({ round: "OR", orSet: 1, orIndex: 1, orsInSet: 2 });
     expect(s.game.roundSchedule.type === "fixed" && s.game.roundSchedule.sequence[s.state.turn.scheduleIndex ?? -1]).toBe(
       "OR1.1",
@@ -199,5 +216,55 @@ describe("manual overrides (FR-024, US7-3)", () => {
 
   it("setPhase to an unknown phase is not available", () => {
     expect(withTwo().tryDo({ type: "setPhase", phase: "9" }).kind).toBe("unavailable");
+  });
+});
+
+describe("no end step (feature 003, US5)", () => {
+  const markers = (s: TestSession) => s.lastEvents.filter((e) => e.t === "turnAdvance" && e.roundEnd !== undefined);
+  const endMoves = (s: TestSession) =>
+    eventsOf(s.lastEvents, "marketMove").filter((e) => e.reason === "soldOut" || e.reason === "poolPenalty");
+  /** An 1830 OR with PRR sold out to players. */
+  const orSoldOut = () => {
+    const s = start("1830").do({ type: "startSR" }).do({ type: "startOR" });
+    seedCompany(s, "PRR", { cell: { row: 2, col: 6 }, holders: { "player:p1": 6, "player:p2": 4 } });
+    return s;
+  };
+
+  it("leaving the private auction applies nothing", () => {
+    const sr = start("1830").do({ type: "startSR" });
+    expect(markers(sr)).toEqual([]);
+    const or = start("1830").do({ type: "startOR" });
+    expect(markers(or)).toEqual([]);
+  });
+
+  it("leaving an OR applies nothing, even with a sold-out company", () => {
+    const toSR = orSoldOut().do({ type: "startSR" });
+    expect(markers(toSR)).toEqual([]);
+    expect(endMoves(toSR)).toEqual([]);
+    const toOR = orSoldOut().do({ type: "startOR" });
+    expect(markers(toOR)).toEqual([]);
+    expect(endMoves(toOR)).toEqual([]);
+  });
+
+  it("nextCompany starting the next OR in the set applies nothing", () => {
+    const s = start("21moon");
+    seedCompany(s, "VH", { cell: { row: 4, col: 3 }, holders: { "player:p1": 6 } });
+    s.do({ type: "startSR" }).do({ type: "startCR" }).do({ type: "startOR" });
+    s.do(next);
+    expect(roundLabel(s.state.turn)).toBe("OR 1.2");
+    expect(markers(s)).toEqual([]);
+  });
+
+  it("setTurn from the SR to an OR applies nothing and leaves the round not ended (FR-012)", () => {
+    const s = start("1830")
+      .do({ type: "startSR" })
+      .do({ type: "parCompany", player: "p1", company: "NYC", price: 82 })
+      .do({ type: "buyShare", buyer: "player:p2", company: "NYC", source: "ipo", count: 2 })
+      .do({ type: "buyShare", buyer: "player:p3", company: "NYC", source: "ipo", count: 2 });
+    seedCompany(s, "PRR", { cell: { row: 2, col: 6 }, holders: { "player:p1": 6, "player:p2": 4 } });
+    s.do({ type: "setTurn", round: "OR", srNumber: null, orSet: 1, orIndex: 1, orsInSet: 1, company: null });
+    expect(eventsOf(s.lastEvents, "marketMove")).toEqual([]);
+    expect(eventsOf(s.lastEvents, "moneyTransfer")).toEqual([]);
+    expect(s.state.turn.roundEnded).toBeUndefined();
   });
 });

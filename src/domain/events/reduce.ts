@@ -42,14 +42,16 @@ export function reduce(state: SessionState, event: PrimitiveEvent): SessionState
     case "marketMove": {
       const current = state.companies[event.company];
       if (!current) return state;
+      // Only an end step produces these moves, so they also mark the round as ended (research R2).
+      const ended = event.reason === "soldOut" || event.reason === "poolPenalty" ? withRoundEnded(state) : state;
       if (cellEquals(current.position, event.to)) {
-        return withCompany(state, event.company, { ...current, position: event.to });
+        return withCompany(ended, event.company, { ...current, position: event.to });
       }
       let maxStack = -1;
       for (const [id, c] of Object.entries(state.companies)) {
         if (id !== event.company && cellEquals(c.position, event.to)) maxStack = Math.max(maxStack, c.stackOrder);
       }
-      return withCompany(state, event.company, {
+      return withCompany(ended, event.company, {
         ...current,
         position: event.to,
         stackOrder: maxStack + 1,
@@ -66,7 +68,8 @@ export function reduce(state: SessionState, event: PrimitiveEvent): SessionState
         ...(event.floatConfirmed !== undefined ? { floatConfirmed: event.floatConfirmed } : {}),
         ...(event.capitalPending !== undefined ? { capitalPending: event.capitalPending } : {}),
       };
-      return withCompany(state, event.company, next);
+      // Pending capital is only paid by an SR end step (research R2).
+      return withCompany(event.capitalPending === false ? withRoundEnded(state) : state, event.company, next);
     }
 
     case "assetTransfer": {
@@ -112,6 +115,10 @@ function withCompany(state: SessionState, id: CompanyId, record: CompanyRecord):
   return { ...state, companies: { ...state.companies, [id]: record } };
 }
 
+function withRoundEnded(state: SessionState): SessionState {
+  return state.turn.roundEnded ? state : { ...state, turn: { ...state.turn, roundEnded: true } };
+}
+
 function advanceTurn(state: SessionState, e: Extract<PrimitiveEvent, { t: "turnAdvance" }>): SessionState {
   const prev = state.turn;
   const next: TurnState = {
@@ -136,6 +143,11 @@ function advanceTurn(state: SessionState, e: Extract<PrimitiveEvent, { t: "turnA
   if (orChanged) turn = { ...turn, operatedThisOR: [], loansThisOR: {} };
   const srChanged = turn.round !== prev.round || turn.srNumber !== prev.srNumber;
   const soldThisSR = srChanged ? {} : state.soldThisSR;
+  if (srChanged || orChanged) {
+    const { roundEnded: _cleared, ...rest } = turn;
+    turn = rest;
+  }
+  if (e.roundEnd !== undefined) turn = { ...turn, roundEnded: true };
 
   return { ...state, turn, soldThisSR };
 }

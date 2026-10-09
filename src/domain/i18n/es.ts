@@ -226,6 +226,8 @@ export function effectsEs(events: readonly PrimitiveEvent[], ctx: SummaryContext
         break;
       }
       case "turnAdvance":
+        if (e.roundEnd === "SR") effects.push("fin de la ronda de acciones");
+        if (e.roundEnd === "CR") effects.push("fin de la ronda corporativa");
         if (e.phase !== undefined && e.round === undefined) effects.push(`fase ${e.phase}`);
         if (e.round === "OR" && e.orSet !== undefined && e.orIndex !== undefined) effects.push(`OR ${e.orSet}.${e.orIndex}`);
         if (e.company) effects.push(`turno de ${companyName(e.company, ctx)}`);

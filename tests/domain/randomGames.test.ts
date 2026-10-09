@@ -41,3 +41,18 @@ describe("random games keep the invariants (SC-002)", () => {
     expect(applied).toContain("buyShare");
   });
 });
+
+describe("random games reach the end step inside startOR (feature 003)", () => {
+  it("some 1830 walk starts an OR from an SR with pending capital, and the invariants hold", () => {
+    const gi = builtInGames.findIndex((g) => g.id === "1830");
+    const covered = SEEDS.some((seed) =>
+      play(gi, seed).s.groups.some(
+        (g) =>
+          g.action.type === "startOR" &&
+          g.events.some((e) => e.t === "turnAdvance" && e.roundEnd === "SR") &&
+          g.events.some((e) => e.t === "moneyTransfer" && e.from === "bank" && e.to.startsWith("company:")),
+      ),
+    );
+    expect(covered).toBe(true);
+  });
+});

@@ -1673,8 +1673,15 @@
       "action": {
         "type": "endSR"
       },
-      "events": [],
-      "touches": [],
+      "events": [
+        {
+          "t": "turnAdvance",
+          "roundEnd": "SR"
+        }
+      ],
+      "touches": [
+        "turn"
+      ],
       "warnings": []
     },
     {

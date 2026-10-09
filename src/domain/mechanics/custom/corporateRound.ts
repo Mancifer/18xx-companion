@@ -6,7 +6,7 @@ import { reduceAll } from "../../events/reduce";
 import { unitsOf } from "../../events/state";
 import type { PrimitiveEvent } from "../../events/types";
 import { moveTarget, priceOf } from "../market";
-import { endOfRoundMoves } from "../roundEnd";
+import { roundEndEvents } from "../roundEnd";
 import { slotIndex } from "../schedule";
 import type { Mechanic } from "./mechanic";
 
@@ -37,14 +37,24 @@ export const corporateRound: Mechanic<Record<string, never>> = {
       { t: "shareTransfer", company: a.take.company, from: `company:${a.company}`, to: `player:${a.player}`, units: a.take.units },
     ],
   },
+    /** The SR end step (feature 003), then the CR of the current set. */
     startCR: {
       expand: (ctx) => {
         const scheduleIndex = slotIndex(ctx.game, `CR${ctx.state.turn.srNumber}`);
-        return [{ t: "turnAdvance", round: "CR", ...(scheduleIndex !== undefined ? { scheduleIndex } : {}), company: null }];
+        return [
+          ...roundEndEvents(ctx.game, ctx.state),
+          { t: "turnAdvance", round: "CR", ...(scheduleIndex !== undefined ? { scheduleIndex } : {}), company: null },
+        ];
       },
     },
+    /** Voice only: the CR end step (§10.3), at most once per CR (feature 003). */
     endCR: {
-      expand: (ctx) => endOfRoundMoves(ctx.game, ctx.state, "endCR"),
+      available: (ctx) => {
+        if (ctx.state.turn.round !== "CR") return unavailable("Solo en la ronda corporativa");
+        if (ctx.state.turn.roundEnded) return unavailable("Ya se aplicó el fin de la ronda corporativa");
+        return AVAILABLE;
+      },
+      expand: (ctx) => roundEndEvents(ctx.game, ctx.state),
     },
     /** §10.1.2: IPO → pool, the Bank pays the company at the market price, down 1 once if floated. */
     issueShares: {

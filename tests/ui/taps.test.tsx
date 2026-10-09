@@ -72,6 +72,27 @@ describe("taps to common actions (FR-100)", () => {
     expect(t.taps).toBeLessThanOrEqual(2);
   });
 
+  it("no end-of-round buttons in the SR or the CR (feature 003)", async () => {
+    await openSeededTable({ actions: [startSR] });
+    expect(screen.queryByRole("button", { name: "Fin de ronda de acciones" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Fin de ronda corporativa" })).toBeNull();
+  });
+
+  it("no end-of-round button in the 21Moon CR (feature 003)", async () => {
+    await openSeededTable({ game: "21moon", actions: [startSR, { type: "startCR" }] });
+    expect(screen.getByRole("button", { name: "Turno: CR 1" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Fin de ronda corporativa" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Fin de ronda de acciones" })).toBeNull();
+  });
+
+  it("SR → OR in one tap (SC-003)", async () => {
+    const { user } = await openSeededTable({ actions: [startSR, par("p1", "PRR", 100), buy("p1", "PRR", 2), buy("p2", "PRR", 2)] });
+    const t = counting(user);
+    await t.tap(screen.getByRole("button", { name: "Empezar OR" }));
+    expect(await screen.findByRole("button", { name: "Turno: OR 1.1" })).toBeTruthy();
+    expect(t.taps).toBe(1);
+  });
+
   it("starting the stock round shows the companies, ready to buy", async () => {
     const { user } = await openSeededTable({ actions: floated() });
     expect(screen.getByRole("tab", { name: "Jugadores", selected: true })).toBeTruthy();

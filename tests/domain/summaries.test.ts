@@ -8,6 +8,16 @@ import { seedCompany } from "../helpers/seed";
 const players = makePlayers(["Ana", "Bruno", "Carla", "Dani"]);
 
 describe("Spanish summaries (US3)", () => {
+  it("starting the OR from the SR shows the end of the SR and its sold-out move (feature 003, FR-010)", () => {
+    const s = TestSession.start(getBuiltInGame("1830"), players).do({ type: "startSR" });
+    seedCompany(s, "PRR", { cell: { row: 2, col: 6 }, holders: { "player:p1": 6, "player:p2": 4 } });
+    const action: Action = { type: "startOR" };
+    s.do(action);
+    const summary = summaryEs(action, s, s.lastEvents);
+    expect(summary).toContain("fin de la ronda de acciones");
+    expect(summary).toContain("PRR → $90");
+  });
+
   it("a payout with its price move", () => {
     const s = seedCompany(TestSession.start(getBuiltInGame("1830"), players), "PRR", {
       cell: { row: 0, col: 6 },

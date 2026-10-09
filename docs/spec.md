@@ -123,7 +123,9 @@ never change state directly. They emit **actions**, which pass validation and be
   certificate is tracked separately.
 - **Market**: game-defined grid (1D or 2D), with company tokens at positions.
 - **Turn state**: round type (`PRIVATES | SR | CR | OR`; CR is the 21Moon corporate round),
-  OR set number and index (e.g. OR 2.1), operating order, current company, phase.
+  OR set number and index (e.g. OR 2.1), operating order, current company, phase, and a derived
+  "round ended" flag: set once the current SR or CR has had its end step applied, cleared when
+  the round changes.
 
 ### 5.2 Game definition (data, not code)
 
@@ -206,7 +208,7 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 | Stock | `buyPrivate(player, private, price, par?)` / `exchangePrivate(private, source)` | money and private; grants (CA, BO, P5, P6) and exchanges (MH, 21Moon P6) |
 | Stock | `stockBatch(items, assumedPrices)` | one group, applied in the stated order at the stated prices |
 | Loans | `takeLoan(company, n)` | only if the game defines loans. Repayment and interest are definition fields for future games; v1 builds no repay action |
-| Flow | `nextCompany / startSR / startOR / endSR / startCR / endCR` | turn events; `nextCompany` for a company with no run this OR first records a zero run (the game's withhold move, warning "no corrió"); capital of companies floated during the SR and sold-out moves at the end of the SR; sold-out and pool-penalty moves at the end of the CR |
+| Flow | `nextCompany / startSR / startOR / endSR / startCR / endCR` | turn events; `nextCompany` for a company with no run this OR first records a zero run (the game's withhold move, warning "no corrió"). `startSR / startCR / startOR` first apply, in the same group, the end step of the round being left, at most once per round: at the end of the SR, the capital of companies floated during the SR and the sold-out moves; at the end of the CR, the sold-out and pool-penalty moves. Leaving an OR or the private auction applies nothing. `endSR / endCR` are voice only, apply the same step, and are unavailable once it was applied or outside their round |
 | Manual | `adjust(holder, amount)` / `setPrice(company, position)` | overrides, recorded as events |
 
 ### 6.1 Stock round entry modes
@@ -305,7 +307,8 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
      in the game's operating order ("Después: …"); there is no separate "next" button, so a turn
      cannot be skipped without recording it. Also the private-income offer at the start of each
      OR, "Comprar privada" only while a private can actually be bought (unsold in the bank, or
-     resellable under the game's rules in this round), and the start/end buttons for each round.
+     resellable under the game's rules in this round), and the start buttons for each round.
+     There are no "end of round" buttons: starting the next round applies the end step.
      An end-of-game banner shows any end trigger reached (warnings only).
    - **Player grid**: large tiles with name, cash, and share summary. Tap opens a detail sheet;
      ± gestures allow quick adjustments.

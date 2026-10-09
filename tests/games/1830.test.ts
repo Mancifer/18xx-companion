@@ -209,6 +209,33 @@ describe("1830 stock round", () => {
     expect(netMoney(s.lastEvents)["player:p3"]).toBe(180);
     expect(s.state.companies["Erie"]!.position).toEqual({ row: 4, col: 7 });
   });
+
+  it("§6.3 (feature 003): starting the OR applies the end of the SR first: NYC gets its capital", () => {
+    const s = sr()
+      .do({ type: "parCompany", player: "p1", company: "NYC", price: 82 })
+      .do({ type: "buyShare", buyer: "player:p2", company: "NYC", source: "ipo", count: 2 })
+      .do({ type: "buyShare", buyer: "player:p3", company: "NYC", source: "ipo", count: 2 });
+    s.do({ type: "startOR" });
+    expect(cashOf(s.state, "company:NYC")).toBe(820);
+    expect(s.state.companies["NYC"]!.capitalPending).toBeFalsy();
+    expect(s.state.turn.round).toBe("OR");
+    expect(s.lastEvents).toContainEqual({ t: "moneyTransfer", from: "bank", to: "company:NYC", amount: 820 });
+    const turns = eventsOf(s.lastEvents, "turnAdvance");
+    const marker = turns.findIndex((e) => e.roundEnd === "SR");
+    const toOR = turns.findIndex((e) => e.round === "OR");
+    expect(marker).toBeGreaterThanOrEqual(0);
+    expect(marker).toBeLessThan(toOR);
+    expect(s.violations()).toEqual([]);
+  });
+
+  it("§5.5 (feature 003): starting the OR moves a sold-out company up 1", () => {
+    const s = seedCompany(sr(), "PRR", { cell: { row: 2, col: 6 }, holders: { "player:p1": 6, "player:p2": 4 } });
+    s.do({ type: "startOR" });
+    expect(eventsOf(s.lastEvents, "marketMove")).toEqual([
+      { t: "marketMove", company: "PRR", to: { row: 1, col: 6 }, reason: "soldOut" },
+    ]);
+    expect(s.state.companies["PRR"]!.position).toEqual({ row: 1, col: 6 });
+  });
 });
 
 describe("zero run (T005, SC-002)", () => {

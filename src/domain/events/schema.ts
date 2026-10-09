@@ -48,6 +48,7 @@ export const PrimitiveEventSchema: z.ZodType<PrimitiveEvent> = z.discriminatedUn
     operatingOrder: z.array(z.string()).optional(),
     company: z.string().nullable().optional(),
     phase: z.string().optional(),
+    roundEnd: z.enum(["SR", "CR"]).optional(),
   }),
   z.object({ t: z.literal("counterChange"), subject: holder, key: z.string(), delta: z.number().int() }),
   z.object({ t: z.literal("note"), text: z.string() }),

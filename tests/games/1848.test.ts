@@ -243,6 +243,14 @@ describe("1848 stock round", () => {
     expect(netMoney(s.lastEvents)).toEqual({ bank: -100, "player:p1": 100 });
     expect(s.state.companies["BOE"]!.position).toEqual({ index: 3 });
   });
+
+  it("§12.6.1 (feature 003): starting the OR moves a company sold out to players up 1, with no endSR", () => {
+    const s = seedCompany(sr(), "QR", { cell: { row: 2, col: 6 }, par: 90, holders: { "player:p1": 6, "player:p2": 4 } });
+    s.do({ type: "startOR" });
+    expect(s.lastEvents).toContainEqual({ t: "marketMove", company: "QR", to: { row: 1, col: 6 }, reason: "soldOut" });
+    expect(s.state.companies["QR"]!.position).toEqual({ row: 1, col: 6 });
+    expect(s.state.turn.round).toBe("OR");
+  });
 });
 
 describe("zero run (T005, SC-002)", () => {

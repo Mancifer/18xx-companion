@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SessionStore } from "../../src/app/SessionStore";
+import { zeroRunAction } from "../../src/domain/actions/expand/operating";
 import { cashOf } from "../../src/domain/events/state";
 import type { PrimitiveEvent } from "../../src/domain/events/types";
 import { touchesOf, type LogEntry } from "../../src/domain/ledger/entries";
@@ -145,5 +146,24 @@ describe("21Moon stock round (quickstart 12)", () => {
     const s = TestSession.start(game, players).do({ type: "startSR" });
     s.do({ type: "parCompany", player: "p1", company: "KR", price: 70 });
     expect(s.lastWarnings.map((w) => w.code)).toContain("notYetAvailable");
+  });
+});
+
+describe("zero run (T005, SC-002)", () => {
+  it("§11.5: no Space Port earnings moves the price left 1 and moves no money", () => {
+    const s = seedCompany(start(), "VH", { cell: { row: 4, col: 2 }, holders: VH_HOLDERS });
+    const bank = cashOf(s.state, "bank");
+    expect(zeroRunAction(g21, "VH")).toEqual({
+      type: "runAndPayout",
+      company: "VH",
+      parts: [
+        { part: "local", amount: 0 },
+        { part: "spacePort", amount: 0 },
+      ],
+      mode: null,
+    });
+    s.do(zeroRunAction(g21, "VH"));
+    expect(s.state.companies["VH"]?.position).toEqual({ row: 4, col: 1 });
+    expect(cashOf(s.state, "bank")).toBe(bank);
   });
 });

@@ -65,3 +65,22 @@ describe("History (US2)", () => {
     expect(await screen.findByText("deshecha")).toBeTruthy();
   });
 });
+
+describe("History marks out-of-turn actions (T028, FR-012)", () => {
+  it("an operating action for a company whose turn it is not shows the outOfTurn warning", async () => {
+    const { user } = await openSeededTable({
+      actions: [
+        { type: "startSR" },
+        { type: "parCompany", player: "p1", company: "PRR", price: 100 },
+        { type: "buyShare", buyer: "player:p1", company: "PRR", source: "ipo", count: 4 },
+        { type: "parCompany", player: "p2", company: "NYC", price: 90 },
+        { type: "buyShare", buyer: "player:p2", company: "NYC", source: "ipo", count: 4 },
+        { type: "endSR" },
+        { type: "startOR" },
+        { type: "payCost", company: "NYC", amount: 20, reason: null },
+      ],
+    });
+    await openMenuItem(user, "Historial");
+    expect(item("NYC paga $20").textContent).toContain("NYC opera fuera de turno (le toca a PRR).");
+  });
+});

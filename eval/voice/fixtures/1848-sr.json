@@ -1891,7 +1891,13 @@
         "counter:company:BOE",
         "turn"
       ],
-      "warnings": []
+      "warnings": [
+        {
+          "code": "noRunRecorded",
+          "messageEs": "No se registró la operación de BoE: cuenta como que operó.",
+          "severity": "info"
+        }
+      ]
     },
     {
       "kind": "group",

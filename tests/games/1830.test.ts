@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cashOf, counterOf } from "../../src/domain/events/state";
 import { applyOptions, getBuiltInGame } from "../../src/domain/games";
+import { zeroRunAction } from "../../src/domain/actions/expand/operating";
 import { priceOf } from "../../src/domain/mechanics/market";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { eventsOf, netMoney } from "../helpers/flows";
@@ -207,5 +208,20 @@ describe("1830 stock round", () => {
     s.do({ type: "sellShares", seller: "player:p3", company: "Erie", count: 2 });
     expect(netMoney(s.lastEvents)["player:p3"]).toBe(180);
     expect(s.state.companies["Erie"]!.position).toEqual({ row: 4, col: 7 });
+  });
+});
+
+describe("zero run (T005, SC-002)", () => {
+  it("a run of 0 withheld moves the price left 1 and moves no money", () => {
+    const s = seedCompany(TestSession.start(getBuiltInGame("1830"), players), "PRR", {
+      cell: { row: 0, col: 8 },
+      holders: { "player:p1": 6 },
+    });
+    const bank = cashOf(s.state, "bank");
+    s.do(zeroRunAction(s.game, "PRR"));
+    expect(zeroRunAction(s.game, "PRR")).toEqual({ type: "runAndPayout", company: "PRR", parts: [{ part: "revenue", amount: 0 }], mode: "withhold" });
+    expect(s.state.companies["PRR"]?.position).toEqual({ row: 0, col: 7 });
+    expect(cashOf(s.state, "bank")).toBe(bank);
+    expect(counterOf(s.state, "company:PRR", "runs")).toBe(1);
   });
 });

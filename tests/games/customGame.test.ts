@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { zeroRunAction } from "../../src/domain/actions/expand/operating";
 import { getBuiltInGame } from "../../src/domain/games";
+import { TestSession, makePlayers } from "../helpers/dispatch";
+import { seedCompany } from "../helpers/seed";
 import { createCustomGame, editCustomGame } from "../../src/domain/games/customGame";
 
 describe("custom games (FR-007, contracts/game-definition.md rule 4)", () => {
@@ -54,5 +57,19 @@ describe("custom games (FR-007, contracts/game-definition.md rule 4)", () => {
   it("rejects an edit that fails validation (starting cash × max players > bank)", () => {
     const custom = createCustomGame(getBuiltInGame("1830"), "Variante");
     expect(editCustomGame(custom, { bank: { total: 1000 } }).ok).toBe(false);
+  });
+});
+
+describe("zero run in a custom game without withhold (T005)", () => {
+  it("uses a zero full payout, which counts as a withhold", () => {
+    const base = getBuiltInGame("1830");
+    const game = { ...base, payoutModes: ["full"] as const };
+    expect(zeroRunAction(game as never, "PRR").mode).toBe("full");
+    const s = seedCompany(TestSession.start(game as never, makePlayers(["Ana", "Bruno", "Carla"])), "PRR", {
+      cell: { row: 0, col: 8 },
+      holders: { "player:p1": 6 },
+    });
+    s.do(zeroRunAction(s.game, "PRR"));
+    expect(s.state.companies["PRR"]?.position).toEqual({ row: 0, col: 7 });
   });
 });

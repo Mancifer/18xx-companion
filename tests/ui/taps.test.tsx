@@ -48,7 +48,7 @@ describe("taps to common actions (FR-100)", () => {
     const dialog = await screen.findByRole("dialog");
     for (const d of "240") await user.click(within(dialog).getByRole("button", { name: new RegExp(`^${d}$`) }));
     await t.tap(within(dialog).getByRole("button", { name: "Pagar" }));
-    expect(await screen.findByText(/PRR paga \$240/)).toBeTruthy();
+    expect(await screen.findByText(/PRR paga \$240/, { selector: ".toast-summary" })).toBeTruthy();
     expect(t.taps).toBeLessThanOrEqual(2);
   });
 
@@ -79,13 +79,32 @@ describe("taps to common actions (FR-100)", () => {
     expect(await screen.findByRole("tab", { name: "Compañías", selected: true })).toBeTruthy();
   });
 
-  it("next company: one tap", async () => {
+  it("a turn with no run: Operar, No corrió, Terminar turno (SC-004)", async () => {
     const { user } = await openSeededTable({ actions: floated(true) });
     const t = counting(user);
-    expect(screen.getByRole("button", { name: "Operar PRR" })).toBeTruthy();
-    await t.tap(screen.getByRole("button", { name: "Siguiente" }));
+    await t.tap(screen.getByRole("button", { name: "Operar PRR" }));
+    const dialog = await screen.findByRole("dialog");
+    await t.tap(within(dialog).getByRole("button", { name: "No corrió" }));
+    await within(dialog).findByText("✓ Operación registrada");
+    await t.tap(within(dialog).getByRole("button", { name: /^Terminar turno/ }));
     expect(await screen.findByRole("button", { name: "Operar NYC" })).toBeTruthy();
-    expect(t.taps).toBe(1);
+    expect(t.taps).toBeLessThanOrEqual(3);
+  });
+
+  it("a full turn: revenue, Pagar, one train, Terminar turno (SC-004)", async () => {
+    const { user } = await openSeededTable({ actions: floated(true) });
+    const t = counting(user);
+    await t.tap(screen.getByRole("button", { name: "Operar PRR" }));
+    const dialog = await screen.findByRole("dialog");
+    for (const d of "80") await user.click(within(dialog).getByRole("button", { name: new RegExp(`^${d}$`) }));
+    await t.tap(within(dialog).getByRole("button", { name: "Pagar" }));
+    await within(dialog).findByText("✓ Operación registrada");
+    await t.tap(within(dialog).getByRole("button", { name: "Comprar tren" }));
+    await t.tap(within(await screen.findByRole("dialog")).getByRole("button", { name: /^2 \(/ }));
+    await screen.findByText(/compra un 2 al banco/, { selector: ".turn-summary li" });
+    await t.tap(within(await screen.findByRole("dialog")).getByRole("button", { name: /^Terminar turno/ }));
+    expect(await screen.findByRole("button", { name: "Operar NYC" })).toBeTruthy();
+    expect(t.taps).toBeLessThanOrEqual(6);
   });
 
   it("undo: one tap on the notice", async () => {

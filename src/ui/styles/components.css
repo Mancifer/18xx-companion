@@ -708,3 +708,38 @@ button[aria-pressed="true"] {
   font-size: var(--text-lg);
   font-weight: 700;
 }
+
+/* Operating turn (002): what this company recorded in the OR, and the run done note. */
+.turn-summary {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  font-size: var(--text-sm);
+}
+.turn-summary ul {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+}
+.turn-summary p {
+  margin: var(--space-1) 0 0;
+}
+.run-recorded {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius);
+  color: var(--ok);
+  font-weight: 600;
+  text-align: center;
+}
+.out-of-turn {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius);
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+.round-next {
+  align-self: center;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}

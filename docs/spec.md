@@ -206,7 +206,7 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 | Stock | `buyPrivate(player, private, price, par?)` / `exchangePrivate(private, source)` | money and private; grants (CA, BO, P5, P6) and exchanges (MH, 21Moon P6) |
 | Stock | `stockBatch(items, assumedPrices)` | one group, applied in the stated order at the stated prices |
 | Loans | `takeLoan(company, n)` | only if the game defines loans. Repayment and interest are definition fields for future games; v1 builds no repay action |
-| Flow | `nextCompany / startSR / startOR / endSR / startCR / endCR` | turn events; capital of companies floated during the SR and sold-out moves at the end of the SR; sold-out and pool-penalty moves at the end of the CR |
+| Flow | `nextCompany / startSR / startOR / endSR / startCR / endCR` | turn events; `nextCompany` for a company with no run this OR first records a zero run (the game's withhold move, warning "no corrió"); capital of companies floated during the SR and sold-out moves at the end of the SR; sold-out and pool-penalty moves at the end of the CR |
 | Manual | `adjust(holder, amount)` / `setPrice(company, position)` | overrides, recorded as events |
 
 ### 6.1 Stock round entry modes
@@ -286,7 +286,7 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 | "Carla vende dos Erie" | `sellShares(Carla, Erie, 2)` |
 | "deshacer" / "no, eran 260" | undo / amend last |
 | "¿cuánto tiene Ana?" | query |
-| "siguiente compañía" | `nextCompany()` |
+| "siguiente compañía" | `nextCompany()` (with no run recorded, the card warns that it counts as "no corrió" and shows the price drop) |
 
 ## 9. UI
 
@@ -301,17 +301,24 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 3. **Table** (main screen):
    - Top bar: round indicator (SR 3 / CR 1 / OR 2.1), phase, current company, bank remaining.
      Tapping the indicator opens a manual turn and phase control.
-   - Round controls: one-tap "Siguiente" (next company by the game's operating order), "Operar"
-     for the current company, the private-income offer at the start of each OR, and the
-     start/end buttons for each round. An end-of-game banner shows any end trigger reached
-     (warnings only).
+   - Round controls: "Operar <company>" for the current company, followed by the next companies
+     in the game's operating order ("Después: …"); there is no separate "next" button, so a turn
+     cannot be skipped without recording it. Also the private-income offer at the start of each
+     OR, "Comprar privada" only while a private can actually be bought (unsold in the bank, or
+     resellable under the game's rules in this round), and the start/end buttons for each round.
+     An end-of-game banner shows any end trigger reached (warnings only).
    - **Player grid**: large tiles with name, cash, and share summary. Tap opens a detail sheet;
      ± gestures allow quick adjustments.
    - **Company grid** (tab or second row): treasury, price, president, trains. On phones the
-     stock and corporate rounds open on this tab, so a buy or sell stays two taps.
+     stock and corporate rounds open on this tab, so a buy or sell stays two taps. In an OR, the
+     current company's card opens its turn; other cards open their details, where "Operar fuera
+     de turno…" records actions out of order, marked "fuera de turno" in History (never blocked).
    - Floating **mic button** (push-to-talk) and **undo** button.
-4. **Operate sheet** (touch path for an OR turn): revenue keypad, Pay / Withhold / Half,
-   buy-train picker, pay-cost.
+4. **Operate sheet** (the operating turn): a summary of what the company recorded this OR,
+   revenue keypad with Pay / Withhold / Half and "No corrió" (a zero run, with the game's withhold
+   move), buy-train picker, pay-cost and the other operating actions. The turn stays open across
+   actions and keeps typed revenue while buying trains; "Terminar turno" is enabled once a run or
+   "No corrió" is recorded and hands the turn to the next company in operating order.
 5. **Stock sheet**: from a company card, a row per player with IPO / Pool / Vender (two taps
    from the table), a share-count stepper, par prices for unstarted companies, issue and company
    trades in the corporate round, and a batch sheet for end-of-round statements.

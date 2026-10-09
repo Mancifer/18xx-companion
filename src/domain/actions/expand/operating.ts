@@ -137,6 +137,16 @@ export function forcedWithholdReason(ctx: ActionContext, company: CompanyId): st
   return undefined;
 }
 
+/**
+ * "No corrió": a run of 0 in every part. With a payout choice it is withheld (or, where the game
+ * has no withhold, a full payout of 0, which counts as one); fixed parts take no mode.
+ */
+export function zeroRunAction(game: GameDefinition, company: CompanyId): ActionOf<"runAndPayout"> {
+  const hasChoice = game.revenueParts.length === 1 && game.revenueParts[0]?.to === "choice";
+  const mode = !hasChoice ? null : game.payoutModes.includes("withhold") ? "withhold" : "full";
+  return { type: "runAndPayout", company, parts: game.revenueParts.map((p) => ({ part: p.id, amount: 0 })), mode };
+}
+
 export const operatingHandlers: HandlerMap = {
   runAndPayout: {
     available: (ctx, a) => {

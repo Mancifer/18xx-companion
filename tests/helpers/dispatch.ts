@@ -4,6 +4,7 @@ import { initialState, type SessionState } from "../../src/domain/events/state";
 import type { PrimitiveEvent } from "../../src/domain/events/types";
 import type { Warning } from "../../src/domain/actions/schemas";
 import type { GameDefinition } from "../../src/domain/games/schema";
+import type { EffectiveGroup } from "../../src/domain/ledger/effectiveLog";
 import { checkInvariants } from "../../src/domain/mechanics/invariants";
 import type { Player } from "../../src/domain/types";
 
@@ -15,6 +16,8 @@ export class TestSession {
   state: SessionState;
   lastEvents: readonly PrimitiveEvent[] = [];
   lastWarnings: readonly Warning[] = [];
+  /** Every applied action as an effective group, in order (for queries over the log). */
+  groups: EffectiveGroup[] = [];
 
   constructor(
     readonly game: GameDefinition,
@@ -39,6 +42,8 @@ export class TestSession {
     }
     this.lastEvents = result.events;
     this.lastWarnings = result.warnings;
+    const seq = this.groups.length + 1;
+    this.groups.push({ id: `g${seq}`, seq, source: "touch", action: result.action, events: result.events, touches: result.touches });
     this.state = reduceAll(this.state, result.events);
     return this;
   }

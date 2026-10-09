@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { getBuiltInGame } from "../../src/domain/games";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { netMoney } from "../helpers/flows";
+import { purchasablePrivates } from "../../src/domain/queries";
 
 /** Private trading between players (bug private-company-ownership; 1830 §4.1, 1848 §4.1). */
 
@@ -77,5 +78,43 @@ describe("unchanged refusals and bank sales", () => {
     expect(s.tryDo(buyPrivate("p2", "SV", 40)).kind).toBe("unavailable");
     toSR(s, 2).do(buyPrivate("p2", "SV", 40));
     expect(s.state.assets["private:SV"]).toBe("player:p2");
+  });
+});
+
+describe("purchasablePrivates (T030, FR-014)", () => {
+  const ids = (s: TestSession) => purchasablePrivates(s.game, s.state).map((p) => p.id);
+  const sellAll = (s: TestSession) => {
+    s.game.privates.forEach((p, i) => s.do(buyPrivate(`p${(i % 4) + 1}`, p.id, p.cost)));
+    return s;
+  };
+
+  it("unsold privates in the PRIVATES round", () => {
+    const s = start("1830");
+    expect(ids(s)).toEqual(s.game.privates.map((p) => p.id));
+    s.do(buyPrivate("p1", "SV", 20));
+    expect(ids(s)).not.toContain("SV");
+  });
+
+  it("all sold, SR 1: none (no resale yet)", () => {
+    const s = toSR(sellAll(start("1830")), 1);
+    expect(ids(s)).toEqual([]);
+  });
+
+  it("1830, all sold, SR 2: the owned privates can be traded", () => {
+    const s = toSR(sellAll(start("1830")), 2);
+    expect(ids(s)).toEqual(s.game.privates.map((p) => p.id));
+  });
+
+  it.each(["1848", "21moon"])("%s (no trading), all sold, SR 2: none", (game) => {
+    const s = toSR(sellAll(start(game)), 2);
+    expect(ids(s)).toEqual([]);
+  });
+
+  it("closed (removed) privates are never offered, in any round", () => {
+    const s = start("1830");
+    s.apply(...s.game.privates.map((p) => ({ t: "assetTransfer" as const, asset: `private:${p.id}`, from: "bank" as const, to: "removed" as const })));
+    expect(ids(s)).toEqual([]);
+    toSR(s, 2);
+    expect(ids(s)).toEqual([]);
   });
 });

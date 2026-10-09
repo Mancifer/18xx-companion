@@ -54,6 +54,13 @@ test("FR-101 tap targets and company names on the main screens", async ({ page }
   await audit(page, info, "stock-sheet");
   await page.getByRole("button", { name: "Cerrar" }).click();
 
+  // A second company, so the OR has a turn to be out of (002).
+  const nycPar = await openCompany(page, "NYC");
+  await nycPar.getByRole("button", { name: "$90", exact: true }).click();
+  await nycPar.getByRole("button", { name: "Bruno", exact: true }).click();
+  await trade(page, "NYC", "IPO Bruno", 3);
+  await trade(page, "NYC", "IPO Carla", 1);
+
   await page.getByRole("button", { name: "Fin de ronda de acciones" }).click();
   await page.getByRole("button", { name: "Empezar OR" }).click();
   await showCompanies(page);
@@ -61,6 +68,16 @@ test("FR-101 tap targets and company names on the main screens", async ({ page }
 
   await openCompany(page, "PRR");
   await audit(page, info, "operate-sheet");
+  await page.getByRole("dialog").getByRole("button", { name: "No corrió" }).click();
+  await expect(page.getByRole("dialog")).toContainText("✓ Operación registrada");
+  await audit(page, info, "operate-turn-recorded");
+  await page.getByRole("button", { name: "Cerrar" }).click();
+
+  const details = await openCompany(page, "NYC");
+  await audit(page, info, "company-details-or");
+  await details.getByRole("button", { name: "Operar fuera de turno…" }).click();
+  await expect(page.getByRole("dialog")).toContainText("Fuera de turno");
+  await audit(page, info, "operate-out-of-turn");
   await page.getByRole("button", { name: "Cerrar" }).click();
 
   await page.getByRole("button", { name: "Menú" }).click();

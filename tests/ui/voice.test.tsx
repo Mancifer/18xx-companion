@@ -146,3 +146,31 @@ describe("voice (US5)", () => {
     expect(within(card).getByText("Ana tiene $0")).toBeTruthy();
   });
 });
+
+describe("voice «siguiente compañía» with no run recorded (T016, FR-009)", () => {
+  const TWO_IN_OR = [
+    { type: "startSR" },
+    { type: "parCompany", player: "p1", company: "PRR", price: 100 },
+    { type: "buyShare", buyer: "player:p1", company: "PRR", source: "ipo", count: 4 },
+    { type: "parCompany", player: "p2", company: "NYC", price: 90 },
+    { type: "buyShare", buyer: "player:p2", company: "NYC", source: "ipo", count: 4 },
+    { type: "endSR" },
+    { type: "startOR" },
+  ];
+
+  it("the card shows the no-run warning and the price move; nothing changes until Confirmar", async () => {
+    const { user } = await openSeededTable({
+      actions: TWO_IN_OR,
+      settings: KEY,
+      voiceDeps: deps({ "siguiente compañía": "next-company" }),
+    });
+    await speak(user, "siguiente compañía");
+    const card = await screen.findByRole("dialog", { name: "Confirmar orden de voz" });
+    expect(within(card).getByText(/No se registró la operación de PRR: cuenta como que no corrió y su acción baja./)).toBeTruthy();
+    expect(within(card).getByText(/PRR no corrió · PRR → \$90/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Operar PRR" })).toBeTruthy();
+
+    await user.click(within(card).getByRole("button", { name: "Confirmar" }));
+    expect(await screen.findByRole("button", { name: "Operar NYC" })).toBeTruthy();
+  });
+});

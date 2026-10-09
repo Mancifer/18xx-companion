@@ -24,7 +24,7 @@ export function Keypad({
   };
   return (
     <div className="keypad">
-      <output className="keypad-display money" aria-label={label ?? "Cantidad"}>
+      <output className="keypad-display money" aria-label={label ?? "Cantidad"} data-testid="keypad-value">
         {value === null ? <span className="muted">{label ?? "Cantidad"}</span> : formatMoney(value, game)}
       </output>
       <div className="keypad-grid">

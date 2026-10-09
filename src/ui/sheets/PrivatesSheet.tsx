@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
-import { privateResaleOpen } from "../../domain/actions/expand/stock";
 import { holderName } from "../../domain/i18n/es";
 import { formatMoney } from "../../domain/i18n/format";
 import { parPricesFor } from "../../domain/mechanics/market";
+import { purchasablePrivates } from "../../domain/queries";
 import { Keypad } from "../components/Keypad";
 import { Sheet } from "../components/Sheet";
 
@@ -19,16 +19,13 @@ export function PrivatesSheet({ onClose }: { onClose: () => void }) {
   const [buyer, setBuyer] = useState<string | null>(null);
   const [price, setPrice] = useState<number | null>(null);
   const [par, setPar] = useState<number | null>(null);
-  const resale = privateResaleOpen(meta.game, state);
-  const open = meta.game.privates.filter((p) => {
-    const holder = state.assets[`private:${p.id}`] ?? "bank";
-    return holder !== "removed" && (holder === "bank" || resale);
-  });
+  const open = purchasablePrivates(meta.game, state);
   const def = meta.game.privates.find((p) => p.id === chosen);
   const ownerPar = def?.grants?.find((g) => g.par === "ownerChooses");
 
   return (
     <Sheet title="Comprar privada" onClose={onClose}>
+      {open.length === 0 ? <p className="muted">No hay privadas a la venta ahora.</p> : null}
       <div className="choice-grid">
         {open.map((p) => {
           const holder = state.assets[`private:${p.id}`] ?? "bank";

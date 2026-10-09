@@ -272,6 +272,16 @@ function capitalize(text: string): string {
   return text.charAt(0).toLocaleUpperCase("es") + text.slice(1);
 }
 
+/** "PRR no corrió" when a nextCompany group recorded a zero run (it carries a run's market move). */
+function noRunSummary(events: readonly PrimitiveEvent[], ctx: SummaryContext): string | undefined {
+  const run = events.find((e) => e.t === "counterChange" && e.key === "runs");
+  if (run?.t !== "counterChange") return undefined;
+  const company = parseHolder(run.subject);
+  if (company.kind !== "company") return undefined;
+  const moved = events.some((e) => e.t === "marketMove" && e.company === company.id);
+  return moved ? `${companyName(company.id, ctx)} no corrió` : undefined;
+}
+
 /** Summary of an undo, for the toast and History. */
 export function undoSummaryEs(undone: Action, ctx: SummaryContext): string {
   return `Deshecho: ${summaryEs(undone, ctx)}`;
@@ -283,7 +293,7 @@ export function undoSummaryEs(undone: Action, ctx: SummaryContext): string {
  */
 export function summaryEs(action: Action, ctx: SummaryContext, events?: readonly PrimitiveEvent[]): string {
   const fn = summaries[action.type] as Summarizer<ActionType> | undefined;
-  const base = fn ? fn(action, ctx) : action.type;
+  const base = (events && action.type === "nextCompany" && noRunSummary(events, ctx)) || (fn ? fn(action, ctx) : action.type);
   const effects = events ? effectsEs(events, ctx) : [];
   return effects.length > 0 ? `${base} · ${effects.join(" · ")}` : base;
 }

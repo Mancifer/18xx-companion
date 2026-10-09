@@ -263,6 +263,13 @@ h3 {
   z-index: 30;
 }
 
+/* With a sheet open (an operating turn stays open across actions), the toast moves to the top so
+   it never covers the sheet's buttons. */
+.sheet-backdrop ~ .toast {
+  bottom: auto;
+  top: calc(var(--space-2) + env(safe-area-inset-top));
+}
+
 .toast button {
   background: transparent;
   color: var(--bg);

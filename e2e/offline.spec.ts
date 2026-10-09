@@ -67,6 +67,8 @@ test("quickstart 11: offline reload keeps the session and touch; the mic is unav
   });
   await operate.getByRole("button", { name: "Pagar", exact: true }).click();
   await expect(toast(page)).toContainText("PRR paga $240");
+  // The turn stays open after the payout; finishing it closes the sheet.
+  await operate.getByRole("button", { name: /^Terminar turno/ }).click();
   await showCompanies(page);
   await expect(page.getByTestId("treasury-PRR")).toHaveText("$1.000");
   const tapMs = await page.evaluate(() => {

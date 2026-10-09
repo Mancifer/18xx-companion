@@ -1,8 +1,14 @@
 import type { ActionContext } from "./actions/context";
+import type { Action } from "./actions/schemas";
+import type { SessionState } from "./events/state";
+import type { PrimitiveEvent } from "./events/types";
 import { assetsHeldBy, cashOf, holdersOf, presidentOf, unitsOf } from "./events/state";
 import { holderName, roundLabel } from "./i18n/es";
 import { formatMoney } from "./i18n/format";
+import { privateResaleOpen } from "./actions/expand/stock";
+import type { GameDefinition, PrivateDef } from "./games/schema";
 import { priceOf } from "./mechanics/market";
+import { operatingOrder } from "./mechanics/operatingOrder";
 import { trainsHeldBy } from "./mechanics/phases";
 import { trainTypeOf, type CompanyId, type HolderRef, type PlayerId } from "./types";
 
@@ -98,4 +104,58 @@ export function answerQuery(ctx: Pick<ActionContext, "game" | "players" | "state
       return answer(`${roundLabel(state.turn)} · fase ${state.turn.phase}${current ? ` · opera ${short(current)}` : ""}`);
     }
   }
+}
+
+/**
+ * The groups recorded in the current operating round: those after the latest group that started
+ * an OR (a turnAdvance with an OR index). All groups when no OR has started yet.
+ */
+export function currentORGroups<G extends { readonly events: readonly PrimitiveEvent[] }>(groups: readonly G[]): G[] {
+  let start = -1;
+  groups.forEach((g, i) => {
+    if (g.events.some((e) => e.t === "turnAdvance" && e.orIndex !== undefined)) start = i;
+  });
+  return groups.slice(start + 1);
+}
+
+export interface TurnActivity<G> {
+  /** A run (or "no run") is recorded for the company in this OR. */
+  readonly runRecorded: boolean;
+  /** It is the company's turn and its run is recorded, so the turn can be finished. */
+  readonly canFinish: boolean;
+  /** This company's groups in the current OR. */
+  readonly groups: readonly G[];
+}
+
+/** A company's operating turn so far (data-model "Operating turn"), derived from the log. */
+export function turnActivity<G extends { readonly action: Action; readonly events: readonly PrimitiveEvent[] }>(
+  groups: readonly G[],
+  state: SessionState,
+  company: CompanyId,
+): TurnActivity<G> {
+  const runRecorded = state.turn.operatedThisOR.includes(company);
+  return {
+    runRecorded,
+    canFinish: state.turn.round === "OR" && state.turn.currentCompany === company && runRecorded,
+    groups: currentORGroups(groups).filter((g) => "company" in g.action && g.action.company === company),
+  };
+}
+
+/** The next companies to operate after the current one, by the game's order (FR-010). */
+export function upcomingCompanies(game: GameDefinition, state: SessionState, n = 2): CompanyId[] {
+  return operatingOrder(game, state)
+    .filter((id) => id !== state.turn.currentCompany && !state.turn.operatedThisOR.includes(id))
+    .slice(0, n);
+}
+
+/**
+ * The privates a player can buy right now (FR-014): unsold ones in the bank, or, where the game
+ * allows trading and the round permits it, ones already owned. Closed privates never qualify.
+ */
+export function purchasablePrivates(game: GameDefinition, state: SessionState): PrivateDef[] {
+  const resale = privateResaleOpen(game, state);
+  return game.privates.filter((p) => {
+    const holder = state.assets[`private:${p.id}`] ?? "bank";
+    return holder !== "removed" && (holder === "bank" || resale);
+  });
 }

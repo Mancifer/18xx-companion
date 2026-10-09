@@ -5,19 +5,31 @@ import { nextToOperate, operatingOrder } from "../../mechanics/operatingOrder";
 import { phaseIndex } from "../../mechanics/phases";
 import { endOfRoundMoves } from "../../mechanics/roundEnd";
 import { slotIndex, startOREvents } from "../../mechanics/schedule";
-import { AVAILABLE, unavailable, warning, type ActionContext, type HandlerMap } from "../context";
+import { AVAILABLE, unavailable, warning, type ActionContext, type ActionHandler, type HandlerMap } from "../context";
+import type { Warning } from "../schemas";
+import { operatingHandlers, zeroRunAction } from "./operating";
+
+const runAndPayout = operatingHandlers.runAndPayout as ActionHandler<"runAndPayout">;
 
 /** Round flow and turn tracking (US4 T106, US7 T150). */
+
+/** The current company when it has no run recorded in this OR, with the run it gets. */
+function unrecordedRun(ctx: ActionContext) {
+  const current = ctx.state.turn.currentCompany;
+  if (!current || ctx.state.turn.operatedThisOR.includes(current)) return undefined;
+  const national = ctx.game.companies.find((c) => c.id === current)?.kind === "national";
+  return { company: current, run: national ? undefined : zeroRunAction(ctx.game, current) };
+}
 
 /** What nextCompany does: the run it records, and where the turn goes next. */
 function nextCompanyEvents(ctx: ActionContext): { events: PrimitiveEvent[]; setComplete: boolean } {
   const { game, state } = ctx;
   const events: PrimitiveEvent[] = [];
-  const current = state.turn.currentCompany;
-  // A turn with no run still counts as operating (data-model §5).
-  if (current && !state.turn.operatedThisOR.includes(current)) {
-    events.push({ t: "counterChange", subject: `company:${current}`, key: "runs", delta: 1 });
-  }
+  // A turn with no run counts as "did not run": the game's withhold move (data-model §5). A
+  // national company has no run of its own and only counts as operated.
+  const missing = unrecordedRun(ctx);
+  if (missing?.run) events.push(...runAndPayout.expand(ctx, missing.run));
+  else if (missing) events.push({ t: "counterChange", subject: `company:${missing.company}`, key: "runs", delta: 1 });
   const interim = reduceAll(state, events);
   const next = nextToOperate(game, interim);
   if (next) {
@@ -57,10 +69,23 @@ export const flowHandlers: HandlerMap = {
 
   nextCompany: {
     available: (ctx) => (ctx.state.turn.round === "OR" ? AVAILABLE : unavailable("Solo en la ronda de operaciones")),
-    validate: (ctx) =>
-      nextCompanyEvents(ctx).setComplete
-        ? [warning("setComplete", "Fin de las rondas de operaciones: empieza la ronda de acciones.", "info")]
-        : [],
+    validate: (ctx) => {
+      const warnings: Warning[] = [];
+      const missing = unrecordedRun(ctx);
+      if (missing) {
+        const name = ctx.game.companies.find((c) => c.id === missing.company)?.shortName ?? missing.company;
+        warnings.push(
+          missing.run
+            ? warning("noRunRecorded", `No se registró la operación de ${name}: cuenta como que no corrió y su acción baja.`)
+            : warning("noRunRecorded", `No se registró la operación de ${name}: cuenta como que operó.`, "info"),
+        );
+        if (missing.run) warnings.push(...(runAndPayout.validate?.(ctx, missing.run) ?? []));
+      }
+      if (nextCompanyEvents(ctx).setComplete) {
+        warnings.push(warning("setComplete", "Fin de las rondas de operaciones: empieza la ronda de acciones.", "info"));
+      }
+      return warnings;
+    },
     expand: (ctx) => nextCompanyEvents(ctx).events,
   },
 

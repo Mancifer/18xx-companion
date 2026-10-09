@@ -1,15 +1,18 @@
-import { useState, type ReactNode } from "react";
+import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
 import { availabilityOf } from "../../domain/actions/availability";
 import type { ActionContext } from "../../domain/actions/context";
-import { forcedWithholdReason, trainPrice } from "../../domain/actions/expand/operating";
+import { forcedWithholdReason, trainPrice, zeroRunAction } from "../../domain/actions/expand/operating";
 import { handlerFor } from "../../domain/actions/expand";
 import type { ActionType } from "../../domain/actions/schemas";
-import { cashOf } from "../../domain/events/state";
-import type { PayoutMode, TrainDef } from "../../domain/games/schema";
+import { cashOf, type SessionState } from "../../domain/events/state";
+import type { GameDefinition, PayoutMode, TrainDef } from "../../domain/games/schema";
+import { summaryEs } from "../../domain/i18n/es";
 import { formatMoney } from "../../domain/i18n/format";
 import { nationalBankConfig, nationalMinDividend } from "../../domain/mechanics/custom/nationalBank";
 import { priceOf } from "../../domain/mechanics/market";
+import { operatingOrder } from "../../domain/mechanics/operatingOrder";
+import { turnActivity } from "../../domain/queries";
 import { trainsHeldBy } from "../../domain/mechanics/phases";
 import { trainTypeOf, type CompanyId } from "../../domain/types";
 import { CompanyBadge } from "../components/CompanyBadge";
@@ -17,6 +20,7 @@ import { Keypad } from "../components/Keypad";
 import { Sheet } from "../components/Sheet";
 
 type View = "run" | "train" | "cost" | "bonus" | "private" | "loan" | "discard" | "supply";
+type Amounts = Record<string, number | null>;
 
 const MODE_LABEL: Readonly<Record<PayoutMode, string>> = { full: "Pagar", withhold: "Retener", half: "Mitad" };
 const COST_REASONS = ["terreno", "estación", "ficha", "río"];
@@ -29,16 +33,22 @@ const COST_REASONS = ["terreno", "estación", "ficha", "río"];
  */
 export function OperateSheet({
   companyId,
+  outOfTurn = false,
   onClose,
   onDetails,
 }: {
   companyId: CompanyId;
+  /** Opened deliberately for a company whose turn it is not (FR-012). */
+  outOfTurn?: boolean;
   onClose: () => void;
   onDetails?: () => void;
 }) {
-  const { meta, state } = useSession();
+  const { meta, state, effective } = useSession();
   const { dispatch } = useDispatch();
   const [view, setView] = useState<View>("run");
+  // The turn draft (FR-006): typed but unconfirmed revenue, kept across sub-views, never logged.
+  const [amounts, setAmounts] = useState<Amounts>({});
+  const [editingPart, setEditingPart] = useState(meta.game.revenueParts[0]?.id ?? "revenue");
   const ctx: ActionContext = { game: meta.game, players: meta.players, state };
   const def = meta.game.companies.find((c) => c.id === companyId);
   if (!def) return null;
@@ -49,6 +59,24 @@ export function OperateSheet({
     const result = await dispatch(action);
     if (result.ok) onClose();
   };
+  // The operating turn (US1): the current company in an OR records its run, or "no run", then
+  // finishes the turn. A payout keeps the turn open for trains and costs.
+  const turn = state.turn;
+  const inTurn = !outOfTurn && turn.round === "OR" && turn.currentCompany === companyId;
+  const activity = turnActivity(effective, state, companyId);
+  /** In the turn, a recorded action returns to the turn instead of closing it (FR-007). */
+  const runInTurn = async (action: unknown) => {
+    const result = await dispatch(action);
+    if (result.ok) setView("run");
+  };
+  const step = inTurn ? runInTurn : run;
+  const pay = async (action: unknown) => {
+    const result = await dispatch(action);
+    if (!result.ok) return;
+    setAmounts({});
+    if (!inTurn) onClose();
+  };
+  const finish = () => run({ type: "nextCompany" });
 
   const title = (
     <span className="row">
@@ -62,19 +90,19 @@ export function OperateSheet({
     </button>
   );
 
-  if (view === "train") return <TrainView ctx={ctx} company={companyId} title={title} back={back} onClose={onClose} run={run} />;
+  if (view === "train") return <TrainView ctx={ctx} company={companyId} title={title} back={back} onClose={onClose} run={step} />;
   if (view === "cost" || view === "bonus") {
-    return <AmountView kind={view} company={companyId} title={title} back={back} onClose={onClose} run={run} />;
+    return <AmountView kind={view} company={companyId} title={title} back={back} onClose={onClose} run={step} />;
   }
-  if (view === "private") return <PrivateView ctx={ctx} company={companyId} title={title} back={back} onClose={onClose} run={run} />;
-  if (view === "loan") return <LoanView ctx={ctx} company={companyId} title={title} back={back} onClose={onClose} run={run} />;
+  if (view === "private") return <PrivateView ctx={ctx} company={companyId} title={title} back={back} onClose={onClose} run={step} />;
+  if (view === "loan") return <LoanView ctx={ctx} company={companyId} title={title} back={back} onClose={onClose} run={step} />;
   if (view === "discard") {
     return (
       <Sheet title={title} onClose={onClose}>
         {back}
         <div className="choice-grid">
           {trainsHeldBy(state, ref).map((asset) => (
-            <button key={asset} onClick={() => void run({ type: "discardTrain", company: companyId, train: asset })}>
+            <button key={asset} onClick={() => void step({ type: "discardTrain", company: companyId, train: asset })}>
               Descartar un {trainTypeOf(asset)}
             </button>
           ))}
@@ -94,7 +122,7 @@ export function OperateSheet({
                 const action = { type: "changeTrainSupply", trainType: t.type, op } as const;
                 const ok = availabilityOf(ctx, "changeTrainSupply", action);
                 return (
-                  <button key={`${t.type}-${op}`} disabled={!ok.ok} title={ok.ok ? undefined : ok.reasonEs} onClick={() => void run(action)}>
+                  <button key={`${t.type}-${op}`} disabled={!ok.ok} title={ok.ok ? undefined : ok.reasonEs} onClick={() => void step(action)}>
                     {op === "add" ? "Añadir" : "Quitar"} un {t.type}
                   </button>
                 );
@@ -129,10 +157,41 @@ export function OperateSheet({
 
   return (
     <Sheet title={title} onClose={onClose}>
-      {def.kind === "national" ? (
-        <NationalPayout ctx={ctx} run={run} />
+      {outOfTurn && turn.currentCompany ? (
+        <p className="out-of-turn" role="note">
+          Fuera de turno: le toca a {meta.game.companies.find((c) => c.id === turn.currentCompany)?.shortName ?? turn.currentCompany}. Lo
+          que registres quedará marcado en el historial.
+        </p>
+      ) : null}
+      {inTurn ? (
+        <div className="turn-summary">
+          <span className="label">Este turno</span>
+          {activity.groups.length === 0 ? (
+            <p className="muted">—</p>
+          ) : (
+            <ul>
+              {activity.groups.map((g) => (
+                <li key={g.id}>{summaryEs(g.action, ctx, g.events)}</li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : null}
+      {activity.runRecorded ? (
+        <p className="run-recorded">✓ Operación registrada</p>
+      ) : def.kind === "national" ? (
+        <NationalPayout ctx={ctx} run={pay} />
       ) : (
-        <RevenueEntry ctx={ctx} company={companyId} run={run} />
+        <RevenueEntry
+          ctx={ctx}
+          company={companyId}
+          run={pay}
+          noRun={inTurn ? () => void pay(zeroRunAction(meta.game, companyId)) : undefined}
+          amounts={amounts}
+          setAmounts={setAmounts}
+          editing={editingPart}
+          setEditing={setEditingPart}
+        />
       )}
       <div className="choice-grid">
         {more
@@ -150,23 +209,47 @@ export function OperateSheet({
           })}
         {onDetails ? <button onClick={onDetails}>Detalles y ajustes…</button> : null}
       </div>
+      {inTurn ? (
+        <div className="stack">
+          <button className="primary big" disabled={!activity.canFinish} onClick={() => void finish()}>
+            Terminar turno → siguiente: {nextLabel(meta.game, state, companyId)}
+          </button>
+          {activity.canFinish ? null : <p className="muted">Registra lo que corrió o «No corrió» primero</p>}
+        </div>
+      ) : null}
     </Sheet>
   );
+}
+
+/** Who operates after this company: the next one in order, a new OR in the set, or the set's end. */
+function nextLabel(game: GameDefinition, state: SessionState, company: CompanyId): string {
+  const next = operatingOrder(game, state).find((id) => id !== company && !state.turn.operatedThisOR.includes(id));
+  if (next) return game.companies.find((c) => c.id === next)?.shortName ?? next;
+  return state.turn.orIndex < state.turn.orsInSet ? `OR ${state.turn.orSet}.${state.turn.orIndex + 1}` : "fin del set";
 }
 
 function RevenueEntry({
   ctx,
   company,
   run,
+  noRun,
+  amounts,
+  setAmounts,
+  editing,
+  setEditing,
 }: {
   ctx: ActionContext;
   company: CompanyId;
   run: (action: unknown) => Promise<void>;
+  /** "No corrió" (FR-002), offered only in the company's own turn. */
+  noRun?: (() => void) | undefined;
+  amounts: Amounts;
+  setAmounts: Dispatch<SetStateAction<Amounts>>;
+  editing: string;
+  setEditing: (part: string) => void;
 }) {
   const parts = ctx.game.revenueParts;
   const choice = parts.length === 1 && parts[0]?.to === "choice" ? parts[0] : undefined;
-  const [amounts, setAmounts] = useState<Record<string, number | null>>({});
-  const [editing, setEditing] = useState(parts[0]?.id ?? "revenue");
   const forced = forcedWithholdReason(ctx, company);
 
   if (choice) {
@@ -190,6 +273,11 @@ function RevenueEntry({
               </button>
             );
           })}
+          {noRun ? (
+            <button className="big" onClick={noRun}>
+              No corrió
+            </button>
+          ) : null}
         </div>
       </div>
     );
@@ -230,6 +318,11 @@ function RevenueEntry({
       >
         Confirmar
       </button>
+      {noRun ? (
+        <button className="big" onClick={noRun}>
+          No corrió
+        </button>
+      ) : null}
     </div>
   );
 }

@@ -26,7 +26,7 @@ export function requireCompany(ctx: ActionContext, id: CompanyId | null | undefi
   return company;
 }
 
-const CURRENT_COMPANY_ACTIONS = new Set(["runAndPayout", "buyTrain", "payCost", "bankPays", "buyPrivateByCompany", "takeLoan"]);
+export const CURRENT_COMPANY_ACTIONS: ReadonlySet<string> = new Set(["runAndPayout", "buyTrain", "payCost", "bankPays", "buyPrivateByCompany", "takeLoan"]);
 
 /**
  * Records the operating company instead of null, so History and amends name it explicitly

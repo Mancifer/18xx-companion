@@ -66,10 +66,56 @@ describe("startOR and nextCompany (US7-1, US7-2)", () => {
     expect(s.state.turn.currentCompany).toBeUndefined();
   });
 
-  it("nextCompany past a company with no run marks it operated", () => {
-    const s = withTwo().do({ type: "startOR" }).do(next);
+  it("nextCompany past a company with no run records a zero run: withhold move, one group (T004)", () => {
+    const s = withTwo().do({ type: "startOR" });
+    const before = s.state;
+    s.do(next);
     expect(hasOperated(s.state, "PRR")).toBe(true);
     expect(s.state.turn.operatedThisOR).toContain("PRR");
+    // The zero run and the advance are one group, so one undo reverts both.
+    expect(eventsOf(s.lastEvents, "moneyTransfer")).toEqual([]);
+    expect(eventsOf(s.lastEvents, "marketMove")).toEqual([
+      { t: "marketMove", company: "PRR", to: { row: 0, col: 7 }, reason: "withhold" },
+    ]);
+    expect(eventsOf(s.lastEvents, "turnAdvance").at(-1)).toMatchObject({ company: "NYC" });
+    expect(s.state.turn.currentCompany).toBe("NYC");
+    expect(s.lastWarnings).toContainEqual({
+      code: "noRunRecorded",
+      messageEs: "No se registró la operación de PRR: cuenta como que no corrió y su acción baja.",
+      severity: "warn",
+    });
+    // Reverting the group means replaying without it: the previous company and cell come back.
+    expect(before.turn.currentCompany).toBe("PRR");
+    expect(before.companies["PRR"]?.position).toEqual({ row: 0, col: 8 });
+  });
+
+  it("nextCompany after a recorded run adds no zero run and no warning", () => {
+    const s = withTwo().do({ type: "startOR" });
+    s.do({ type: "runAndPayout", company: null, parts: [{ part: "revenue", amount: 0 }], mode: "withhold" });
+    s.do(next);
+    expect(eventsOf(s.lastEvents, "marketMove")).toEqual([]);
+    expect(s.lastWarnings.map((w) => w.code)).not.toContain("noRunRecorded");
+  });
+
+  it("nextCompany past the 1848 BoE with no run: no market move, an info warning", () => {
+    const s = start("1848").do({ type: "startSR" });
+    seedCompany(s, "QR", { cell: { row: 1, col: 10 }, par: 100, holders: { "player:p1": 6 } });
+    s.do({ type: "startOR" });
+    expect(s.state.turn.currentCompany).toBe("BOE");
+    s.do(next);
+    expect(counterOf(s.state, "company:BOE", "runs")).toBe(1);
+    expect(eventsOf(s.lastEvents, "marketMove")).toEqual([]);
+    expect(s.lastWarnings).toContainEqual(expect.objectContaining({ code: "noRunRecorded", severity: "info" }));
+    expect(s.state.turn.currentCompany).toBe("QR");
+  });
+
+  it("nextCompany with no run passes on the run's own warnings (forcedWithhold)", () => {
+    const s = start("21moon").do({ type: "startSR" });
+    seedCompany(s, "VH", { cell: { row: 4, col: 3 }, status: "receivership", holders: { "player:p1": 6 } });
+    s.do({ type: "startCR" }).do({ type: "startOR" });
+    expect(s.state.turn.currentCompany).toBe("VH");
+    s.do(next);
+    expect(s.lastWarnings.map((w) => w.code)).toEqual(expect.arrayContaining(["noRunRecorded", "forcedWithhold"]));
   });
 
   it("nextCompany does not add a second run for a company that already paid out", () => {

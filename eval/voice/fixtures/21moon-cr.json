@@ -1868,7 +1868,13 @@
         "money:bank",
         "money:company:SSF"
       ],
-      "warnings": []
+      "warnings": [
+        {
+          "code": "outOfTurn",
+          "messageEs": "SSF opera fuera de turno (le toca a VH).",
+          "severity": "warn"
+        }
+      ]
     },
     {
       "kind": "group",
@@ -1929,6 +1935,11 @@
           "code": "notFloated",
           "messageEs": "La compañía no está flotada.",
           "severity": "warn"
+        },
+        {
+          "code": "outOfTurn",
+          "messageEs": "SSF opera fuera de turno (le toca a VH).",
+          "severity": "warn"
         }
       ]
     },
@@ -1943,6 +1954,15 @@
       },
       "events": [
         {
+          "t": "marketMove",
+          "company": "VH",
+          "to": {
+            "row": 4,
+            "col": 1
+          },
+          "reason": "payout"
+        },
+        {
           "t": "counterChange",
           "subject": "company:VH",
           "key": "runs",
@@ -1955,9 +1975,15 @@
       ],
       "touches": [
         "counter:company:VH",
+        "market:VH",
         "turn"
       ],
       "warnings": [
+        {
+          "code": "noRunRecorded",
+          "messageEs": "No se registró la operación de VH: cuenta como que no corrió y su acción baja.",
+          "severity": "warn"
+        },
         {
           "code": "setComplete",
           "messageEs": "Fin de las rondas de operaciones: empieza la ronda de acciones.",
@@ -2011,5 +2037,5 @@
       "warnings": []
     }
   ],
-  "stateHash": "071315940af153a3d0b155726a36cffac2a16700efc6f3ccc234c260cbc45d52"
+  "stateHash": "fdd1e662a83c0ff0ef39d72a169fe52ea358473f5a32d576fda11afad662907e"
 }

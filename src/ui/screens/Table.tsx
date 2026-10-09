@@ -7,6 +7,7 @@ import { counterOf } from "../../domain/events/state";
 import { formatMoney } from "../../domain/i18n/format";
 import { endTriggers } from "../../domain/mechanics/endTriggers";
 import { isEnabled } from "../../domain/mechanics/custom";
+import { currentORGroups, purchasablePrivates, upcomingCompanies } from "../../domain/queries";
 import type { CompanyId, HolderRef, PlayerId } from "../../domain/types";
 import { CompanyCard } from "../components/CompanyCard";
 import { MicButton } from "../components/MicButton";
@@ -31,7 +32,7 @@ import { TurnSheet } from "../sheets/TurnSheet";
 
 export type Open =
   | { kind: "player"; id: PlayerId }
-  | { kind: "company"; id: CompanyId; view: "operate" | "stock" | "details" }
+  | { kind: "company"; id: CompanyId; view: "operate" | "stock" | "details"; outOfTurn?: boolean }
   | { kind: "batch" }
   | { kind: "privates" }
   | { kind: "exchange"; player: PlayerId }
@@ -77,27 +78,34 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
   const close = () => setOpen(null);
   const players = [...meta.players].sort((a, b) => a.seat - b.seat);
   const companyName = (id: CompanyId) => meta.game.companies.find((c) => c.id === id)?.shortName ?? id;
-  const companyView = round === "OR" ? "operate" : "stock";
+  // FR-011: in an OR only the current company's card opens its turn; the others show details.
+  // With no company operating (the set is over) there is no turn to be out of.
+  const companyView = (id: CompanyId) => {
+    if (round !== "OR") return "stock";
+    return current === undefined || id === current ? "operate" : "details";
+  };
   const hasCR = isEnabled(meta.game, "corporateRound");
   const current = state.turn.currentCompany;
   const ending = endTriggers(meta.game, state);
+  const upcoming = upcomingCompanies(meta.game, state);
   const ownedPrivates = meta.game.privates.some((p) => {
     const holder = state.assets[`private:${p.id}`];
     return p.income > 0 && (holder?.startsWith("player:") || holder?.startsWith("company:"));
   });
   // FR-037: offer private income once per OR, until it has been paid in this OR.
-  let orStart = -1;
-  effective.forEach((g, i) => {
-    if (g.events.some((e) => e.t === "turnAdvance" && e.orIndex !== undefined)) orStart = i;
-  });
   const offerIncome =
-    round === "OR" && ownedPrivates && !effective.slice(orStart + 1).some((g) => g.action.type === "privateIncome");
+    round === "OR" && ownedPrivates && !currentORGroups(effective).some((g) => g.action.type === "privateIncome");
 
   const companyActions = (id: CompanyId): ReactNode => {
     const status = state.companies[id]?.status;
+    const outOfTurn = round === "OR" && current !== undefined && id !== current;
     return (
       <>
-        <button onClick={() => setOpen({ kind: "company", id, view: "operate" })}>Operar…</button>
+        {outOfTurn ? (
+          <button onClick={() => setOpen({ kind: "company", id, view: "operate", outOfTurn: true })}>Operar fuera de turno…</button>
+        ) : (
+          <button onClick={() => setOpen({ kind: "company", id, view: "operate" })}>Operar…</button>
+        )}
         <button onClick={() => setOpen({ kind: "company", id, view: "stock" })}>Acciones…</button>
         {status !== "receivership" ? (
           <button
@@ -197,23 +205,25 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
             Operar {companyName(current)}
           </button>
         ) : null}
-        {round === "OR" ? (
-          <button className="primary" onClick={() => void dispatch({ type: "nextCompany" })}>
-            Siguiente
-          </button>
+        {round === "OR" && current && upcoming.length > 0 ? (
+          <span className="round-next">Después: {upcoming.map(companyName).join(", ")}</span>
         ) : null}
         {offerIncome ? (
           <button className="primary" onClick={() => void dispatch({ type: "privateIncome" })}>
             Cobrar privadas
           </button>
         ) : null}
-        {round === "PRIVATES" || round === "SR" ? (
+        {(round === "PRIVATES" || round === "SR") && purchasablePrivates(meta.game, state).length > 0 ? (
           <button onClick={() => setOpen({ kind: "privates" })}>Comprar privada</button>
         ) : null}
         {round === "SR" ? <button onClick={() => setOpen({ kind: "batch" })}>Lote de acciones</button> : null}
         {round === "SR" ? <button onClick={() => void dispatch({ type: "endSR" })}>Fin de ronda de acciones</button> : null}
         {round === "CR" ? <button onClick={() => void dispatch({ type: "endCR" })}>Fin de ronda corporativa</button> : null}
-        {round !== "SR" ? <button onClick={() => void dispatch({ type: "startSR" })}>Empezar ronda de acciones</button> : null}
+        {round !== "SR" ? (
+          <button className={round === "OR" && !current ? "primary" : undefined} onClick={() => void dispatch({ type: "startSR" })}>
+            Empezar ronda de acciones
+          </button>
+        ) : null}
         {hasCR && round === "SR" ? (
           <button onClick={() => void dispatch({ type: "startCR" })}>Empezar ronda corporativa</button>
         ) : null}
@@ -242,7 +252,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
                 key={c.id}
                 companyId={c.id}
                 current={state.turn.currentCompany === c.id}
-                onOpen={() => setOpen({ kind: "company", id: c.id, view: companyView })}
+                onOpen={() => setOpen({ kind: "company", id: c.id, view: companyView(c.id) })}
               />
             ))}
           </div>
@@ -253,6 +263,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
       {open?.kind === "company" && open.view === "operate" ? (
         <OperateSheet
           companyId={open.id}
+          outOfTurn={open.outOfTurn === true}
           onClose={close}
           onDetails={() => setOpen({ kind: "company", id: open.id, view: "details" })}
         />

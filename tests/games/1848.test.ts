@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cashOf, counterOf } from "../../src/domain/events/state";
 import { getBuiltInGame } from "../../src/domain/games";
+import { zeroRunAction } from "../../src/domain/actions/expand/operating";
 import { priceOf } from "../../src/domain/mechanics/market";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { netMoney } from "../helpers/flows";
@@ -241,5 +242,15 @@ describe("1848 stock round", () => {
     s.do({ type: "sellShares", seller: "player:p1", company: "BOE", count: 1 });
     expect(netMoney(s.lastEvents)).toEqual({ bank: -100, "player:p1": 100 });
     expect(s.state.companies["BOE"]!.position).toEqual({ index: 3 });
+  });
+});
+
+describe("zero run (T005, SC-002)", () => {
+  it("§11.2: a run of 0 withheld moves the price left 1 and moves no money", () => {
+    const s = seedCompany(start(), "QR", { cell: { row: 1, col: 10 }, par: 100, holders: { "player:p1": 6 } });
+    const bank = cashOf(s.state, "bank");
+    s.do(zeroRunAction(g1848, "QR"));
+    expect(s.state.companies["QR"]?.position).toEqual({ row: 1, col: 9 });
+    expect(cashOf(s.state, "bank")).toBe(bank);
   });
 });

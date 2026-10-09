@@ -89,3 +89,26 @@ describe("Spanish summaries (US4)", () => {
     expect(summaryEs(action, s, s.lastEvents)).toBe("Carla compra 1 PRR de la IPO · PRR flota (capital al final de la ronda)");
   });
 });
+
+describe("nextCompany summary (T015)", () => {
+  const twoInOR = () => {
+    const s = TestSession.start(getBuiltInGame("1830"), players).do({ type: "startSR" });
+    seedCompany(s, "PRR", { cell: { row: 0, col: 8 }, holders: { "player:p1": 6 } });
+    seedCompany(s, "NYC", { cell: { row: 0, col: 6 }, holders: { "player:p2": 6 } });
+    return s.do({ type: "startOR" });
+  };
+  const next: Action = { type: "nextCompany" };
+
+  it("names the company that did not run, with its move and the next turn", () => {
+    const s = twoInOR();
+    const ctx = { game: s.game, players: s.players, state: s.state };
+    s.do(next);
+    expect(summaryEs(next, ctx, s.lastEvents)).toBe("PRR no corrió · PRR → $112 · turno de NYC");
+  });
+
+  it("is the plain next company after a recorded run", () => {
+    const s = twoInOR().do({ type: "runAndPayout", company: null, parts: [{ part: "revenue", amount: 0 }], mode: "withhold" });
+    s.do(next);
+    expect(summaryEs(next, s, s.lastEvents)).toBe("Siguiente compañía · turno de NYC");
+  });
+});

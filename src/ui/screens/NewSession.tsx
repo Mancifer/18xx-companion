@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useAppActions, useServices } from "../../app/AppProvider";
 import { builtInGames, hasUnverified } from "../../domain/games";
 import type { GameDefinition } from "../../domain/games/schema";
-import type { Player, WalletMode } from "../../domain/types";
+import type { ChipSet, Player, WalletMode } from "../../domain/types";
+import { ChipSetEditor, sortChips } from "../components/ChipSetEditor";
 import { useNav } from "../nav";
 
 const PALETTE = ["#e53935", "#1e88e5", "#43a047", "#fdd835", "#8e24aa", "#fb8c00", "#6d4c41"];
@@ -28,6 +29,9 @@ export function NewSession() {
   const [options, setOptions] = useState<Record<string, string>>({});
   const [rows, setRows] = useState<Row[]>(() => [0, 1, 2, 3].map(newRow));
   const [walletMode, setWalletMode] = useState<WalletMode>("appTruth");
+  /** null = the game's preset (FR-080). */
+  const [chipSet, setChipSet] = useState<ChipSet | null>(null);
+  const [editChips, setEditChips] = useState(false);
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,6 +48,7 @@ export function NewSession() {
   const chooseGame = (id: string) => {
     setGameId(id);
     setOptions({});
+    setChipSet(null);
     const g = all.find((x) => x.id === id);
     if (!g) return;
     setRows((current) => {
@@ -94,7 +99,7 @@ export function NewSession() {
         .filter((a) => a !== ""),
     }));
     try {
-      await newSession({ game, options, players, walletMode, name });
+      await newSession({ game, options, players, walletMode, name, chipSet: sortChips(chipSet ?? { chips: game.chipPreset }) });
       go({ name: "table" });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -196,6 +201,17 @@ export function NewSession() {
               Solo banco
             </button>
           </div>
+        </fieldset>
+
+        <fieldset className="choice-fieldset">
+          <legend>Fichas</legend>
+          {editChips && game ? (
+            <ChipSetEditor value={chipSet ?? { chips: game.chipPreset }} onChange={setChipSet} />
+          ) : (
+            <button onClick={() => setEditChips(true)}>
+              {(chipSet ?? { chips: game?.chipPreset ?? [] }).chips.map((c) => c.label ?? c.value).join(" · ") || "Sin fichas"} · Editar
+            </button>
+          )}
         </fieldset>
 
         <label>

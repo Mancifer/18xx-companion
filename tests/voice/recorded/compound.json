@@ -1,0 +1,49 @@
+{
+  "id": "msg_x",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5",
+  "content": [
+    {
+      "type": "text",
+      "text": "Compra y pago."
+    },
+    {
+      "type": "tool_use",
+      "id": "toolu_1",
+      "name": "buyTrain",
+      "input": {
+        "company": null,
+        "trainType": "4",
+        "variant": null,
+        "from": "bank",
+        "seller": null,
+        "price": null,
+        "tradeIn": null
+      }
+    },
+    {
+      "type": "tool_use",
+      "id": "toolu_2",
+      "name": "runAndPayout",
+      "input": {
+        "company": null,
+        "parts": [
+          {
+            "part": "revenue",
+            "amount": 290
+          }
+        ],
+        "mode": "full"
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 120,
+    "output_tokens": 40,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 6100
+  }
+}

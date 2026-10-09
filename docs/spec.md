@@ -93,8 +93,11 @@ never change state directly. They emit **actions**, which pass validation and be
 ```
 
 - **Undo**: marks the last event (or group) as reverted. Reverted events stay in the log.
-- **Amend**: replaces an event's payload ("no, it was 260") by reverting it and appending a
-  corrected event in the same group.
+- **Amend**: appends an amend entry that replaces a group's effects ("no, it was 260"). The
+  correction is expanded against the state at the original group's position; later groups keep
+  what they recorded (they are not recalculated), and any resulting imbalance is shown, not
+  corrected. Undoing an amend restores the previous version. History shows both the original and
+  the correction, and asks before undoing or amending an entry that later entries depend on.
 - **Event groups**: one user intent (e.g. a dividend payout) produces one group of atomic
   transfers. Undo works on whole groups.
 - **Invariant check** after every reduce: total money is conserved, and each company's share
@@ -106,18 +109,21 @@ never change state directly. They emit **actions**, which pass validation and be
 
 - **Session**: id, game definition (snapshot copied at creation), players, companies, chip
   set, settings, event log.
-- **Holder** (anything that can hold money and/or shares): `bank`, `player:<id>`,
-  `company:<id>`, `ipo:<companyId>`, `pool`. Treasury shares use `company:<id>` as the holder.
+- **Holder** (anything that can hold money, shares or assets): `bank`, `player:<id>`,
+  `company:<id>`, `ipo:<companyId>`, `pool`, and `removed` (out of the game: rusted trains,
+  closed privates, shares of a bankrupt company). Treasury shares use `company:<id>` as the
+  holder. Only the bank, players and companies hold money.
 - **Player**: id, name, aliases (for voice), color, seat order.
 - **Company**: id, short name, full name, aliases, color, share count (5/10/…, variable to allow
   future conversions), par price, current market position, status
-  (`unstarted | parred | floated | closed`), trains (optional list).
+  (`unstarted | parred | floated | receivership | bankrupt | closed`), trains, loans, and
+  counters (bank debt, bonus tokens, runs).
 - **Private company**: id, name, owner holder, income per OR, closed flag.
 - **Certificate holdings**: map of holder → company → percent (or share units). The president's
   certificate is tracked separately.
 - **Market**: game-defined grid (1D or 2D), with company tokens at positions.
-- **Turn state**: round type (`SR | OR`), OR set number and index (e.g. OR 2.1), operating
-  order, current company, phase.
+- **Turn state**: round type (`PRIVATES | SR | CR | OR`; CR is the 21Moon corporate round),
+  OR set number and index (e.g. OR 2.1), operating order, current company, phase.
 
 ### 5.2 Game definition (data, not code)
 
@@ -130,7 +136,7 @@ rulebook for each game before implementation.
 | `startingCash` | Per player count |
 | `companies[]` | Name, short name, color, share count, home info (cosmetic) |
 | `privates[]` | Name, price, income |
-| `capitalization` | `full` (company receives N × par on float) or `incremental` (receives par per share sold from IPO/treasury) |
+| `capitalization` | `full` (company receives N × par when it floats, or at the end of that stock round in 1830) or `incremental` (receives the market price for each share sold from its IPO, and for issued shares) |
 | `floatPercent` | % sold needed to float |
 | `unownedDividends.ipo` | Who receives dividends for IPO/treasury shares: `company`, `bank`, `none` ⚠ |
 | `unownedDividends.pool` | Same, for pool shares ⚠ |
@@ -174,8 +180,9 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 - `shareTransfer { company, from, to, units, isPresidency? }`
 - `marketMove { company, toPosition, reason }`
 - `companyStatus { company, status }`
-- `trainTransfer { train, from, to }` (optional tracking)
-- `turnAdvance { round, orIndex, company? }`
+- `assetTransfer { asset, from, to }` (trains, private companies and loan markers)
+- `turnAdvance { round, orIndex, company?, phase? }`
+- `counterChange { subject, key, delta }` (bank debt, bonus tokens, runs, bankruptcy, takeovers)
 - `note { text }` (free-form, for anything the app doesn't model)
 
 **High-level actions** (what touch and voice produce)
@@ -185,13 +192,21 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 | Operating | `runAndPayout(company, revenue, mode)` | money transfers to holders by ownership plus a market move |
 | Operating | `buyTrain(company, trainType, from, price?)` | money and train transfer, possible phase change |
 | Operating | `payCost(company, amount, reason)` | company → bank |
+| Operating | `bankPays(company, amount, reason)` | bank → company (one-off bonuses such as the 21Moon Space Bridge) |
 | Operating | `privateIncome()` | bank → owners, at the start of each OR |
+| Operating | `buyPrivateByCompany(company, private, price)` | company → owner, private → company |
+| Operating | `discardTrain(company, train)` / `changeTrainSupply(type, add\|remove)` | train to the pool (1830) or out of the game; reserve trains in and out of the supply (21Moon) |
+| Operating | `nationalPayout(extra)` | 1848 Bank of England dividend: phase minimum plus city values |
+| Status | `enterReceivership` / `declareBankruptcy` / `closeCompany` / `adjustCounter` | the matching mechanic's bookkeeping (1848 takeover, bankruptcy cleanup), or a plain status or counter change |
 | Stock | `parCompany(player, company, price)` | shares + money + status |
-| Stock | `buyShare(player, company, source, count?)` | shares + money (+ capitalization) |
-| Stock | `sellShares(player, company, count)` | shares + money + market move |
-| Stock | `buyPrivate(player/company, private, price)` | |
+| Stock | `buyShare(buyer, company, source, count?)` | shares + money (+ float and capitalization, presidency changes). The buyer is a player, or a company in a corporate round |
+| Stock | `sellShares(seller, company, count)` | shares + money + market move (per share or per sale, as the game says) |
+| Stock | `swapCertificates(player, company, give, take)` | 21Moon: certificates swapped with the company treasury, no money |
+| Stock | `issueShares(company, count)` | 21Moon corporate round: IPO → pool, the bank pays the company, price down 1 |
+| Stock | `buyPrivate(player, private, price, par?)` / `exchangePrivate(private, source)` | money and private; grants (CA, BO, P5, P6) and exchanges (MH, 21Moon P6) |
+| Stock | `stockBatch(items, assumedPrices)` | one group, applied in the stated order at the stated prices |
 | Loans | `takeLoan(company, n)` | only if the game defines loans. Repayment and interest are definition fields for future games; v1 builds no repay action |
-| Flow | `nextCompany / startSR / startOR / endSR` | turn events, sold-out market moves at the end of the SR |
+| Flow | `nextCompany / startSR / startOR / endSR / startCR / endCR` | turn events; capital of companies floated during the SR and sold-out moves at the end of the SR; sold-out and pool-penalty moves at the end of the CR |
 | Manual | `adjust(holder, amount)` / `setPrice(company, position)` | overrides, recorded as events |
 
 ### 6.1 Stock round entry modes
@@ -281,18 +296,27 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 2. **New session**: pick game → players (names, colors, aliases) → chip set (preset +
    colors) → wallet mode.
 3. **Table** (main screen):
-   - Top bar: round indicator (SR / OR 2.1), current company, bank remaining.
+   - Top bar: round indicator (SR 3 / CR 1 / OR 2.1), phase, current company, bank remaining.
+     Tapping the indicator opens a manual turn and phase control.
+   - Round controls: one-tap "Siguiente" (next company by the game's operating order), "Operar"
+     for the current company, the private-income offer at the start of each OR, and the
+     start/end buttons for each round. An end-of-game banner shows any end trigger reached
+     (warnings only).
    - **Player grid**: large tiles with name, cash, and share summary. Tap opens a detail sheet;
      ± gestures allow quick adjustments.
    - **Company grid** (tab or second row): treasury, price, president, trains.
    - Floating **mic button** (push-to-talk) and **undo** button.
 4. **Operate sheet** (touch path for an OR turn): revenue keypad, Pay / Withhold / Half,
    buy-train picker, pay-cost.
-5. **Stock sheet**: player → company → buy (IPO/pool) / sell n / par.
+5. **Stock sheet**: from a company card, a row per player with IPO / Pool / Vender (two taps
+   from the table), a share-count stepper, par prices for unstarted companies, issue and company
+   trades in the corporate round, and a batch sheet for end-of-round statements.
 6. **Confirmation card**: summary, flows, chips, Confirm / Edit / Cancel.
 7. **History**: grouped ledger. Undo or amend any group, with a warning when later events depend
    on it.
-8. **Market view**: grid with company tokens (read-only in v1, plus manual move).
+8. **Market view**: grid with company tokens stacked by arrival, plus 1-D tracks such as the
+   1848 BoE. A token moves by dragging it, or by tapping it and then a cell; each move is a
+   recorded manual override, so cell effects (receivership, closed) still apply.
 
 ### 9.2 Touch & accessibility
 
@@ -303,7 +327,11 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 ## 10. Persistence & Data
 
 - Event log and snapshots in IndexedDB, saved on every event.
-- Export/import session as JSON (backup, bug reports, moving devices).
+- Export/import session as JSON (backup, bug reports, moving devices). The file holds the
+  session's frozen game definition, players, chip set and the full log (with undos and
+  corrections) plus a hash of the replayed state. On import the log is replayed: a hash mismatch
+  is shown as a warning but the session still imports. A session that already exists on the
+  device can be replaced or imported as a copy.
 - API key stored locally on the device, never exported.
 
 ## 11. Open Items

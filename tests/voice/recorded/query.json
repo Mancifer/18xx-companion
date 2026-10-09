@@ -1,0 +1,30 @@
+{
+  "id": "msg_x",
+  "type": "message",
+  "role": "assistant",
+  "model": "claude-sonnet-5",
+  "content": [
+    {
+      "type": "text",
+      "text": "Ana tiene 1000"
+    },
+    {
+      "type": "tool_use",
+      "id": "toolu_1",
+      "name": "query",
+      "input": {
+        "kind": "cash",
+        "player": "p1",
+        "company": null
+      }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "stop_sequence": null,
+  "usage": {
+    "input_tokens": 120,
+    "output_tokens": 40,
+    "cache_creation_input_tokens": 0,
+    "cache_read_input_tokens": 6100
+  }
+}

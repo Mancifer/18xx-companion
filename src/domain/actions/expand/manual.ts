@@ -2,7 +2,8 @@ import { cashOf } from "../../events/state";
 import type { PrimitiveEvent } from "../../events/types";
 import { formatMoney } from "../../i18n/format";
 import type { HolderRef } from "../../types";
-import { warning, type ActionContext, type HandlerMap } from "../context";
+import { cellAt } from "../../mechanics/market";
+import { AVAILABLE, unavailable, warning, type ActionContext, type HandlerMap } from "../context";
 import type { Warning } from "../schemas";
 
 /** Warnings shared by any action that moves money out of a holder (never blocking). */
@@ -50,5 +51,18 @@ export const manualHandlers: HandlerMap = {
   },
   note: {
     expand: (_ctx, a) => [{ t: "note", text: a.text }],
+  },
+  /** US7-3: a manual token move. Cell triggers (receivership, closed) still apply. */
+  setMarket: {
+    available: (ctx, a) => {
+      if (!a) return AVAILABLE;
+      const cell = a.cell;
+      if ("index" in cell) {
+        const track = ctx.game.market.tracks?.[a.company];
+        return track && cell.index <= track.byLoansIssued.length ? AVAILABLE : unavailable("Esa casilla no existe");
+      }
+      return cellAt(ctx.game, cell) ? AVAILABLE : unavailable("Esa casilla no existe");
+    },
+    expand: (_ctx, a) => [{ t: "marketMove", company: a.company, to: a.cell, reason: "manual" }],
   },
 };

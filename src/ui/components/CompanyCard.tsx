@@ -2,6 +2,8 @@ import { useSession } from "../../app/useSession";
 import { assetsHeldBy, cashOf, presidentOf } from "../../domain/events/state";
 import { statusLabel } from "../../domain/i18n/es";
 import { formatMoney } from "../../domain/i18n/format";
+import { floatPending } from "../../domain/mechanics/capitalization";
+import { floatConditionConfig } from "../../domain/mechanics/custom/manualFloatCondition";
 import { priceOf } from "../../domain/mechanics/market";
 import { trainTypeOf, type CompanyId } from "../../domain/types";
 import { CompanyBadge } from "./CompanyBadge";
@@ -25,6 +27,12 @@ export function CompanyCard({
   const presidentName = meta.players.find((p) => p.id === president)?.name;
   const trains = assetsHeldBy(state, `company:${companyId}`, "train").map(trainTypeOf);
   const loans = assetsHeldBy(state, `company:${companyId}`, "loan").length;
+  const condition = floatConditionConfig(meta.game);
+  const pendingCondition =
+    condition?.company === companyId &&
+    record.status === "parred" &&
+    floatPending({ game: meta.game, state }, companyId) === "condition";
+  const status = record.capitalPending ? "flotada (capital al final de la ronda)" : statusLabel[record.status];
   return (
     <button
       className={`company-card status-${record.status}${current ? " current" : ""}`}
@@ -33,7 +41,7 @@ export function CompanyCard({
     >
       <span className="company-card-head">
         <CompanyBadge company={def} size="lg" />
-        <span className="company-status muted">{statusLabel[record.status]}</span>
+        <span className="company-status muted">{status}</span>
       </span>
       <span className="company-figures">
         <span>
@@ -52,6 +60,7 @@ export function CompanyCard({
       <span className="company-meta muted">
         {def.kind === "national" || !presidentName ? "Sin presidente" : `Pres.: ${presidentName}`}
       </span>
+      {pendingCondition ? <span className="badge warn">{condition.question}</span> : null}
       {trains.length > 0 || loans > 0 ? (
         <span className="company-meta">
           {trains.length > 0 ? `Trenes: ${trains.join(" · ")}` : null}

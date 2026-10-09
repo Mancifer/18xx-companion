@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import type { Action } from "../domain/actions/schemas";
 import type { GroupEntry } from "../domain/ledger/entries";
 import { openCompanionDb, type CompanionDb } from "../persistence/db";
 import { GamesRepo } from "../persistence/gamesRepo";
@@ -19,6 +20,7 @@ export interface Services {
 export type FeedbackInput =
   | { readonly kind: "applied"; readonly group: GroupEntry }
   | { readonly kind: "reverted"; readonly group: GroupEntry }
+  | { readonly kind: "amended"; readonly group: GroupEntry; readonly action: Action }
   | { readonly kind: "error"; readonly messageEs: string };
 export type Feedback = FeedbackInput & { readonly id: number };
 

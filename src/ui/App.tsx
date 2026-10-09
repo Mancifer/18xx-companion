@@ -1,8 +1,11 @@
 import { Component, useMemo, useState, type ReactNode } from "react";
 import { AppProvider } from "../app/AppProvider";
 import { useHasSession } from "../app/useSession";
+import { defaultVoiceDeps, VoiceDepsContext, type VoiceDeps } from "../app/useVoice";
 import { NavContext, type Nav, type Screen } from "./nav";
 import { CustomGame } from "./screens/CustomGame";
+import { History } from "./screens/History";
+import { Market } from "./screens/Market";
 import { Home } from "./screens/Home";
 import { NewSession } from "./screens/NewSession";
 import { Table } from "./screens/Table";
@@ -34,9 +37,9 @@ function Screens({ screen, go }: { screen: Screen; go: (s: Screen) => void }): R
     case "table":
       return <Table />;
     case "history":
-      return <Placeholder title="Historial" onBack={() => go({ name: "table" })} />;
+      return <History />;
     case "market":
-      return <Placeholder title="Mercado" onBack={() => go({ name: "table" })} />;
+      return <Market />;
     case "settings":
       return <Placeholder title="Ajustes" onBack={() => go({ name: hasSession ? "table" : "home" })} />;
   }
@@ -77,11 +80,12 @@ class ErrorBoundary extends Component<{ children: ReactNode; onReset: () => void
   }
 }
 
-export function App({ dbName }: { dbName?: string }) {
+export function App({ dbName, voiceDeps = defaultVoiceDeps }: { dbName?: string; voiceDeps?: VoiceDeps }) {
   const [screen, setScreen] = useState<Screen>({ name: "home" });
   const nav = useMemo<Nav>(() => ({ screen, go: setScreen }), [screen]);
   return (
     <AppProvider {...(dbName !== undefined ? { dbName } : {})}>
+      <VoiceDepsContext.Provider value={voiceDeps}>
       <NavContext.Provider value={nav}>
         <ErrorBoundary
           onReset={() => {
@@ -91,6 +95,7 @@ export function App({ dbName }: { dbName?: string }) {
           <Screens screen={screen} go={setScreen} />
         </ErrorBoundary>
       </NavContext.Provider>
+      </VoiceDepsContext.Provider>
     </AppProvider>
   );
 }

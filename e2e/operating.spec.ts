@@ -1,0 +1,69 @@
+import { expect, test } from "@playwright/test";
+import { newSession, openCompany, showCompanies, showPlayers, toast, trade, typeAmount } from "./helpers";
+
+test("quickstart 3: PRR pays 240 with Ana 60%, Bruno 20%, pool 20% (US3-1)", async ({ page }) => {
+  await newSession(page, { players: ["Ana", "Bruno", "Carla", "Dani"] });
+  await page.getByRole("button", { name: "Empezar ronda de acciones" }).click();
+
+  const parSheet = await openCompany(page, "PRR");
+  await parSheet.getByRole("button", { name: "$100", exact: true }).click();
+  await parSheet.getByRole("button", { name: "Ana", exact: true }).click();
+  await trade(page, "PRR", "IPO Ana", 4);
+  await trade(page, "PRR", "IPO Bruno", 2);
+  await trade(page, "PRR", "IPO Dani", 2);
+  await trade(page, "PRR", "Vender Dani", 2);
+  await expect(page.getByTestId("price-PRR")).toHaveText("$82");
+
+  await page.getByRole("button", { name: "Fin de ronda de acciones" }).click();
+  await expect(page.getByTestId("treasury-PRR")).toHaveText("$1.000");
+  await page.getByRole("button", { name: "Empezar OR" }).click();
+
+  const operate = await openCompany(page, "PRR");
+  await typeAmount(page, 240);
+  await operate.getByRole("button", { name: "Pagar", exact: true }).click(); // one tap after the revenue
+  await expect(toast(page)).toContainText("PRR paga $240 ($24/acción)");
+  await expect(page.getByTestId("treasury-PRR")).toHaveText("$1.048");
+  await expect(page.getByTestId("price-PRR")).toHaveText("$90");
+  await showPlayers(page);
+  await expect(page.getByTestId("cash-p1")).toHaveText("$144");
+  await expect(page.getByTestId("cash-p2")).toHaveText("$448");
+  await expect(page.getByRole("button", { name: "Avisos de cuadre" })).toHaveCount(0);
+});
+
+test("quickstart 5: 1848 loan, then receivership from the company sheet (US3-6)", async ({ page }) => {
+  await newSession(page, { game: "1848 Australia", players: ["Ana", "Bruno", "Carla", "Dani"] });
+  await expect(page.getByTestId("bank")).toHaveText("£7.480");
+  await page.getByRole("button", { name: "Empezar ronda de acciones" }).click();
+
+  const parSheet = await openCompany(page, "QR");
+  await parSheet.getByRole("button", { name: "£100", exact: true }).click();
+  await parSheet.getByRole("button", { name: "Ana", exact: true }).click();
+  await trade(page, "QR", "IPO Ana", 4);
+  await expect(page.getByTestId("treasury-QR")).toHaveText("£1.000");
+
+  await page.getByRole("button", { name: "Empezar OR" }).click();
+  const buy = await openCompany(page, "QR");
+  await buy.getByRole("button", { name: "Comprar tren" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /^3 \(5\)/ }).click();
+  await expect(toast(page)).toContainText("fase 3");
+
+  const loanSheet = await openCompany(page, "QR");
+  await loanSheet.getByRole("button", { name: /^Préstamo/ }).click();
+  await expect(page.getByRole("dialog").getByRole("button", { name: /Devolver/ })).toHaveCount(0);
+  await page.getByRole("dialog").getByRole("button", { name: /^Pedir 1/ }).click();
+  await expect(page.getByTestId("treasury-QR")).toHaveText("£900");
+  await expect(page.getByTestId("treasury-BOE")).toHaveText("£1.900");
+  await expect(page.getByTestId("price-QR")).toHaveText("£80");
+  await expect(page.getByTestId("price-BOE")).toHaveText("£80");
+  await showCompanies(page);
+  await expect(page.locator(".company-card", { has: page.getByTestId("treasury-QR") })).toContainText("Préstamos: 1");
+
+  const details = await openCompany(page, "QR");
+  await details.getByRole("button", { name: "Detalles y ajustes…" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Entrar en administración" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Entrar en administración" }).click();
+  await expect(toast(page)).toContainText("QR en administración");
+  await expect(page.getByTestId("treasury-QR")).toHaveText("£0");
+  await expect(page.locator(".company-card", { has: page.getByTestId("treasury-QR") })).toContainText("administrada");
+  await expect(page.getByRole("button", { name: "Avisos de cuadre" })).toHaveCount(0);
+});

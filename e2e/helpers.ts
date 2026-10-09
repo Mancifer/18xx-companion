@@ -34,3 +34,36 @@ export async function payBank(page: Page, player: string, amount: number) {
   await typeAmount(page, amount);
   await page.getByRole("button", { name: /^Pagar .* al banco$/ }).click();
 }
+
+/** On phones the company grid is a tab; on tablets both panes are visible. */
+export async function showCompanies(page: Page) {
+  const tab = page.getByRole("tab", { name: "Compañías" });
+  if (await tab.isVisible()) await tab.click();
+}
+
+export async function showPlayers(page: Page) {
+  const tab = page.getByRole("tab", { name: "Jugadores" });
+  if (await tab.isVisible()) await tab.click();
+}
+
+/** Opens a company's sheet from its card and returns the dialog. */
+export async function openCompany(page: Page, company: string) {
+  await showCompanies(page);
+  await page.locator(".company-card", { has: page.getByTestId(`treasury-${company}`) }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+/** Sets the share-count stepper in the stock sheet, then taps a row button. */
+export async function trade(page: Page, company: string, button: string, count = 1) {
+  const dialog = await openCompany(page, company);
+  for (let i = 1; i < count; i++) await dialog.getByRole("button", { name: "Más", exact: true }).click();
+  await dialog.getByRole("button", { name: button, exact: true }).click();
+  await expect(dialog).toBeHidden();
+}
+
+/** The feedback toast (the keypad display also has the status role). */
+export function toast(page: Page) {
+  return page.locator(".toast");
+}

@@ -262,6 +262,8 @@ export const GameDefinitionSchema = z.object({
     z.literal("company"),
     z.object({ perBase: posInt, bases: z.array(z.string()).min(1) }),
   ]),
+  /** Where discarded and traded-in trains go: the open market (1830) or out of the game (default). */
+  discardedTrainsTo: z.enum(["pool", "removed"]).optional(),
   phases: z.array(PhaseDefSchema).min(1),
   roundSchedule: RoundScheduleSchema,
   srOrder: z.literal("priorityDeal"),

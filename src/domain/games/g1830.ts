@@ -135,6 +135,8 @@ export const g1830: GameDefinition = {
       tradeIn: { fromTypes: ["4", "5", "6"], cost: 800 }, countsForLimit: true },
   ],
   trainLimitScope: "company",
+  // §7.6: discarded and traded-in trains go to the open market (the bank pool).
+  discardedTrainsTo: "pool",
   phases: [
     { id: "2", triggeredBy: null, orsPerSet: 1, trainLimit: 4, effects: [] },
     { id: "3", triggeredBy: "3", orsPerSet: 2, trainLimit: 4, effects: [] },

@@ -86,6 +86,215 @@ export const transferSharesAction = z.object({
 
 export const noteAction = z.object({ type: z.literal("note"), text: z.string().min(1) });
 
+// ---------------------------------------------------------------------------------------------
+// Operating round (US3). A null company is the operating company.
+
+/** null = the operating company (turn.currentCompany). */
+export const currentCompanyId = companyId.nullable();
+export const PayoutModeSchema = z.enum(["full", "withhold", "half"]);
+
+export const runAndPayoutAction = z.object({
+  type: z.literal("runAndPayout"),
+  company: currentCompanyId,
+  /** One part normally ("revenue"); 21Moon has "local" and "spacePort". */
+  parts: z.array(z.object({ part: z.string().min(1), amount: z.number().int().nonnegative() })).min(1),
+  /** null = full, or no choice in games without a choice part. */
+  mode: PayoutModeSchema.nullable(),
+});
+
+export const buyTrainAction = z.object({
+  type: z.literal("buyTrain"),
+  company: currentCompanyId,
+  trainType: z.string().min(1),
+  /** Variant name ("2+", "D"); null = the first variant. */
+  variant: z.string().min(1).nullable(),
+  from: z.enum(["bank", "pool", "company"]),
+  /** The selling company when `from` is "company". */
+  seller: companyId.nullable(),
+  /** null = the list cost (or the trade-in cost). Company-to-company prices are agreed, ≥ 1. */
+  price: money.nullable(),
+  /** The type of the train traded in (1830 D for a 4/5/6). */
+  tradeIn: z.string().min(1).nullable(),
+});
+
+export const payCostAction = z.object({
+  type: z.literal("payCost"),
+  company: currentCompanyId,
+  amount: money,
+  reason: z.string().nullable(),
+});
+
+export const bankPaysAction = z.object({
+  type: z.literal("bankPays"),
+  company: currentCompanyId,
+  amount: money,
+  reason: z.string().min(1),
+});
+
+export const privateIncomeAction = z.object({ type: z.literal("privateIncome") });
+
+export const buyPrivateByCompanyAction = z.object({
+  type: z.literal("buyPrivateByCompany"),
+  company: currentCompanyId,
+  private: z.string().min(1),
+  price: money,
+});
+
+export const discardTrainAction = z.object({
+  type: z.literal("discardTrain"),
+  company: companyId,
+  /** A train type ("3") or a train asset id ("train:3:2"). */
+  train: z.string().min(1),
+});
+
+export const changeTrainSupplyAction = z.object({
+  type: z.literal("changeTrainSupply"),
+  trainType: z.string().min(1),
+  op: z.enum(["add", "remove"]),
+});
+
+export const startORAction = z.object({ type: z.literal("startOR") });
+
+/** nationalBank: the BoE pays its phase minimum plus the city values entered as `extra`. */
+export const nationalPayoutAction = z.object({
+  type: z.literal("nationalPayout"),
+  extra: z.number().int().nonnegative(),
+});
+
+/** loans (FR-112). There is no repay action: v1 loans are never repaid (constitution VII). */
+export const takeLoanAction = z.object({
+  type: z.literal("takeLoan"),
+  company: currentCompanyId,
+  count: z.number().int().positive().max(20),
+});
+
+// Status and counters (US3, T090)
+
+export const enterReceivershipAction = z.object({ type: z.literal("enterReceivership"), company: companyId });
+
+export const declareBankruptcyAction = z
+  .object({
+    type: z.literal("declareBankruptcy"),
+    player: z.string().min(1).nullable(),
+    company: companyId.nullable(),
+  })
+  .refine((a) => (a.player === null) !== (a.company === null), "give exactly one of player or company");
+
+export const closeCompanyAction = z.object({ type: z.literal("closeCompany"), company: companyId });
+
+export const adjustCounterAction = z.object({
+  type: z.literal("adjustCounter"),
+  subject: holderRef,
+  key: z.string().min(1),
+  delta: z.number().int().refine((d) => d !== 0, "delta must not be 0"),
+});
+
+// ---------------------------------------------------------------------------------------------
+// Stock round (US4). Buyers and sellers are holder refs: a player, or a company in a corporate
+// round (only when the game enables `corporateRound`).
+
+export const playerId = z.string().min(1);
+export const ShareSourceSchema = z.enum(["ipo", "pool", "treasury"]);
+
+export const parCompanyAction = z.object({
+  type: z.literal("parCompany"),
+  player: playerId,
+  company: companyId,
+  price: money,
+});
+
+export const buyShareAction = z.object({
+  type: z.literal("buyShare"),
+  buyer: playerOrCompanyRef,
+  company: companyId,
+  source: ShareSourceSchema,
+  /** null = 1 */
+  count: units.nullable(),
+});
+
+export const sellSharesAction = z.object({
+  type: z.literal("sellShares"),
+  seller: playerOrCompanyRef,
+  company: companyId,
+  count: units,
+});
+
+const certificatePart = z.object({ company: companyId, units });
+
+/** 21Moon §9.2.2: the president swaps certificates 1-for-1 with the company treasury, no money. */
+export const swapCertificatesAction = z.object({
+  type: z.literal("swapCertificates"),
+  player: playerId,
+  company: companyId,
+  give: certificatePart,
+  take: certificatePart,
+});
+
+export const buyPrivateAction = z.object({
+  type: z.literal("buyPrivate"),
+  buyer: playerId,
+  private: z.string().min(1),
+  price: z.number().int().nonnegative(),
+  /** The par the owner chooses when the private grants a presidency (1830 BO). */
+  par: money.nullable(),
+});
+
+/** privateGrants: exchange a private for a share (1830 MH, 21Moon P6), closing it. */
+export const exchangePrivateAction = z.object({
+  type: z.literal("exchangePrivate"),
+  private: z.string().min(1),
+  source: z.enum(["ipo", "pool"]),
+  /** The company whose share is taken; null = the one the private names. */
+  company: companyId.nullable(),
+});
+
+export const stockBatchAction = z
+  .object({
+    type: z.literal("stockBatch"),
+    items: z.array(z.discriminatedUnion("type", [buyShareAction, sellSharesAction, parCompanyAction])).min(1),
+    /** Per item: the price assumed when it happened; null = the price at that point. */
+    assumedPrices: z.array(money.nullable()),
+  })
+  .refine((a) => a.assumedPrices.length === a.items.length, "one assumed price (or null) per item");
+
+export const startSRAction = z.object({ type: z.literal("startSR") });
+export const endSRAction = z.object({ type: z.literal("endSR") });
+export const confirmFloatConditionAction = z.object({ type: z.literal("confirmFloatCondition"), company: companyId });
+export const issueSharesAction = z.object({ type: z.literal("issueShares"), company: companyId, count: units });
+export const startCRAction = z.object({ type: z.literal("startCR") });
+export const endCRAction = z.object({ type: z.literal("endCR") });
+
+// ---------------------------------------------------------------------------------------------
+// Turns and market (US7)
+
+export const CellRefSchema = z.union([
+  z.object({ row: z.number().int().nonnegative(), col: z.number().int().nonnegative() }),
+  z.object({ index: z.number().int().nonnegative() }),
+]);
+
+export const nextCompanyAction = z.object({ type: z.literal("nextCompany") });
+export const setPhaseAction = z.object({ type: z.literal("setPhase"), phase: z.string().min(1) });
+/** A manual turn override: null fields stay as they are. */
+export const setTurnAction = z.object({
+  type: z.literal("setTurn"),
+  round: z.enum(["PRIVATES", "SR", "CR", "OR"]).nullable(),
+  srNumber: z.number().int().nonnegative().nullable(),
+  orSet: z.number().int().nonnegative().nullable(),
+  orIndex: z.number().int().nonnegative().nullable(),
+  orsInSet: z.number().int().positive().nullable(),
+  company: companyId.nullable(),
+});
+export const setMarketAction = z.object({ type: z.literal("setMarket"), company: companyId, cell: CellRefSchema });
+
+/**
+ * Several actions recorded as one group (FR-071: a compound voice command). The items are
+ * parsed with ActionSchema when expanded; a compound cannot contain another compound.
+ */
+export const compoundAction = z.object({
+  type: z.literal("compound"),
+  actions: z.array(z.record(z.string(), z.unknown())).min(1),
+});
+
 /** All actions that go through the pipeline. Later stories extend this union. */
 export const ActionSchema = z.discriminatedUnion("type", [
   createSessionAction,
@@ -93,6 +302,39 @@ export const ActionSchema = z.discriminatedUnion("type", [
   adjustMoneyAction,
   transferSharesAction,
   noteAction,
+  runAndPayoutAction,
+  buyTrainAction,
+  payCostAction,
+  bankPaysAction,
+  privateIncomeAction,
+  buyPrivateByCompanyAction,
+  discardTrainAction,
+  changeTrainSupplyAction,
+  startORAction,
+  nationalPayoutAction,
+  takeLoanAction,
+  enterReceivershipAction,
+  declareBankruptcyAction,
+  closeCompanyAction,
+  adjustCounterAction,
+  parCompanyAction,
+  buyShareAction,
+  sellSharesAction,
+  swapCertificatesAction,
+  buyPrivateAction,
+  exchangePrivateAction,
+  stockBatchAction,
+  startSRAction,
+  endSRAction,
+  confirmFloatConditionAction,
+  issueSharesAction,
+  startCRAction,
+  endCRAction,
+  nextCompanyAction,
+  setPhaseAction,
+  setTurnAction,
+  setMarketAction,
+  compoundAction,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;

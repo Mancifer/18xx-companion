@@ -119,6 +119,24 @@ export class SessionStore {
     return this.enqueue(() => this.doAmend(groupId, action, options));
   }
 
+  /**
+   * Table configuration that is not game state (the chip set, the name): saved to the session
+   * metadata, never to the log (data-model §2).
+   */
+  updateMeta(patch: Pick<Partial<SessionMeta>, "chipSet" | "name">): Promise<{ ok: true } | StoreError> {
+    return this.enqueue(async () => {
+      const { meta } = this.snapshot;
+      try {
+        await this.writer.updateMeta?.(meta.id, patch);
+      } catch {
+        return { ok: false, error: "persist", messageEs: "No se pudo guardar. Inténtalo de nuevo." } as const;
+      }
+      this.snapshot = { ...this.snapshot, meta: { ...meta, ...patch } };
+      for (const listener of this.listeners) listener();
+      return { ok: true } as const;
+    });
+  }
+
   /** Later active groups that depend on this one (FR-014), without changing anything. */
   dependentsOf(groupId: string, extraKeys: readonly string[] = []): readonly EffectiveGroup[] {
     return dependentsOf(this.snapshot.log, groupId, extraKeys);

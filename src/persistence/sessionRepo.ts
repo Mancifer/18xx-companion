@@ -8,6 +8,8 @@ export interface EntryWriter {
   appendEntry(sessionId: string, entry: LogEntry): Promise<void>;
   putSnapshot?(sessionId: string, snapshot: Snapshot): Promise<void>;
   deleteSnapshotsFrom?(sessionId: string, seq: number): Promise<void>;
+  /** Table configuration outside the log (name, chip set, data-model §2). */
+  updateMeta?(sessionId: string, patch: Partial<Omit<SessionMeta, "id">>): Promise<SessionMeta>;
 }
 
 export interface LoadedSession {
@@ -40,6 +42,14 @@ export class SessionRepo implements EntryWriter {
       updatedAt: entry.at,
       entryCount: meta.entryCount + 1,
     });
+    await tx.done;
+  }
+
+  /** Writes an imported session and its whole log in one strict transaction (US8). */
+  async importSession(meta: SessionMeta, entries: readonly LogEntry[]): Promise<void> {
+    const tx = this.db.transaction(["sessions", "entries"], "readwrite", STRICT);
+    await tx.objectStore("sessions").put(meta);
+    for (const entry of entries) await tx.objectStore("entries").put({ sessionId: meta.id, seq: entry.seq, entry });
     await tx.done;
   }
 

@@ -4,6 +4,7 @@ import { availabilityOf } from "./availability";
 import type { ActionContext, ActionHandler } from "./context";
 import { handlerFor } from "./expand";
 import { referenceIssues } from "./references";
+import { withCurrentCompany } from "./resolve";
 import { runTriggers } from "./triggers";
 import { ActionSchema, type Action, type ActionType, type Warning } from "./schemas";
 import { validateAction } from "./validate";
@@ -31,7 +32,7 @@ export function runPipeline(ctx: ActionContext, input: unknown): PipelineResult 
       issues: parsed.error.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`),
     };
   }
-  const action = parsed.data;
+  const action = withCurrentCompany(ctx, parsed.data);
   const unknown = referenceIssues(ctx, action);
   if (unknown.length > 0) return { kind: "invalid", issues: unknown };
   const availability = availabilityOf(ctx, action.type, action);

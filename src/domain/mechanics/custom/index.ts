@@ -5,12 +5,12 @@ import { corporateRound } from "./corporateRound";
 import { forcedWithhold } from "./forcedWithhold";
 import { loans } from "./loans";
 import { manualFloatCondition } from "./manualFloatCondition";
-import { MECHANIC_IDS, type Mechanic, type MechanicId } from "./mechanic";
+import { MECHANIC_IDS, type Mechanic, type MechanicHooks, type MechanicId } from "./mechanic";
 import { nationalBank } from "./nationalBank";
 import { nationalTakeover } from "./nationalTakeover";
 import { privateGrants } from "./privateGrants";
 
-export { MECHANIC_IDS, type Mechanic, type MechanicId } from "./mechanic";
+export { MECHANIC_IDS, type HookResult, type Mechanic, type MechanicHooks, type MechanicId } from "./mechanic";
 
 // The registry erases each mechanic's config type; callers re-read it with mechanicConfig().
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -55,4 +55,14 @@ export function mechanicConfig<C>(game: GameDefinition, mechanic: Mechanic<C>): 
   const rule = game.customRules.find((r) => r.id === mechanic.id);
   if (!rule) return undefined;
   return mechanic.configSchema.parse(rule.config);
+}
+
+/** The hooks of this name from the enabled mechanics, in definition order. */
+export function hooksOf<K extends keyof MechanicHooks>(game: GameDefinition, key: K): NonNullable<MechanicHooks[K]>[] {
+  const result: NonNullable<MechanicHooks[K]>[] = [];
+  for (const m of enabledMechanics(game)) {
+    const hook = m.hooks?.[key];
+    if (hook) result.push(hook);
+  }
+  return result;
 }

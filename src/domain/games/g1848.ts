@@ -138,6 +138,8 @@ export const g1848: GameDefinition = {
       countsForLimit: false },
   ],
   trainLimitScope: "company",
+  // §8.1: trains in excess of the limit are removed from the game.
+  discardedTrainsTo: "removed",
   phases: [
     { id: "start", triggeredBy: null, orsPerSet: 1, trainLimit: 4, effects: [] },
     { id: "2", triggeredBy: "2", orsPerSet: 1, trainLimit: 4, effects: [] },

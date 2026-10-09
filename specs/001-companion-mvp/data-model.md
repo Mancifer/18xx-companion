@@ -87,6 +87,7 @@ warnings), `bankrupt: boolean`.
 | `market` | `MarketDef` | grid plus movement rules |
 | `trains` | `TrainDef[]` | |
 | `trainLimitScope` | `"company" \| {perBase: number, bases: string[]}` | 21Moon: 2 per base, 2 bases |
+| `discardedTrainsTo` | `"pool" \| "removed"`? | where discarded and traded-in trains go. 1830 `pool` (the open market, §7.6); 1848 `removed` (§8.1); default `removed` (21Moon never discards: a full company cannot buy) |
 | `phases` | `PhaseDef[]` | |
 | `roundSchedule` | `{type: "byPhase"} \| {type: "fixed", sequence: RoundSlot[], events: ScheduledEvent[]}` | 21Moon: ISR, (SR n, CR n, OR n.1, OR n.2)×5, plus OR 5.3 |
 | `srOrder` | `"priorityDeal"` | |

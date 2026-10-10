@@ -1284,6 +1284,7 @@
         "type": "incremental"
       },
       "ipoPrice": "market",
+      "defaultBuySource": "treasury",
       "floatPercent": 20,
       "floatCounts": "soldFromIpo",
       "unownedDividends": {
@@ -2054,7 +2055,92 @@
         "status:AGR"
       ],
       "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 3,
+      "id": "g3",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyShare",
+        "buyer": "player:p3",
+        "company": "AGR",
+        "source": "treasury",
+        "count": 1
+      },
+      "events": [
+        {
+          "t": "shareTransfer",
+          "company": "AGR",
+          "from": "company:AGR",
+          "to": "player:p3",
+          "units": 1
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p3",
+          "to": "company:AGR",
+          "amount": 60
+        }
+      ],
+      "touches": [
+        "money:company:AGR",
+        "money:player:p3",
+        "shares:AGR"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 4,
+      "id": "g4",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "sellShares",
+        "seller": "player:p3",
+        "company": "AGR",
+        "count": 1
+      },
+      "events": [
+        {
+          "t": "shareTransfer",
+          "company": "AGR",
+          "from": "player:p3",
+          "to": "pool",
+          "units": 1
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p3",
+          "amount": 60
+        },
+        {
+          "t": "marketMove",
+          "company": "AGR",
+          "to": {
+            "row": 21,
+            "col": 0
+          },
+          "reason": "sell"
+        }
+      ],
+      "touches": [
+        "market:AGR",
+        "money:bank",
+        "money:player:p3",
+        "shares:AGR"
+      ],
+      "warnings": [
+        {
+          "code": "notOperated",
+          "messageEs": "Esta compañía aún no ha operado: no se vende hasta que opere.",
+          "severity": "warn"
+        }
+      ]
     }
   ],
-  "stateHash": "fc10043b8df10f91bff6d5aa2cf0fd5de96283f81c2e0115ae1f26ba40b3a02e"
+  "stateHash": "9dae99a6d56ed09751a8262ef8132985f852b4bc80bcb223af160a6f7dec2530"
 }

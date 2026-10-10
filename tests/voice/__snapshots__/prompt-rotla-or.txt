@@ -13,6 +13,7 @@ Juego: Railways of the Lost Atlas. Moneda: $.
 Modos de pago permitidos: full, withhold.
 Reglas especiales activas: auctionLaunch, mergers, corporateBankruptcy.
 «abre X por N» = launchCompany en juegos con lanzamiento por subasta (no parCompany): N es la puja.
+buyShare sin origen dicho = source treasury (la tesorería de la compañía); esta partida no tiene IPO para comprar. En compras de acciones, «del banco» / «del pool» = source pool.
 Trenes: 2 $100; 3 $200; 4 $300; 5 $450; 6 $550; 7 $750 / ∞ $1.000.
 Privadas: .
 

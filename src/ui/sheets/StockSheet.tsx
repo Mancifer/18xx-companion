@@ -126,9 +126,11 @@ export function StockSheet({
   };
   const ipoPrice = sharePrice(meta.game, state, companyId, "ipo");
   // A company holding its own shares sells them from its treasury (RotLA); the IPO button stays
-  // unless the IPO is empty and the treasury is where the shares are.
+  // unless the IPO is empty and the treasury is where the shares are. Games that buy from the
+  // treasury by default (RotLA) never show it.
   const treasuryShares = unitsOf(state, `company:${companyId}`, companyId);
-  const showIpo = unitsOf(state, `ipo:${companyId}`, companyId) > 0 || treasuryShares === 0;
+  const showIpo =
+    meta.game.defaultBuySource !== "treasury" && (unitsOf(state, `ipo:${companyId}`, companyId) > 0 || treasuryShares === 0);
   const poolPrice = sharePrice(meta.game, state, companyId, "pool");
 
   return (

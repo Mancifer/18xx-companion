@@ -308,6 +308,8 @@ export const grotla: GameDefinition = {
   privateTrading: "none",
   capitalization: { type: "incremental" },
   ipoPrice: "market",
+  // Launch hands every share out (president + treasury), so the IPO is always empty.
+  defaultBuySource: "treasury",
   // Unused: auction companies float at launch.
   floatPercent: 20,
   floatCounts: "soldFromIpo",

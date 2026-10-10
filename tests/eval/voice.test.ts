@@ -123,7 +123,7 @@ describe("seed cases (T136)", () => {
       payout: 16,
       trains: 13,
       costs: 7,
-      stock: 16,
+      stock: 18,
       loans: 3,
       flow: 6,
       compound: 5,

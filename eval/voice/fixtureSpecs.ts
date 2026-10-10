@@ -241,11 +241,12 @@ export const FIXTURE_SPECS: readonly FixtureSpec[] = [
     ],
   },
   {
-    // RotLA SR 1: Agricultural launched (Carla), Tunneling and Express still to launch.
+    // RotLA SR 1: Agricultural launched (Carla), Tunneling and Express still to launch; Carla
+    // bought one AGR from the treasury and sold one, so the pool has an AGR share.
     id: "rotla-sr",
     game: "rotla",
     players: PROTLA,
-    actions: [launch("p3", "AGR", 130)],
+    actions: [launch("p3", "AGR", 130), fromTreasury("p3", "AGR"), { type: "sellShares", seller: "player:p3", company: "AGR", count: 1 }],
   },
   {
     // RotLA OR 1.1, Tunneling operating; an EXP share in the pool; 7/∞ always on sale.

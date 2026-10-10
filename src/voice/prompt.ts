@@ -32,6 +32,13 @@ export function systemPromptEs({ game, players }: VoiceSession): string {
   if (mechanics.includes("auctionLaunch")) {
     lines.push("«abre X por N» = launchCompany en juegos con lanzamiento por subasta (no parCompany): N es la puja.");
   }
+  if (game.defaultBuySource === "treasury") {
+    lines.push(
+      "buyShare sin origen dicho = source treasury (la tesorería de la compañía); esta partida no tiene IPO para comprar. En compras de acciones, «del banco» / «del pool» = source pool.",
+    );
+  } else {
+    lines.push("buyShare sin origen dicho = source ipo; en compras de acciones, «del banco» / «del pool» = source pool.");
+  }
   if (game.loans) lines.push(`Préstamos de ${formatMoney(game.loans.amount, game)}, sin interés y sin devolución.`);
   lines.push(`Trenes: ${game.trains.map((t) => t.variants.map((v) => `${v.name} ${formatMoney(v.cost, game)}`).join(" / ")).join("; ")}.`);
   lines.push(`Privadas: ${game.privates.map((p) => `${p.id} = ${p.name}${p.aliases.length ? ` (${p.aliases.join(", ")})` : ""}`).join("; ")}.`);

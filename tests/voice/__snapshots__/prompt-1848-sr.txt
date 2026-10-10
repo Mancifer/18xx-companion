@@ -12,6 +12,7 @@ company null significa la compañía que opera ahora; úsalo cuando no se nombra
 Juego: 1848 Australia. Moneda: £.
 Modos de pago permitidos: full, withhold.
 Reglas especiales activas: loans, nationalBank, nationalTakeover, bankDebt, manualFloatCondition, privateGrants.
+buyShare sin origen dicho = source ipo; en compras de acciones, «del banco» / «del pool» = source pool.
 Préstamos de £100, sin interés y sin devolución.
 Trenes: 2 £100 / 2+ £120; 3 £200 / 3+ £230; 4 £300 / 4+ £340; 5 £500 / 5+ £550; 6 £600 / 6+ £660; 8 £800 / D £1.100; 2E £200.
 Privadas: P1 = Melbourne & Hobson's Bay Railway (melbourne, hobson); P2 = Oodnadatta Railway (oodnadatta); P3 = Tasmanian Railways (tasmania, tasmanian); P4 = The Ghan (ghan, el ghan); P5 = Trans-Australian Railway (trans australian, transaustraliano); P6 = North Australian Railway (north australian, norte de australia).

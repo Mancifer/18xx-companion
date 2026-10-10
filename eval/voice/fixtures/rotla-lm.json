@@ -1448,6 +1448,7 @@
         "type": "incremental"
       },
       "ipoPrice": "market",
+      "defaultBuySource": "treasury",
       "floatPercent": 20,
       "floatCounts": "soldFromIpo",
       "unownedDividends": {

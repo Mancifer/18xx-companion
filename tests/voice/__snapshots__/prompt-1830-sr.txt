@@ -12,6 +12,7 @@ company null significa la compañía que opera ahora; úsalo cuando no se nombra
 Juego: 1830. Moneda: $.
 Modos de pago permitidos: full, withhold.
 Reglas especiales activas: privateGrants, bankDebt, forcedWithhold.
+buyShare sin origen dicho = source ipo; en compras de acciones, «del banco» / «del pool» = source pool.
 Trenes: 2 $80; 3 $180; 4 $300; 5 $450; 6 $630; D $1.100.
 Privadas: SV = Schuylkill Valley (schuylkill); CS = Champlain & St. Lawrence (champlain); DH = Delaware & Hudson (delaware); MH = Mohawk & Hudson (mohawk); CA = Camden & Amboy (camden); BO = Baltimore & Ohio (privada) (privada baltimore).
 

@@ -12,6 +12,7 @@ company null significa la compañía que opera ahora; úsalo cuando no se nombra
 Juego: 21Moon. Moneda: ₡.
 Ingresos en partes: local = Base local, spacePort = Puerto espacial. No hay elección de pago (mode null).
 Reglas especiales activas: corporateRound, forcedWithhold, corporateBankruptcy, privateGrants.
+buyShare sin origen dicho = source ipo; en compras de acciones, «del banco» / «del pool» = source pool.
 Trenes: 2 ₡120; 3 ₡150; 4 ₡240; 5 ₡500; 6 ₡540; 10 ₡730.
 Privadas: P1 = Old Landing Site (ols, landing site); P2 = UN Contract (un contract, contrato); P3 = Space Bridge Company (space bridge, puente); P4 = Research Lab (research lab, laboratorio); P5 = Passenger Terminal (terminal); P6 = Tunnel Company (tunnel, tunel).
 

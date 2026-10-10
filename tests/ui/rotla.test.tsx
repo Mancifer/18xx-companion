@@ -134,6 +134,22 @@ describe("Stock round in RotLA (US3)", () => {
   });
 });
 
+describe("Stock sheet buy sources in RotLA (bug rotla-buy-default-treasury)", () => {
+  it("never shows an IPO button, even once the treasury is sold out", async () => {
+    const buy = (buyer: string) => ({ type: "buyShare", buyer: `player:${buyer}`, company: "EXP", source: "treasury", count: 1 });
+    const { user } = await openSeededTable({
+      game: "rotla",
+      players: three,
+      actions: [{ type: "launchCompany", player: "p1", company: "EXP", bid: 160, price: null }, buy("p2"), buy("p3"), buy("p2")],
+    });
+    await user.click(screen.getByTestId("treasury-EXP").closest("button")!);
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).queryByRole("button", { name: "IPO Bruno" })).toBeNull();
+    expect(within(dialog).queryByRole("button", { name: "Tesorería Bruno" })).toBeNull();
+    expect(within(dialog).getByRole("button", { name: "Pool Bruno" })).toBeTruthy();
+  });
+});
+
 describe("round indicator in cycles (US1)", () => {
   it("shows Ciclo n de N · RA, then RO 1/2", async () => {
     const { user } = await openSeededTable({ game: "rotla", players: ["Ana", "Bruno", "Carla"], options: { mode: "short" } });

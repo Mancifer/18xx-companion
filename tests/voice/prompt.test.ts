@@ -96,6 +96,23 @@ describe("RotLA prompt and snapshot (US10, T087)", () => {
     expect(text).toContain("Corporaciones sin abrir: CON (Consortium / Conglomerate)");
   });
 
+  it("the prompt makes the treasury the default buy source and «del banco» the pool (bug rotla-buy-default-treasury)", () => {
+    const rotla = systemPromptEs({ game: getBuiltInGame("rotla"), players: rotlaPlayers });
+    expect(rotla).toContain("buyShare sin origen dicho = source treasury");
+    expect(rotla).toContain("«del banco» / «del pool» = source pool");
+    const p1830 = systemPromptEs({ game, players });
+    expect(p1830).toContain("buyShare sin origen dicho = source ipo");
+    expect(p1830).not.toContain("source treasury");
+  });
+
+  it("the snapshot lists where each started company's shares are", () => {
+    const s = rotlaSession();
+    s.do({ type: "launchCompany", player: "p1", company: "TUN", bid: 140, price: null });
+    const text = snapshotAndTranscript({ game: s.game, players: s.players, state: s.state, effective: [], transcript: "x" });
+    expect(text).toMatch(/- TUN \(minor\): floated, .*acciones tesorería 3/);
+    expect(text).not.toMatch(/- TUN .*IPO \d/);
+  });
+
   it("the snapshot shows the Merger Round", () => {
     const s = rotlaSession();
     s.apply({ t: "turnAdvance", round: "MR", srNumber: 2 });

@@ -49,8 +49,14 @@ export function snapshotAndTranscript(input: SnapshotInput): string {
     const price = priceOf(game, state, c.id);
     const trains = assetsHeldBy(state, `company:${c.id}`, "train").map(trainTypeOf);
     const tier = c.tier ? ` (${c.tier})` : "";
+    const shares = [
+      ["IPO", unitsOf(state, `ipo:${c.id}`, c.id)],
+      ["tesorería", unitsOf(state, `company:${c.id}`, c.id)],
+      ["pool", unitsOf(state, "pool", c.id)],
+    ] as const;
+    const available = shares.filter(([, n]) => n > 0).map(([where, n]) => `${where} ${n}`);
     lines.push(
-      `- ${c.id}${tier}: ${record.status}, caja ${money(cashOf(state, `company:${c.id}`))}${price !== undefined ? `, precio ${money(price)}` : ""}${trains.length ? `, trenes ${trains.join(" ")}` : ""}`,
+      `- ${c.id}${tier}: ${record.status}, caja ${money(cashOf(state, `company:${c.id}`))}${price !== undefined ? `, precio ${money(price)}` : ""}, acciones ${available.join(" · ") || "ninguna libre"}${trains.length ? `, trenes ${trains.join(" ")}` : ""}`,
     );
   }
   // Games with minors and majors (RotLA): what can still be launched or formed.

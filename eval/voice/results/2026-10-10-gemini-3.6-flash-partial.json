@@ -1,0 +1,97 @@
+{
+  "summary": {
+    "provider": "gemini",
+    "model": "gemini-3.6-flash",
+    "freeTier": false,
+    "cases": 2,
+    "runs": 1,
+    "overall": 1,
+    "orSubset": null,
+    "tuning": 1,
+    "heldout": null,
+    "byCategory": {
+      "payout": null,
+      "trains": null,
+      "costs": null,
+      "stock": 1,
+      "loans": null,
+      "flow": null,
+      "compound": null,
+      "corrections": null,
+      "queries": null,
+      "clarification": null,
+      "notUnderstood": null
+    },
+    "latencyMs": {
+      "p50": 1432,
+      "p95": 2466
+    },
+    "cacheReadRate": 0,
+    "tokens": {
+      "input": 14328,
+      "output": 71,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "thinking": 0
+    },
+    "costUsd": 0.011012250000000001,
+    "costPerCaseUsd": 0.005506125000000001,
+    "paidEquivalentUsd": 0.011012250000000001,
+    "paidPerCaseUsd": 0.005506125000000001,
+    "priceNotes": [],
+    "stops": {
+      "done": 2,
+      "truncated": 0,
+      "refused": 0,
+      "malformed": 0,
+      "other": 0
+    },
+    "rateLimitRetries": 0,
+    "gates": {
+      "OR subset >= 90%": false,
+      "no category < 80%": true,
+      "p95 API latency < 2.5 s": true
+    }
+  },
+  "records": [
+    {
+      "caseId": "rl-sr-buy-02",
+      "run": 1,
+      "fixture": "rotla-sr",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "buyShare{\"source\":\"treasury\",\"count\":1,\"buyer\":\"player:p2\",\"company\":\"AGR\"}",
+      "latencyMs": 2466,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 7163,
+        "output": 36,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "thinking": 0
+      },
+      "prefixFirst": true
+    },
+    {
+      "caseId": "rl-sr-buy-03",
+      "run": 1,
+      "fixture": "rotla-sr",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "buyShare{\"count\":1,\"company\":\"AGR\",\"source\":\"pool\",\"buyer\":\"player:p1\"}",
+      "latencyMs": 1432,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 7165,
+        "output": 35,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    }
+  ]
+}

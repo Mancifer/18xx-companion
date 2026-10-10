@@ -330,6 +330,8 @@ export const GameDefinitionSchema = z.object({
     z.object({ type: z.literal("incremental") }),
   ]),
   ipoPrice: z.enum(["par", "market"]),
+  /** Where a share purchase comes from when no source is named (voice, StockSheet); absent = "ipo". */
+  defaultBuySource: z.enum(["ipo", "treasury"]).optional(),
   floatPercent: posInt.max(100),
   floatCounts: z.literal("soldFromIpo"),
   /** "none" = not paid; the money stays in the Bank. */

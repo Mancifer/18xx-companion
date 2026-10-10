@@ -8,6 +8,8 @@ import { summaryEs } from "../domain/i18n/es";
 import type { EffectiveGroup } from "../domain/ledger/effectiveLog";
 import { bankFlows, type MoneyFlow } from "../domain/ledger/flows";
 import { answerQuery, QUERY_KINDS, type QueryAnswer } from "../domain/queries";
+import { VoiceProviderError, type ProviderErrorKind } from "./errors";
+import type { ModelReply } from "./reply";
 
 /**
  * Model response → what the app shows (contracts/voice-tools.md "Response handling",
@@ -76,10 +78,12 @@ export function correctNumber(action: Action, value: number, part: string | null
   return parsed.success ? parsed.data : undefined;
 }
 
-export function resolveResponse(message: Anthropic.Message, ctx: ResolveContext, transcript: string): VoiceResult {
-  if (message.stop_reason === "refusal") return notUnderstood(transcript, "La orden fue rechazada.");
-  if (message.stop_reason === "max_tokens") return notUnderstood(transcript, "La respuesta quedó incompleta.");
-  const calls = message.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
+/** Reads only the neutral reply's stop and calls, so every provider shares one path (FR-007). */
+export function resolveResponse(reply: ModelReply, ctx: ResolveContext, transcript: string): VoiceResult {
+  if (reply.stop === "refused") return notUnderstood(transcript, "La orden fue rechazada.");
+  if (reply.stop === "truncated") return notUnderstood(transcript, "La respuesta quedó incompleta.");
+  if (reply.stop === "malformed") return notUnderstood(transcript, "La orden llegó incompleta.");
+  const { calls } = reply;
   if (calls.length === 0) return notUnderstood(transcript, "No reconocí ninguna orden.");
 
   const meta = (name: string) => calls.find((c) => c.name === name);
@@ -114,7 +118,7 @@ export function resolveResponse(message: Anthropic.Message, ctx: ResolveContext,
 
   const actions: Action[] = [];
   for (const call of calls) {
-    const parsed = ActionSchema.safeParse({ ...(call.input as Record<string, unknown>), type: call.name });
+    const parsed = ActionSchema.safeParse({ ...call.input, type: call.name });
     if (!parsed.success) return notUnderstood(transcript, "La orden llegó incompleta.", call.name);
     actions.push(parsed.data);
   }
@@ -135,10 +139,25 @@ export function resolveResponse(message: Anthropic.Message, ctx: ResolveContext,
   };
 }
 
-/** API and network failures (research R8): all of them degrade to "No entendí" with a reason. */
+const PROVIDER_ERRORS_ES: Readonly<Record<ProviderErrorKind, string>> = {
+  auth: "La clave de la API no es válida.",
+  permission: "La clave no tiene permiso para este modelo.",
+  model: "Este modelo no está disponible para esta clave.",
+  rateLimit: "Se alcanzó el límite de uso; prueba en un momento.",
+  timeout: "La respuesta tardó demasiado.",
+  connection: "Sin conexión con el servicio de voz.",
+  service: "Error del servicio de voz.",
+};
+
+/**
+ * API and network failures (research R8; feature 005 R7): all of them degrade to "No entendí"
+ * with a reason. Provider errors map by kind; the Anthropic SDK's own errors by class.
+ */
 export function resolveError(error: unknown, transcript: string): VoiceResult {
+  if (error instanceof VoiceProviderError) return notUnderstood(transcript, PROVIDER_ERRORS_ES[error.kind]);
   if (error instanceof Anthropic.AuthenticationError) return notUnderstood(transcript, "La clave de la API no es válida.");
   if (error instanceof Anthropic.PermissionDeniedError) return notUnderstood(transcript, "La clave no tiene permiso para este modelo.");
+  if (error instanceof Anthropic.NotFoundError) return notUnderstood(transcript, PROVIDER_ERRORS_ES.model);
   if (error instanceof Anthropic.RateLimitError) return notUnderstood(transcript, "Se alcanzó el límite de uso; prueba en un momento.");
   if (error instanceof Anthropic.APIConnectionTimeoutError) return notUnderstood(transcript, "La respuesta tardó demasiado.");
   if (error instanceof Anthropic.APIConnectionError) return notUnderstood(transcript, "Sin conexión con el servicio de voz.");

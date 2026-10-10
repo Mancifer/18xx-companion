@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import type { VoiceDeps } from "../../src/app/useVoice";
 import { getBuiltInGame } from "../../src/domain/games";
+import { anthropicReply } from "../../src/voice/providers/anthropic";
 import type { RecognizerLike } from "../../src/voice/speech";
 import { openSeededTable } from "./helpers";
 
@@ -68,7 +69,7 @@ const voiceDeps: VoiceDeps = {
   recognizer: () => new FakeRecognizer(),
   online: () => true,
   createInterpreter: () => () =>
-    Promise.resolve(JSON.parse(readFileSync("tests/voice/recorded/buy-private.json", "utf8")) as Anthropic.Message),
+    Promise.resolve(anthropicReply(JSON.parse(readFileSync("tests/voice/recorded/buy-private.json", "utf8")) as Anthropic.Message, "claude-sonnet-5")),
 };
 
 describe("the private sheet with nothing to buy (FR-015)", () => {
@@ -77,7 +78,7 @@ describe("the private sheet with nothing to buy (FR-015)", () => {
       game: "1830",
       players: PLAYERS,
       actions: [...buyAll("1830"), { type: "startSR" }],
-      settings: { apiKey: "sk-ant-test", rememberKey: true },
+      settings: { apiKeys: { anthropic: "sk-ant-test" }, rememberKey: true },
       voiceDeps,
     });
     const mic = await screen.findByRole("button", { name: "Mantén pulsado para hablar" });

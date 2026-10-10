@@ -62,10 +62,10 @@ describe("SessionRepo", () => {
     const settings = new SettingsRepo(db);
     const meta = makeMeta();
     await repo.createSession(meta);
-    await settings.set({ apiKey: "sk-ant-secret", rememberKey: true });
+    await settings.set({ apiKeys: { anthropic: "sk-ant-secret" }, rememberKey: true });
     const loaded = await repo.loadSession(meta.id);
     expect(JSON.stringify(loaded)).not.toContain("sk-ant-secret");
-    expect((await settings.get()).apiKey).toBe("sk-ant-secret");
+    expect((await settings.get()).apiKeys.anthropic).toBe("sk-ant-secret");
   });
 });
 
@@ -75,16 +75,17 @@ describe("SettingsRepo", () => {
     expect(await settings.get()).toMatchObject({
       rememberKey: true,
       voiceLocale: "es-ES",
-      model: "claude-sonnet-5",
+      provider: "anthropic",
+      models: { anthropic: "claude-sonnet-5" },
     });
   });
 
   it("keeps the key in memory only when rememberKey is false", async () => {
     const name = freshDbName();
     const settings = new SettingsRepo(await openCompanionDb(name));
-    await settings.set({ rememberKey: false, apiKey: "sk-ant-memory" });
-    expect((await settings.get()).apiKey).toBe("sk-ant-memory");
+    await settings.set({ rememberKey: false, apiKeys: { anthropic: "sk-ant-memory" } });
+    expect((await settings.get()).apiKeys.anthropic).toBe("sk-ant-memory");
     const reopened = new SettingsRepo(await openCompanionDb(name));
-    expect((await reopened.get()).apiKey).toBeUndefined();
+    expect((await reopened.get()).apiKeys.anthropic).toBeUndefined();
   });
 });

@@ -1,3 +1,19 @@
+<!--
+Sync Impact Report
+- Version change: 1.0.0 → 1.1.0 (MINOR: materially expanded guidance; command resolution is no
+  longer Claude-only)
+- Modified principles:
+  - VI. Test-First Domain Logic: provider changes also require eval re-runs
+  - VII. Local-First Simplicity: one device-only API key per AI provider
+- Modified sections:
+  - Platform & Technology Constraints: "Claude Messages API" replaced by pluggable AI resolvers
+    with shared tools, validation, caching order, error mapping, per-provider keys, and an
+    eval gate before a provider/model is offered
+- Added sections: none
+- Removed sections: none
+- Templates: plan/spec/tasks templates read the constitution at runtime; no edits needed
+- Follow-up TODOs: none (feature 005-gemini-flash-provider plan should cite v1.1.0)
+-->
 # 18xx Companion Constitution
 
 ## Core Principles
@@ -75,8 +91,8 @@ Rationale: players' attention belongs on the board, not the device.
 - Game definitions MUST have tests covering their rule-dependent calculations (payout modes,
   unowned-share dividends, rounding, market moves).
 - Voice resolution accuracy MUST be measured against a maintained eval set of real Spanish
-  transcripts with expected actions; prompt, tool-schema, or model changes MUST be re-evaluated
-  against it before merging.
+  transcripts with expected actions; prompt, tool-schema, provider, or model changes MUST be
+  re-evaluated against it before merging.
 
 Rationale: money correctness can only be trusted if it is proven by tests, and AI behavior can
 only be trusted if it is measured.
@@ -85,8 +101,8 @@ only be trusted if it is measured.
 
 - v1 MUST run with no backend: a single-device PWA, offline-capable except for the AI call.
 - State MUST survive reloads, sleep, and app restarts (persist on every event).
-- The user's API key MUST be stored only on the device and MUST NOT be included in exports, logs,
-  or bug reports.
+- The user's API keys (one per AI provider) MUST be stored only on the device and MUST NOT be
+  included in exports, logs, or bug reports.
 - Features listed as "later iterations" (mergers, multi-device rooms, loans beyond what v1 games
   need, backend proxy, native wrapper) MUST NOT be built ahead of need. Designing data shapes so
   they remain possible is allowed; implementing them is not. Prefer the simplest solution (YAGNI).
@@ -98,9 +114,20 @@ Rationale: fewer moving parts means fewer failure points mid-game.
 - Stack: React + TypeScript (strict mode) + Vite, delivered as an installable PWA.
 - Storage: IndexedDB holding the event log plus periodic snapshots; session export/import as JSON.
 - Speech-to-text: Web Speech API, push-to-talk only, Spanish (`es-*`) locale in v1.
-- Command resolution: Claude Messages API with strict tool schemas, one call per command, prompt
-  caching on the stable prefix (system prompt, game definition, tools) with the volatile context
-  snapshot last. The model is configurable.
+- Command resolution: pluggable AI resolvers behind one interface (Anthropic Claude today; other
+  providers such as Google Gemini may be added). Every resolver MUST:
+  - receive the same tools/functions, generated from the same action schemas touch uses, the same
+    instructions, and the same context snapshot; only the wire format may differ per provider;
+  - return structured tool/function calls that go through the same validation and resolution
+    path, so no provider gets its own route to state;
+  - make one call per command, with the stable prefix (system prompt, game definition, tools)
+    first and the volatile context snapshot last, using provider-side prompt caching where the
+    provider offers it;
+  - map its errors to the shared user messages and the touch fallback (Principle IV).
+- Provider and model are user-configurable. Each provider keeps its own API key, stored only on
+  the device (Principle VII).
+- A provider/model pair MUST be measured on the shared voice eval set (same cases, grading, and
+  report format, including cost per command) before it is offered in the app.
 - Performance target: transcript-to-confirmation-card latency under 3 s on a typical connection.
 - New runtime dependencies MUST be justified in the plan that introduces them.
 
@@ -127,4 +154,4 @@ Rationale: fewer moving parts means fewer failure points mid-game.
 - Compliance is reviewed at plan time (Constitution Check) and at review time. Unjustified
   complexity or principle violations block merging.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-07 | **Last Amended**: 2026-10-07
+**Version**: 1.1.0 | **Ratified**: 2026-10-07 | **Last Amended**: 2026-10-10

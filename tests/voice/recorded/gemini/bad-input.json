@@ -1,0 +1,38 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "functionCall": {
+              "name": "runAndPayout",
+              "args": {
+                "company": null,
+                "parts": [
+                  {
+                    "part": "revenue",
+                    "amount": "mucho"
+                  }
+                ],
+                "mode": "full"
+              }
+            },
+            "thoughtSignature": "c2lnbmF0dXJl"
+          }
+        ]
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 6340,
+    "cachedContentTokenCount": 6112,
+    "candidatesTokenCount": 55,
+    "thoughtsTokenCount": 52,
+    "totalTokenCount": 6447
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "resp_test"
+}

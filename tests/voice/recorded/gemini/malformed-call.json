@@ -1,0 +1,17 @@
+{
+  "candidates": [
+    {
+      "finishReason": "MALFORMED_FUNCTION_CALL",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 6340,
+    "cachedContentTokenCount": 6112,
+    "candidatesTokenCount": 0,
+    "thoughtsTokenCount": 61,
+    "totalTokenCount": 6401
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "resp_test"
+}

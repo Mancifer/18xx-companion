@@ -1,0 +1,32 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "functionCall": {
+              "name": "runAndPayout",
+              "args": {
+                "company": null,
+                "parts": []
+              }
+            },
+            "thoughtSignature": "c2lnbmF0dXJl"
+          }
+        ]
+      },
+      "finishReason": "MAX_TOKENS",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 6340,
+    "cachedContentTokenCount": 6112,
+    "candidatesTokenCount": 1024,
+    "thoughtsTokenCount": 0,
+    "totalTokenCount": 7364
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "resp_test"
+}

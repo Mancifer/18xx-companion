@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { useServices } from "../../app/AppProvider";
 import { useHasSession } from "../../app/useSession";
 import { SETTINGS_CHANGED } from "../../app/useVoice";
-import { DEFAULT_MODEL, type Settings as StoredSettings } from "../../persistence/settingsRepo";
+import type { Settings as StoredSettings } from "../../persistence/settingsRepo";
+import { PROVIDER_IDS, PROVIDERS, type ProviderId } from "../../voice/providers";
 import { useNav } from "../nav";
 
 const LOCALES: readonly { readonly id: string; readonly label: string }[] = [
@@ -17,20 +18,26 @@ const LOCALES: readonly { readonly id: string; readonly label: string }[] = [
 ];
 
 interface Draft {
-  apiKey: string;
+  provider: ProviderId;
+  /** Every provider's key and model: switching the control swaps the visible pair (US3). */
+  apiKeys: Record<ProviderId, string>;
+  models: Record<ProviderId, string>;
   rememberKey: boolean;
   voiceLocale: string;
-  model: string;
 }
 
+const perProvider = (value: (id: ProviderId) => string) =>
+  Object.fromEntries(PROVIDER_IDS.map((id) => [id, value(id)])) as Record<ProviderId, string>;
+
 const draftOf = (s: StoredSettings): Draft => ({
-  apiKey: s.apiKey ?? "",
+  provider: s.provider,
+  apiKeys: perProvider((id) => s.apiKeys[id] ?? ""),
+  models: perProvider((id) => s.models[id]),
   rememberKey: s.rememberKey,
   voiceLocale: s.voiceLocale,
-  model: s.model,
 });
 
-/** AI key, voice locale and interpreter model (FR-076), with the R17 privacy notes. */
+/** Provider, per-provider key and model, voice locale (FR-076; feature 005), with the privacy notes. */
 export function Settings() {
   const { settings } = useServices();
   const { go } = useNav();
@@ -48,20 +55,22 @@ export function Settings() {
     setDraft((d) => (d ? { ...d, ...patch } : d));
   };
 
+  /** One set() with the provider, every key and every model, then the voice layer reloads. */
   const save = async () => {
     if (!draft) return;
-    const apiKey = draft.apiKey.trim();
     const next = await settings.set({
+      provider: draft.provider,
       rememberKey: draft.rememberKey,
-      apiKey: apiKey === "" ? undefined : apiKey,
+      apiKeys: draft.apiKeys,
       voiceLocale: draft.voiceLocale,
-      model: draft.model.trim() || DEFAULT_MODEL,
+      models: draft.models,
     });
     setDraft(draftOf(next));
     setSaved(true);
     window.dispatchEvent(new Event(SETTINGS_CHANGED));
   };
 
+  const provider = PROVIDERS[draft?.provider ?? "anthropic"];
   const locales = draft && !LOCALES.some((l) => l.id === draft.voiceLocale)
     ? [...LOCALES, { id: draft.voiceLocale, label: draft.voiceLocale }]
     : LOCALES;
@@ -78,7 +87,22 @@ export function Settings() {
         <div className="screen-body">
           <section className="stack">
             <h2>Voz</h2>
-            <label htmlFor="settings-key">Clave de API</label>
+            <span className="label" id="settings-provider">
+              Proveedor
+            </span>
+            <div className="row segmented" role="radiogroup" aria-labelledby="settings-provider">
+              {PROVIDER_IDS.map((id) => (
+                <button
+                  key={id}
+                  role="radio"
+                  aria-checked={draft.provider === id}
+                  onClick={() => edit({ provider: id })}
+                >
+                  {PROVIDERS[id].label}
+                </button>
+              ))}
+            </div>
+            <label htmlFor="settings-key">Clave de {provider.shortLabel}</label>
             <div className="row">
               <input
                 id="settings-key"
@@ -86,19 +110,20 @@ export function Settings() {
                 type={showKey ? "text" : "password"}
                 autoComplete="off"
                 spellCheck={false}
-                placeholder="sk-ant-…"
-                value={draft.apiKey}
-                onChange={(e) => edit({ apiKey: e.target.value })}
+                placeholder={provider.keyPlaceholder}
+                value={draft.apiKeys[draft.provider]}
+                onChange={(e) => edit({ apiKeys: { ...draft.apiKeys, [draft.provider]: e.target.value } })}
               />
               <button onClick={() => setShowKey((v) => !v)}>{showKey ? "Ocultar" : "Mostrar"}</button>
             </div>
+            <p className="muted">{provider.keyHelpEs}</p>
             <label className="checkbox">
               <input
                 type="checkbox"
                 checked={!draft.rememberKey}
                 onChange={(e) => edit({ rememberKey: !e.target.checked })}
               />
-              No recordar la clave en este dispositivo
+              No recordar las claves en este dispositivo
             </label>
             <label>
               Variante de español
@@ -114,11 +139,16 @@ export function Settings() {
               Modelo
               <input
                 spellCheck={false}
-                placeholder={DEFAULT_MODEL}
-                value={draft.model}
-                onChange={(e) => edit({ model: e.target.value })}
+                placeholder={provider.defaultModel}
+                value={draft.models[draft.provider]}
+                onChange={(e) => edit({ models: { ...draft.models, [draft.provider]: e.target.value } })}
               />
             </label>
+            {provider.notesEs.map((note) => (
+              <p key={note} className="muted">
+                {note}
+              </p>
+            ))}
             <div className="row">
               <button className="primary" onClick={() => void save()}>
                 Guardar
@@ -132,14 +162,10 @@ export function Settings() {
           </section>
           <section className="stack">
             <h2>Privacidad</h2>
+            <p className="muted">El audio se procesa en el servicio de voz del navegador.</p>
             <p className="muted">
-              El audio se procesa en el servicio de voz del navegador. La transcripción y el estado de la partida se
-              envían a Anthropic para interpretar la orden. La clave solo se guarda en este dispositivo y nunca se
-              incluye al exportar una partida.
-            </p>
-            <p className="muted">
-              Crea la clave en un espacio de trabajo propio de la consola de Anthropic con un límite de gasto mensual:
-              si la clave se filtra, el gasto queda acotado y es fácil revocarla.
+              La transcripción y el estado de la partida se envían a <strong>{provider.label}</strong> para interpretar la
+              orden. Las claves solo se guardan en este dispositivo y nunca se incluyen al exportar una partida.
             </p>
           </section>
         </div>

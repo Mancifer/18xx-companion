@@ -10,7 +10,7 @@ import { newSession, openCompany, showCompanies, toast, trade, typeAmount } from
 async function saveKey(page: Page, key: string) {
   await page.getByRole("button", { name: "Menú" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Ajustes" }).click();
-  await page.getByLabel("Clave de API").fill(key);
+  await page.getByLabel("Clave de Anthropic").fill(key);
   await page.getByRole("button", { name: "Guardar" }).click();
   await expect(page.getByText("Guardado")).toBeVisible();
   await page.getByRole("button", { name: "Volver" }).click();

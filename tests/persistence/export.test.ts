@@ -13,12 +13,13 @@ import { freshDbName } from "../helpers/session";
 /** US8, contracts/export-format.md. */
 
 const KEY = "sk-ant-api03-SECRET-KEY-DO-NOT-LEAK";
+const GEMINI_KEY = "AIzaSy-GEMINI-SECRET-DO-NOT-LEAK";
 
 async function midGame() {
   const db = await openCompanionDb(freshDbName());
   const repo = new SessionRepo(db);
   const settings = new SettingsRepo(db);
-  await settings.set({ apiKey: KEY, rememberKey: true });
+  await settings.set({ apiKeys: { anthropic: KEY, gemini: GEMINI_KEY }, rememberKey: true });
   const store = await startSession(repo, settings, {
     game: getBuiltInGame("1830"),
     options: {},
@@ -46,6 +47,8 @@ describe("export (FR-091, FR-092)", () => {
     const json = JSON.stringify(await buildExport(repo, store.getSnapshot().meta.id, { appVersion: "0.1.0", now }));
     expect(json).not.toContain(KEY);
     expect(json).not.toContain("sk-ant");
+    expect(json).not.toContain(GEMINI_KEY);
+    expect(json).not.toContain("AIza");
     expect(json.toLowerCase()).not.toMatch(/api_?key/);
   });
 

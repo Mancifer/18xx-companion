@@ -1,0 +1,414 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`recorded Claude responses baseline (T002) > amend 1`] = `
+{
+  "kind": "notUnderstood",
+  "reasonEs": "No hay nada que corregir.",
+  "transcript": "orden",
+}
+`;
+
+exports[`recorded Claude responses baseline (T002) > bad-input 1`] = `
+{
+  "hint": "runAndPayout",
+  "kind": "notUnderstood",
+  "reasonEs": "La orden llegó incompleta.",
+  "transcript": "orden",
+}
+`;
+
+exports[`recorded Claude responses baseline (T002) > buy-private 1`] = `
+{
+  "action": {
+    "buyer": "p2",
+    "par": null,
+    "price": 20,
+    "private": "SV",
+    "type": "buyPrivate",
+  },
+  "actions": [
+    {
+      "buyer": "p2",
+      "par": null,
+      "price": 20,
+      "private": "SV",
+      "type": "buyPrivate",
+    },
+  ],
+  "events": [
+    {
+      "amount": 20,
+      "from": "player:p2",
+      "t": "moneyTransfer",
+      "to": "bank",
+    },
+    {
+      "asset": "private:SV",
+      "from": "bank",
+      "t": "assetTransfer",
+      "to": "player:p2",
+    },
+  ],
+  "flows": [
+    {
+      "amount": 20,
+      "counterparty": "player:p2",
+      "direction": "toBank",
+    },
+  ],
+  "kind": "proposal",
+  "summaryEs": "Anabel compra la privada Schuylkill Valley por $20",
+  "transcript": "orden",
+  "warnings": [],
+}
+`;
+
+exports[`recorded Claude responses baseline (T002) > clarification 1`] = `
+{
+  "kind": "clarification",
+  "options": [
+    {
+      "label": "Ana",
+      "value": "p1",
+    },
+    {
+      "label": "Anabel",
+      "value": "p2",
+    },
+  ],
+  "question": "¿Quién compra?",
+  "transcript": "orden",
+}
+`;
+
+exports[`recorded Claude responses baseline (T002) > compound 1`] = `
+{
+  "action": {
+    "actions": [
+      {
+        "company": null,
+        "from": "bank",
+        "price": null,
+        "seller": null,
+        "tradeIn": null,
+        "trainType": "4",
+        "type": "buyTrain",
+        "variant": null,
+      },
+      {
+        "company": null,
+        "mode": "full",
+        "parts": [
+          {
+            "amount": 290,
+            "part": "revenue",
+          },
+        ],
+        "type": "runAndPayout",
+      },
+    ],
+    "type": "compound",
+  },
+  "actions": [
+    {
+      "company": null,
+      "from": "bank",
+      "price": null,
+      "seller": null,
+      "tradeIn": null,
+      "trainType": "4",
+      "type": "buyTrain",
+      "variant": null,
+    },
+    {
+      "company": null,
+      "mode": "full",
+      "parts": [
+        {
+          "amount": 290,
+          "part": "revenue",
+        },
+      ],
+      "type": "runAndPayout",
+    },
+  ],
+  "events": [
+    {
+      "amount": 300,
+      "from": "company:PRR",
+      "t": "moneyTransfer",
+      "to": "bank",
+    },
+    {
+      "asset": "train:4:1",
+      "from": "bank",
+      "t": "assetTransfer",
+      "to": "company:PRR",
+    },
+    {
+      "phase": "4",
+      "t": "turnAdvance",
+    },
+    {
+      "asset": "train:2:1",
+      "from": "bank",
+      "t": "assetTransfer",
+      "to": "removed",
+    },
+    {
+      "asset": "train:2:2",
+      "from": "bank",
+      "t": "assetTransfer",
+      "to": "removed",
+    },
+    {
+      "asset": "train:2:3",
+      "from": "bank",
+      "t": "assetTransfer",
+      "to": "removed",
+    },
+    {
+      "asset": "train:2:4",
+      "from": "bank",
+      "t": "assetTransfer",
+      "to": "removed",
+    },
+    {
+      "asset": "train:2:5",
+      "from": "bank",
+      "t": "assetTransfer",
+      "to": "removed",
+    },
+    {
+      "asset": "train:2:6",
+      "from": "bank",
+      "t": "assetTransfer",
+      "to": "removed",
+    },
+    {
+      "amount": 174,
+      "from": "bank",
+      "t": "moneyTransfer",
+      "to": "player:p1",
+    },
+    {
+      "company": "PRR",
+      "reason": "payout",
+      "t": "marketMove",
+      "to": {
+        "col": 7,
+        "row": 0,
+      },
+    },
+    {
+      "delta": 1,
+      "key": "runs",
+      "subject": "company:PRR",
+      "t": "counterChange",
+    },
+  ],
+  "flows": [
+    {
+      "amount": 300,
+      "counterparty": "company:PRR",
+      "direction": "toBank",
+    },
+    {
+      "amount": 174,
+      "counterparty": "player:p1",
+      "direction": "fromBank",
+    },
+  ],
+  "kind": "proposal",
+  "summaryEs": "PRR compra un 4 al banco; PRR paga $290 ($29/acción) · PRR → $112 · fase 4 · fuera del juego: 6 × 2",
+  "transcript": "orden",
+  "warnings": [
+    {
+      "code": "trainOrder",
+      "messageEs": "Aún quedan trenes 2 en el banco.",
+      "severity": "warn",
+    },
+  ],
+}
+`;
+
+exports[`recorded Claude responses baseline (T002) > confirm 1`] = `
+{
+  "kind": "confirm",
+  "transcript": "orden",
+}
+`;
+
+exports[`recorded Claude responses baseline (T002) > max-tokens 1`] = `
+{
+  "kind": "notUnderstood",
+  "reasonEs": "La respuesta quedó incompleta.",
+  "transcript": "orden",
+}
+`;
+
+exports[`recorded Claude responses baseline (T002) > next-company 1`] = `
+{
+  "action": {
+    "type": "nextCompany",
+  },
+  "actions": [
+    {
+      "type": "nextCompany",
+    },
+  ],
+  "events": [
+    {
+      "company": "PRR",
+      "reason": "withhold",
+      "t": "marketMove",
+      "to": {
+        "col": 5,
+        "row": 0,
+      },
+    },
+    {
+      "delta": 1,
+      "key": "runs",
+      "subject": "company:PRR",
+      "t": "counterChange",
+    },
+    {
+      "company": "PRR",
+      "operatingOrder": [
+        "PRR",
+      ],
+      "orIndex": 2,
+      "orSet": 1,
+      "orsInSet": 2,
+      "round": "OR",
+      "t": "turnAdvance",
+    },
+  ],
+  "flows": [],
+  "kind": "proposal",
+  "summaryEs": "PRR no corrió · PRR → $90 · OR 1.2 · turno de PRR",
+  "transcript": "orden",
+  "warnings": [
+    {
+      "code": "noRunRecorded",
+      "messageEs": "No se registró la operación de PRR: cuenta como que no corrió y su acción baja.",
+      "severity": "warn",
+    },
+  ],
+}
+`;
+
+exports[`recorded Claude responses baseline (T002) > no-tool 1`] = `
+{
+  "kind": "notUnderstood",
+  "reasonEs": "No reconocí ninguna orden.",
+  "transcript": "orden",
+}
+`;
+
+exports[`recorded Claude responses baseline (T002) > not-understood 1`] = `
+{
+  "kind": "notUnderstood",
+  "reasonEs": "charla de mesa",
+  "transcript": "orden",
+}
+`;
+
+exports[`recorded Claude responses baseline (T002) > payout 1`] = `
+{
+  "action": {
+    "company": "PRR",
+    "mode": "full",
+    "parts": [
+      {
+        "amount": 240,
+        "part": "revenue",
+      },
+    ],
+    "type": "runAndPayout",
+  },
+  "actions": [
+    {
+      "company": null,
+      "mode": "full",
+      "parts": [
+        {
+          "amount": 240,
+          "part": "revenue",
+        },
+      ],
+      "type": "runAndPayout",
+    },
+  ],
+  "events": [
+    {
+      "amount": 144,
+      "from": "bank",
+      "t": "moneyTransfer",
+      "to": "player:p1",
+    },
+    {
+      "company": "PRR",
+      "reason": "payout",
+      "t": "marketMove",
+      "to": {
+        "col": 7,
+        "row": 0,
+      },
+    },
+    {
+      "delta": 1,
+      "key": "runs",
+      "subject": "company:PRR",
+      "t": "counterChange",
+    },
+  ],
+  "flows": [
+    {
+      "amount": 144,
+      "counterparty": "player:p1",
+      "direction": "fromBank",
+    },
+  ],
+  "kind": "proposal",
+  "summaryEs": "PRR paga $240 ($24/acción) · PRR → $112",
+  "transcript": "orden",
+  "warnings": [],
+}
+`;
+
+exports[`recorded Claude responses baseline (T002) > query 1`] = `
+{
+  "answer": {
+    "kind": "cash",
+    "textEs": "Ana tiene $600",
+  },
+  "kind": "query",
+  "transcript": "orden",
+}
+`;
+
+exports[`recorded Claude responses baseline (T002) > refusal 1`] = `
+{
+  "kind": "notUnderstood",
+  "reasonEs": "La orden fue rechazada.",
+  "transcript": "orden",
+}
+`;
+
+exports[`recorded Claude responses baseline (T002) > undo 1`] = `
+{
+  "kind": "undo",
+  "transcript": "orden",
+}
+`;
+
+exports[`recorded Claude responses baseline (T002) > unknown-entity 1`] = `
+{
+  "hint": "runAndPayout",
+  "kind": "notUnderstood",
+  "reasonEs": "La orden nombra algo que no existe.",
+  "transcript": "orden",
+}
+`;

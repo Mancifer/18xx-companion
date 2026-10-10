@@ -1,0 +1,2 @@
+# Snapshot baselines compare byte for byte; keep LF on every checkout.
+tests/**/__snapshots__/** text eol=lf

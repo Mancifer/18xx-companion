@@ -1,0 +1,35 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "Ana tiene 1000"
+          },
+          {
+            "functionCall": {
+              "name": "query",
+              "args": {
+                "kind": "cash",
+                "player": "p1",
+                "company": null
+              }
+            }
+          }
+        ]
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 6340,
+    "cachedContentTokenCount": 6112,
+    "candidatesTokenCount": 70,
+    "thoughtsTokenCount": 52,
+    "totalTokenCount": 6462
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "resp_test"
+}

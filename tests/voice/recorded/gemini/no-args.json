@@ -1,0 +1,28 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "functionCall": {
+              "name": "undo"
+            },
+            "thoughtSignature": "c2lnbmF0dXJl"
+          }
+        ]
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 6340,
+    "cachedContentTokenCount": 6112,
+    "candidatesTokenCount": 12,
+    "thoughtsTokenCount": 30,
+    "totalTokenCount": 6382
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "resp_test"
+}

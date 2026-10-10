@@ -16,7 +16,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "eval:voice": "tsx eval/voice/run.ts"
+    "eval:voice": "tsx eval/voice/run.ts",
+    "eval:voice:compare": "tsx eval/voice/compare.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.0",

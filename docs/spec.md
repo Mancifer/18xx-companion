@@ -46,8 +46,8 @@ the table. When the app and the table disagree, the table wins: every value can 
 - Stock market price tracking, with automatic standard moves and manual override.
 - Turn tracking: current round (SR/OR n.m), current operating company, operating order.
 - Event ledger with undo, amend, and history view.
-- Voice commands in **Spanish**, resolved by Claude into structured actions with a confirmation
-  card.
+- Voice commands in **Spanish**, resolved by an AI provider (Anthropic Claude or Google Gemini,
+  chosen in settings) into structured actions with a confirmation card.
 - Local persistence (survives reloads and app restarts). Installable PWA.
 
 ### 2.2 Later iterations (designed for, not built)
@@ -79,8 +79,10 @@ the table. When the app and the table disagree, the table wins: every value can 
 - **PWA**: React + TypeScript + Vite. Offline-capable, except for the AI call.
 - **Storage**: IndexedDB. A session is stored as its event log plus periodic snapshots.
 - **Speech-to-text**: Web Speech API (`es-ES` / configurable `es-*` locale). Push-to-talk only.
-- **Command resolution**: Claude Messages API, called from the client with a user-provided API
-  key stored locally. See §8.
+- **Command resolution**: provider-neutral. The user picks a provider: Anthropic Claude (Messages
+  API through its SDK) or Google Gemini (`generateContent` through plain `fetch`, no SDK). Each
+  is called from the client with that provider's user-provided key, stored locally. Both get the
+  same tools, instructions and snapshot, and both replies go through one validation path. See §8.
 - **No backend** in v1.
 - **Responsive layouts** for phone (portrait) and tablet (landscape).
 
@@ -260,9 +262,11 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 
 1. The user **holds** the mic button (large, thumb-reachable). Release ends capture.
 2. Speech-to-text produces a Spanish transcript, shown live.
-3. The transcript and a compact **context snapshot** are sent to Claude.
-4. Claude replies with one or more **tool calls** (actions), a **clarification** request, or a
-   **query** answer request.
+3. The transcript and a compact **context snapshot** are sent to the selected provider (Claude or
+   Gemini), with the same tools and instructions for both.
+4. The provider replies with one or more **tool calls** (actions), a **clarification** request,
+   or a **query** answer request. Its reply is turned into one neutral format (tool calls and a
+   stop reason; any text is dropped), so validation does not depend on the provider.
 5. The app validates the actions against state. It shows a **confirmation card** with a
    plain-language summary in Spanish, the money flows, and the chip breakdown.
 6. The user confirms (tap, or say "sí" / "confirmar"), edits a field, or cancels.
@@ -284,11 +288,20 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 - **Clarification tool**: `askClarification(question, options[])`, rendered as tap buttons.
 - **Queries** ("¿cuánto tiene Ana?") produce a `query` tool call. The app answers from state,
   never from model text.
-- **Model**: configurable in settings. Default to be chosen by measuring latency and accuracy on
-  an eval set of real Spanish commands (see §11, open item **AI-2**).
-- **Failure modes**: no network or no key means voice is disabled and touch still works. A model
-  refusal or an invalid tool input produces a "No entendí" message with the transcript shown for
-  manual entry.
+- **Model**: configurable in settings, per provider. Defaults are chosen by measuring latency and
+  accuracy on an eval set of real Spanish commands (see §11, open item **AI-2**). The eval runs
+  against either provider (`npm run eval:voice -- --model <id>`, with `--free` and `--rpm` for
+  Gemini's free tier) and `npm run eval:voice:compare` shows two runs side by side. A provider is
+  offered only after its eval run is recorded.
+- **Gemini specifics**: tools are sent as `functionDeclarations` with `parametersJsonSchema`,
+  function calling mode `ANY`, the lowest thinking level the model allows, and the stable prefix
+  first so implicit caching applies. One request per command, plus at most one retry on 429, 5xx
+  or a network error; 8 s timeout.
+- **Failure modes**: no network or no key for the selected provider means voice is disabled and
+  touch still works; another provider's key is never used instead. A refusal, a safety block, a
+  malformed call or an invalid tool input produces a "No entendí" message with the transcript
+  shown for manual entry. Provider errors (bad key, no permission, unknown model, rate limit,
+  timeout, no connection) map to the same Spanish messages for both providers.
 
 ### 8.3 Example commands (Spanish, v1 target set)
 
@@ -311,10 +324,15 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 
 ### 9.1 Screens
 
-1. **Home**: resume session, new session, settings (masked API key with show/hide and a "no
-   recordar la clave en este dispositivo" option, voice locale, model, and a privacy note: audio
-   goes to the browser's speech service, transcripts and state to Anthropic; use a dedicated
-   Console workspace with a monthly spend limit).
+1. **Home**: resume session, new session, settings: a provider control (Anthropic Claude /
+   Google Gemini), then the selected provider's masked key with show/hide and where to get it,
+   a "no recordar las claves en este dispositivo" option, voice locale, and the provider's model.
+   Each provider keeps its own key and model, so switching loses nothing. With Gemini selected,
+   two notes show: on the free tier Google may use prompts and responses to improve its products
+   (they hold the game state and transcript, not personal data), and the free tier has per-minute
+   and per-day limits (voice pauses, touch keeps working). The privacy note says audio goes to the
+   browser's speech service and transcripts and state to the **selected provider**. For Anthropic,
+   use a dedicated Console workspace with a monthly spend limit.
 2. **New session**: pick game → players (names, colors, aliases) → chip set (preset +
    colors) → wallet mode.
 3. **Table** (main screen):
@@ -363,8 +381,11 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
   corrections) plus a hash of the replayed state. On import the log is replayed: a hash mismatch
   is shown as a warning but the session still imports. A session that already exists on the
   device can be replaced or imported as a copy.
-- API key stored locally on the device, never exported. With "no recordar la clave" it is kept
-  in memory only and is gone after a reload.
+- One API key per provider, stored locally on the device, never exported and never logged. With
+  "no recordar las claves" every provider's key is kept in memory only and is gone after a reload.
+  The Gemini key travels only in the `x-goog-api-key` header, never in a URL. Settings saved
+  before provider choice (one Claude key and model) are read as the Claude entries and rewritten
+  in the new shape on the next save.
 
 ## 11. Open Items
 
@@ -373,7 +394,7 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 | G-1 | ~~1848 special entities and loans: fit them in the config or reduce scope (§5.2)~~ **Resolved**: full support, built as reusable mechanics |
 | G-2 | Fill in and verify all ⚠ fields for 1830, 1848, 21Moon from the rulebooks |
 | G-3 | Market movement edge cases (multiple sells in one action, ceiling/floor cells) |
-| AI-1 | Confirm the current Claude API features to use (strict tools, caching), and the browser-side SDK setup for a user-supplied key |
+| AI-1 | Confirm the current provider API features to use: Claude (strict tools, caching, browser-side SDK with a user-supplied key) and Gemini (`parametersJsonSchema` keyword support, `ANY` mode with 25–40 tools, thinking levels, implicit caching, free-tier limits; prices and model IDs re-checked against Google's docs) |
 | AI-2 | Build a small eval set (~50 Spanish transcripts with expected actions) and use it to choose the default model on latency and accuracy. **In progress**: 60 seed cases, six fixtures and a deterministic harness exist (`eval/voice/`, `npm run eval:voice`); the transcripts still need rephrasing in the user's regional Spanish before the first scored run |
 | AI-3 | Decide whether to evaluate the "decisions API" the user mentioned (not yet identified; needs a link) |
 | UX-1 | ~~Whether touch actions also show the confirmation card, or apply immediately with undo~~ **Resolved**: apply immediately, with one-tap undo |

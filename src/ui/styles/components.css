@@ -845,3 +845,15 @@ button.stacked .subtitle {
   outline: 2px solid var(--warn);
   outline-offset: -2px;
 }
+
+/* Segmented control (radio semantics): the selected option shows by state and name, not color alone. */
+.segmented > button {
+  flex: 1;
+}
+
+button[role="radio"][aria-checked="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}

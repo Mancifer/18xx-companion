@@ -1,6 +1,5 @@
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type Anthropic from "@anthropic-ai/sdk";
 import type { VoiceDeps } from "../../src/app/useVoice";
 import type { RecognizerLike } from "../../src/voice/speech";
 import { describe, expect, it } from "vitest";
@@ -474,16 +473,7 @@ describe("Voice confirmation card in RotLA (US10, T088)", () => {
     recognizer: () => new FakeRecognizer(),
     online: () => true,
     createInterpreter: () => () =>
-      Promise.resolve({
-        id: "msg_test",
-        type: "message",
-        role: "assistant",
-        model: "claude-sonnet-5",
-        content: [{ type: "tool_use", id: "toolu_0", name, input }],
-        stop_reason: "tool_use",
-        stop_sequence: null,
-        usage: { input_tokens: 1, output_tokens: 1 },
-      } as unknown as Anthropic.Message),
+      Promise.resolve({ provider: "anthropic", model: "claude-sonnet-5", calls: [{ name, input }], stop: "done", rawStop: "tool_use" }),
   });
   async function speak(user: ReturnType<typeof userEvent.setup>, text: string) {
     const mic = await screen.findByRole("button", { name: "Mantén pulsado para hablar" });
@@ -492,7 +482,7 @@ describe("Voice confirmation card in RotLA (US10, T088)", () => {
     expect(await screen.findByText(text)).toBeTruthy();
     await user.pointer({ keys: "[/MouseLeft]", target: screen.getByRole("button", { name: "Suelta para enviar" }) });
   }
-  const settings = { apiKey: "sk-ant-test", rememberKey: true };
+  const settings = { apiKeys: { anthropic: "sk-ant-test" }, rememberKey: true };
 
   it("launchCompany shows the bid, the price, the treasury and the chips handed over", async () => {
     const { user } = await openSeededTable({

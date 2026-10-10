@@ -1,0 +1,25 @@
+{
+  "candidates": [
+    {
+      "content": {
+        "role": "model",
+        "parts": [
+          {
+            "text": "Hola"
+          }
+        ]
+      },
+      "finishReason": "STOP",
+      "index": 0
+    }
+  ],
+  "usageMetadata": {
+    "promptTokenCount": 6340,
+    "cachedContentTokenCount": 6112,
+    "candidatesTokenCount": 55,
+    "thoughtsTokenCount": 52,
+    "totalTokenCount": 6447
+  },
+  "modelVersion": "gemini-3.8-flash",
+  "responseId": "resp_test"
+}

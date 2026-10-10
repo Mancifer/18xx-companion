@@ -1,6 +1,8 @@
-import type Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { Action } from "../../src/domain/actions/schemas";
+import type { ProviderId } from "../../src/voice/providers";
+import type { ModelReply, ReplyStop, TokenUsage } from "../../src/voice/reply";
+import { costOf, priceFor } from "./prices";
 import { resolveResponse, type ResolveContext } from "../../src/voice/resolve";
 
 /**
@@ -92,6 +94,12 @@ export function normalizeAction(action: Json, ctx: ResolveContext): Json {
       }
       break;
     }
+    case "forcedTrainPurchase": {
+      // Same default as buyTrain: a null variant is the type's first one.
+      const type = ctx.game.trains.find((t) => t.type === out["trainType"]);
+      if (out["variant"] === null) out["variant"] = type?.variants[0]?.name ?? null;
+      break;
+    }
     case "stockBatch":
       if (Array.isArray(out["items"])) out["items"] = (out["items"] as Json[]).map((i) => normalizeAction(i, ctx));
       break;
@@ -126,18 +134,15 @@ export function matches(expected: unknown, actual: unknown): boolean {
   return expected === actual;
 }
 
-const toolCalls = (m: Anthropic.Message) => m.content.filter((b): b is Anthropic.ToolUseBlock => b.type === "tool_use");
-
 /** "runAndPayout{…} + buyTrain{…}" */
-export function describeCalls(m: Anthropic.Message): string {
-  const calls = toolCalls(m);
-  if (calls.length === 0) return `(sin herramientas, stop_reason=${m.stop_reason})`;
-  return calls.map((c) => `${c.name}${JSON.stringify(c.input)}`).join(" + ");
+export function describeCalls(reply: ModelReply): string {
+  if (reply.calls.length === 0) return `(sin herramientas, stop=${reply.stop} (${reply.rawStop}))`;
+  return reply.calls.map((c) => `${c.name}${JSON.stringify(c.input)}`).join(" + ");
 }
 
-export function gradeResponse(message: Anthropic.Message, c: EvalCase, ctx: ResolveContext): Grade {
-  const got = describeCalls(message);
-  const result = resolveResponse(message, ctx, c.transcript);
+export function gradeResponse(reply: ModelReply, c: EvalCase, ctx: ResolveContext): Grade {
+  const got = describeCalls(reply);
+  const result = resolveResponse(reply, ctx, c.transcript);
   const fail = (reason: string): Grade => ({ pass: false, got, reason });
   const ok: Grade = { pass: true, got };
   const exp = c.expect;
@@ -155,14 +160,21 @@ export function gradeResponse(message: Anthropic.Message, c: EvalCase, ctx: Reso
     }
     case "clarification": {
       if (result.kind !== "clarification") return fail(`se esperaba aclaración, llegó ${result.kind}`);
-      const offered = new Set(result.options.flatMap((o) => [o.value.toLowerCase(), o.label.toLowerCase()]));
+      // A candidate may appear whole or as a word of a value or label ("NYC:1", "1 acción de NYC"):
+      // tapping an option sends its label and value back to the model, so either names it.
+      const words = (s: string) => [s, ...s.split(/[\s:_,;()/|.-]+/)].map((w) => w.toLowerCase());
+      const offered = new Set(result.options.flatMap((o) => [...words(o.value), ...words(o.label)]));
       const missing = exp.candidates.filter((x) => !offered.has(x.toLowerCase()));
       return missing.length === 0 ? ok : fail(`faltan opciones: ${missing.join(", ")}`);
     }
     case "query": {
       if (result.kind !== "query") return fail(`se esperaba consulta, llegó ${result.kind}`);
-      const input = toolCalls(message).find((t) => t.name === "query")?.input as Json | undefined;
-      if (input?.["kind"] !== exp.query) return fail(`consulta ${String(input?.["kind"])}, se esperaba ${exp.query}`);
+      const input = reply.calls.find((t) => t.name === "query")?.input;
+      if (!input) return fail("sin consulta");
+      // A company's cash is its treasury: the app answers both the same way (src/domain/queries.ts).
+      const companyCash = input["kind"] === "cash" && Boolean(input["company"]) && !input["player"];
+      const kind = companyCash ? "treasury" : input["kind"];
+      if (kind !== exp.query) return fail(`consulta ${String(input["kind"])}, se esperaba ${exp.query}`);
       if (exp.player !== undefined && input["player"] !== exp.player) return fail("jugador distinto");
       if (exp.company !== undefined && input["company"] !== exp.company) return fail("compañía distinta");
       return ok;
@@ -170,7 +182,7 @@ export function gradeResponse(message: Anthropic.Message, c: EvalCase, ctx: Reso
     case "undo":
       return result.kind === "undo" ? ok : fail(`se esperaba deshacer, llegó ${result.kind}`);
     case "amend": {
-      const input = toolCalls(message).find((t) => t.name === "amendLast")?.input as Json | undefined;
+      const input = reply.calls.find((t) => t.name === "amendLast")?.input;
       if (!input || result.kind === "clarification" || result.kind === "query") return fail(`se esperaba corrección, llegó ${result.kind}`);
       if (input["value"] !== exp.value) return fail(`valor ${String(input["value"])}, se esperaba ${exp.value}`);
       if (exp.part !== undefined && (input["part"] ?? null) !== exp.part) return fail("parte distinta");
@@ -182,7 +194,7 @@ export function gradeResponse(message: Anthropic.Message, c: EvalCase, ctx: Reso
 }
 
 // ---------------------------------------------------------------------------------------------
-// Metrics (research R18)
+// Metrics (research R18; feature 005 contracts/eval-report.md)
 
 export interface RunRecord {
   readonly caseId: string;
@@ -194,25 +206,14 @@ export interface RunRecord {
   readonly got: string;
   readonly reason?: string;
   readonly latencyMs: number;
-  readonly usage?: Anthropic.Usage;
+  readonly stop?: ReplyStop;
+  /** The provider's own stop reason. */
+  readonly rawStop?: string;
+  readonly usage?: TokenUsage;
+  /** "rateLimited" after the backoff gave up; otherwise the error's name and message. */
   readonly error?: string;
   /** The first call with this fixture's prefix: it writes the cache, so it cannot read it. */
   readonly prefixFirst?: boolean;
-}
-
-/** $ per million tokens: input, output; cache writes ×1.25 and reads ×0.1 of input. */
-export const PRICES: Readonly<Record<string, { readonly input: number; readonly output: number }>> = {
-  "claude-sonnet-5": { input: 2, output: 10 },
-  "claude-haiku-4-5": { input: 1, output: 5 },
-  "claude-opus-5": { input: 5, output: 25 },
-};
-
-export function costOf(usage: Anthropic.Usage | undefined, model: string): number | undefined {
-  const p = PRICES[model];
-  if (!usage || !p) return undefined;
-  const write = usage.cache_creation_input_tokens ?? 0;
-  const read = usage.cache_read_input_tokens ?? 0;
-  return (usage.input_tokens * p.input + write * p.input * 1.25 + read * p.input * 0.1 + usage.output_tokens * p.output) / 1e6;
 }
 
 export function percentile(values: readonly number[], p: number): number {
@@ -226,8 +227,23 @@ const accuracy = (rs: readonly RunRecord[]) => (rs.length === 0 ? null : rs.filt
 /** The OR subset is every case on an operating-round fixture (SC-003). */
 export const isOrFixture = (fixture: string) => fixture.endsWith("-or");
 
-export interface Summary {
+export const STOPS: readonly ReplyStop[] = ["done", "truncated", "refused", "malformed", "other"];
+
+export interface SummaryOptions {
+  readonly provider: ProviderId;
   readonly model: string;
+  /** Run with --free: costUsd is 0, paidEquivalentUsd still computed. */
+  readonly freeTier: boolean;
+  readonly rateLimitRetries: number;
+  /** YYYY-MM-DD; picks the price period. */
+  readonly date: string;
+}
+
+/** The same keys for every provider; fields that don't apply hold 0 or null (SC-005). */
+export interface Summary {
+  readonly provider: ProviderId;
+  readonly model: string;
+  readonly freeTier: boolean;
   readonly cases: number;
   readonly runs: number;
   readonly overall: number | null;
@@ -236,26 +252,59 @@ export interface Summary {
   readonly heldout: number | null;
   readonly byCategory: Readonly<Record<string, number | null>>;
   readonly latencyMs: { readonly p50: number; readonly p95: number };
-  /** Share of calls, past each fixture's first, that read the cached prefix (> 0, or the prefix is broken). */
+  /** Share of calls, past each fixture's first, that read the cached prefix. */
   readonly cacheReadRate: number | null;
-  readonly tokens: { readonly input: number; readonly output: number; readonly cacheWrite: number; readonly cacheRead: number };
+  readonly tokens: TokenUsage;
   readonly costUsd: number | null;
   readonly costPerCaseUsd: number | null;
+  readonly paidEquivalentUsd: number | null;
+  readonly paidPerCaseUsd: number | null;
+  readonly priceNotes: readonly string[];
+  readonly stops: Readonly<Record<ReplyStop, number>>;
+  readonly rateLimitRetries: number;
   readonly gates: Readonly<Record<string, boolean>>;
 }
 
-export function summarize(records: readonly RunRecord[], model: string): Summary {
+export function summarize(records: readonly RunRecord[], options: SummaryOptions): Summary {
+  const { provider, model, freeTier, rateLimitRetries, date } = options;
   const byCategory = Object.fromEntries(CATEGORIES.map((cat) => [cat, accuracy(records.filter((r) => r.category === cat))]));
   const latencies = records.filter((r) => r.error === undefined).map((r) => r.latencyMs);
   const later = records.filter((r) => r.usage && !r.prefixFirst);
-  const cacheReadRate = later.length === 0 ? null : later.filter((r) => (r.usage?.cache_read_input_tokens ?? 0) > 0).length / later.length;
-  const sum = (f: (u: Anthropic.Usage) => number) => records.reduce((n, r) => n + (r.usage ? f(r.usage) : 0), 0);
-  const costUsd = PRICES[model] ? records.reduce((n, r) => n + (costOf(r.usage, model) ?? 0), 0) : null;
+  const cacheReadRate = later.length === 0 ? null : later.filter((r) => (r.usage?.cacheRead ?? 0) > 0).length / later.length;
+  const sum = (f: (u: TokenUsage) => number) => records.reduce((n, r) => n + (r.usage ? f(r.usage) : 0), 0);
+  const tokens: TokenUsage = {
+    input: sum((u) => u.input),
+    output: sum((u) => u.output),
+    cacheRead: sum((u) => u.cacheRead),
+    cacheWrite: sum((u) => u.cacheWrite),
+    thinking: sum((u) => u.thinking),
+  };
+
+  const price = priceFor(model, date);
+  const priceNotes: string[] = [];
+  if (!price) priceNotes.push(`sin precio para ${model}: coste desconocido`);
+  if (price && price.cacheRead === null && tokens.cacheRead > 0) priceNotes.push("lecturas de caché cobradas al precio de entrada");
+  if (price && price.cacheWrite === null && tokens.cacheWrite > 0) priceNotes.push("escrituras de caché cobradas al precio de entrada");
+  const paidEquivalentUsd = price ? records.reduce((n, r) => n + (r.usage ? costOf(r.usage, price) : 0), 0) : null;
+  const costUsd = freeTier ? 0 : paidEquivalentUsd;
+  const perCase = (v: number | null) => (v === null ? null : records.length === 0 ? 0 : v / records.length);
+
+  const stops = Object.fromEntries(STOPS.map((s) => [s, records.filter((r) => r.stop === s).length])) as Record<ReplyStop, number>;
   const orSubset = accuracy(records.filter((r) => isOrFixture(r.fixture)));
   const p95 = percentile(latencies, 95);
   const categoryValues = Object.values(byCategory).filter((v): v is number => v !== null);
+  const gates: Record<string, boolean> = {
+    "OR subset >= 90%": (orSubset ?? 0) >= 0.9,
+    "no category < 80%": categoryValues.every((v) => v >= 0.8),
+    "p95 API latency < 2.5 s": latencies.length > 0 && p95 < 2500,
+  };
+  // Google does not guarantee implicit cache hits, so for Gemini it is reported, not gated (R5).
+  if (provider === "anthropic") gates["cache reads > 0"] = (cacheReadRate ?? 0) > 0;
+
   return {
+    provider,
     model,
+    freeTier,
     cases: new Set(records.map((r) => r.caseId)).size,
     runs: Math.max(0, ...records.map((r) => r.run)),
     overall: accuracy(records),
@@ -265,19 +314,14 @@ export function summarize(records: readonly RunRecord[], model: string): Summary
     byCategory,
     latencyMs: { p50: percentile(latencies, 50), p95 },
     cacheReadRate,
-    tokens: {
-      input: sum((u) => u.input_tokens),
-      output: sum((u) => u.output_tokens),
-      cacheWrite: sum((u) => u.cache_creation_input_tokens ?? 0),
-      cacheRead: sum((u) => u.cache_read_input_tokens ?? 0),
-    },
+    tokens,
     costUsd,
-    costPerCaseUsd: costUsd === null || records.length === 0 ? null : costUsd / records.length,
-    gates: {
-      "OR subset >= 90%": (orSubset ?? 0) >= 0.9,
-      "no category < 80%": categoryValues.every((v) => v >= 0.8),
-      "p95 API latency < 2.5 s": latencies.length > 0 && p95 < 2500,
-      "cache reads > 0": (cacheReadRate ?? 0) > 0,
-    },
+    costPerCaseUsd: perCase(costUsd),
+    paidEquivalentUsd,
+    paidPerCaseUsd: perCase(paidEquivalentUsd),
+    priceNotes,
+    stops,
+    rateLimitRetries,
+    gates,
   };
 }

@@ -3,10 +3,11 @@ import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
 // Research R17: strict CSP. Injected only in the production build, because the dev server
-// relies on inline scripts and a websocket for hot reload.
+// relies on inline scripts and a websocket for hot reload. connect-src lists every voice
+// provider's endpoint (feature 005: Anthropic and Gemini) and nothing else.
 const CSP = [
   "default-src 'self'",
-  "connect-src 'self' https://api.anthropic.com",
+  "connect-src 'self' https://api.anthropic.com https://generativelanguage.googleapis.com",
   "script-src 'self'",
   "object-src 'none'",
   "base-uri 'none'",

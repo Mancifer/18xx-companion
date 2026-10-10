@@ -1,4 +1,3 @@
-import type Anthropic from "@anthropic-ai/sdk";
 import { formatMoney } from "../domain/i18n/format";
 import { enabledMechanics } from "../domain/mechanics/custom";
 import type { VoiceSession } from "./tools";
@@ -46,9 +45,4 @@ export function systemPromptEs({ game, players }: VoiceSession): string {
     lines.push(`- ${c.id} = ${c.name}${alt}${c.aliases.length ? `; ${c.aliases.join(", ")}` : ""}`);
   }
   return lines.join("\n");
-}
-
-/** One system block with the cache breakpoint at its end (research R9). */
-export function systemBlocks(session: VoiceSession): Anthropic.TextBlockParam[] {
-  return [{ type: "text", text: systemPromptEs(session), cache_control: { type: "ephemeral" } }];
 }

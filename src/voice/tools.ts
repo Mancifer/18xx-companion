@@ -304,24 +304,88 @@ function metaSchema(name: (typeof META_TOOLS)[number], e: Enums): Json {
   }
 }
 
+/** A tool before its wire format: what every provider gets (feature 005, data-model §5). */
+export interface ToolSpec {
+  readonly name: string;
+  readonly description: string;
+  /** Sanitized JSON Schema with this session's entity enums and sorted keys. */
+  readonly schema: Readonly<Record<string, unknown>>;
+}
+
 /** The session's tools: actions the game offers, then the meta tools. */
-export function buildTools(session: VoiceSession): Anthropic.Tool[] {
+export function buildToolSpecs(session: VoiceSession): ToolSpec[] {
   const e = enumsFor(session);
   const probe = { game: session.game, players: session.players, state: initialState(session.game, session.players) };
   const actions = ACTION_TOOLS.filter((type) => {
     const handler = handlerFor(probe, type);
     return handler !== undefined && (handler.offered?.(session.game) ?? true);
   });
-  const tools = [
+  return [
     ...actions.map((name) => ({ name, schema: inputSchema(name) })),
     ...META_TOOLS.map((name) => ({ name, schema: metaSchema(name, e) })),
-  ].map(({ name, schema }) =>
-    sortKeys({
-      name,
-      description: DESCRIPTIONS[name] ?? name,
-      input_schema: sanitize(schema, name, e),
-      strict: true,
-    }),
-  );
-  return tools as Anthropic.Tool[];
+  ].map(({ name, schema }) => ({
+    name,
+    description: DESCRIPTIONS[name] ?? name,
+    schema: sortKeys(sanitize(schema, name, e)) as Json,
+  }));
+}
+
+/** Strict Claude tools; serialized with sorted keys, byte-identical to the pre-005 output. */
+export function toAnthropicTools(specs: readonly ToolSpec[]): Anthropic.Tool[] {
+  return specs.map((s) => sortKeys({ name: s.name, description: s.description, input_schema: s.schema, strict: true })) as Anthropic.Tool[];
+}
+
+export function buildTools(session: VoiceSession): Anthropic.Tool[] {
+  return toAnthropicTools(buildToolSpecs(session));
+}
+
+/**
+ * JSON Schema keywords sent to Gemini's `parametersJsonSchema` (feature 005, research R3).
+ * Verified by the 2026-10-10 eval runs (3.8 Flash, 3.6 Flash, 3.5 Flash-Lite): no schema 400s.
+ * If Google ever rejects one, a 400 naming the keyword means it comes out of this list.
+ */
+export const GEMINI_SCHEMA_KEYWORDS: ReadonlySet<string> = new Set([
+  "type",
+  "properties",
+  "required",
+  "enum",
+  "anyOf",
+  "items",
+  "description",
+  "additionalProperties",
+  "minimum",
+  "maximum",
+  "const",
+  "minItems",
+]);
+
+/** Removes keywords outside the allowlist; property names under `properties` are kept. */
+function geminiSchema(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(geminiSchema);
+  if (!node || typeof node !== "object") return node;
+  const out: Json = {};
+  for (const [k, v] of Object.entries(node as Json)) {
+    if (!GEMINI_SCHEMA_KEYWORDS.has(k)) continue;
+    out[k] = k === "properties" ? Object.fromEntries(Object.entries(v as Json).map(([name, s]) => [name, geminiSchema(s)])) : geminiSchema(v);
+  }
+  return out;
+}
+
+export interface GeminiFunctionDeclaration {
+  readonly name: string;
+  readonly description: string;
+  readonly parametersJsonSchema: Readonly<Record<string, unknown>>;
+}
+
+/** The same specs as Gemini function declarations, in the same order (FR-006). */
+export function toGeminiTools(specs: readonly ToolSpec[]): [{ readonly functionDeclarations: GeminiFunctionDeclaration[] }] {
+  return [
+    {
+      functionDeclarations: specs.map((s) => ({
+        name: s.name,
+        description: s.description,
+        parametersJsonSchema: geminiSchema(s.schema) as Json,
+      })),
+    },
+  ];
 }

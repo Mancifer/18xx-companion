@@ -29,8 +29,8 @@ test("with 'no recordar la clave', a reload forgets the key and the mic is unava
   await newSession(page, { players: ["Ana", "Bruno", "Carla"] });
   await page.getByRole("button", { name: "Menú" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Ajustes" }).click();
-  await page.getByLabel("Clave de API").fill("sk-ant-api03-forget-me");
-  await page.getByLabel("No recordar la clave en este dispositivo").check();
+  await page.getByLabel("Clave de Anthropic").fill("sk-ant-api03-forget-me");
+  await page.getByLabel("No recordar las claves en este dispositivo").check();
   await page.getByRole("button", { name: "Guardar" }).click();
   await expect(page.getByText("Guardado")).toBeVisible();
 
@@ -40,7 +40,7 @@ test("with 'no recordar la clave', a reload forgets the key and the mic is unava
         const req = indexedDB.open("companion");
         req.onerror = () => reject(new Error("open"));
         req.onsuccess = () => {
-          const get = req.result.transaction("settings").objectStore("settings").get("apiKey");
+          const get = req.result.transaction("settings").objectStore("settings").get("apiKeys");
           get.onsuccess = () => {
             req.result.close();
             resolve(get.result ?? null);
@@ -54,8 +54,8 @@ test("with 'no recordar la clave', a reload forgets the key and the mic is unava
   await page.getByRole("button", { name: /^Continuar/ }).click();
   await expect(page.getByRole("button", { name: "Mantén pulsado para hablar" })).toBeDisabled();
   // Without speech recognition in this browser that reason comes first; either way, no voice.
-  await expect(page.locator(".mic-reason")).toHaveText(/clave de API|no reconoce la voz/);
+  await expect(page.locator(".mic-reason")).toHaveText(/clave de Anthropic|no reconoce la voz/);
   await page.getByRole("button", { name: "Menú" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Ajustes" }).click();
-  await expect(page.getByLabel("Clave de API")).toHaveValue("");
+  await expect(page.getByLabel("Clave de Anthropic")).toHaveValue("");
 });

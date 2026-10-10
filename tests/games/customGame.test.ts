@@ -14,6 +14,10 @@ describe("custom games (FR-007, contracts/game-definition.md rule 4)", () => {
     expect(custom.name).toBe("1830 corto");
   });
 
+  it("inherits the base game's scoring block (feature 007)", () => {
+    expect(createCustomGame(getBuiltInGame("rotla"), "RotLA casero").scoring).toEqual(getBuiltInGame("rotla").scoring);
+  });
+
   it("edits the bank and a company name without touching the built-in (US1-5)", () => {
     const builtIn = getBuiltInGame("1830");
     const before = JSON.stringify(builtIn);

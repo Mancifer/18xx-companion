@@ -1,5 +1,7 @@
 import { applyOptions, resolveOptions } from "../domain/games";
 import type { GameDefinition } from "../domain/games/schema";
+import { replay } from "../domain/ledger/replay";
+import { outcomeOf } from "../domain/mechanics/gameEnd";
 import type { SessionMeta } from "../domain/session";
 import type { ChipSet, Player, WalletMode } from "../domain/types";
 import type { SessionRepo } from "../persistence/sessionRepo";
@@ -68,4 +70,19 @@ export async function startSession(
 export async function deleteSession(repo: SessionRepo, settings: SettingsRepo, id: string): Promise<void> {
   await repo.deleteSession(id);
   if ((await settings.get()).lastSessionId === id) await settings.set({ lastSessionId: undefined });
+}
+
+/**
+ * The Home outcome for a session saved before feature 007 (no `outcome` key): replays its log once
+ * and stores the result. Any failure leaves the row as it was and returns the meta unchanged.
+ */
+export async function backfillOutcome(repo: SessionRepo, meta: SessionMeta): Promise<SessionMeta> {
+  try {
+    const loaded = await repo.loadSession(meta.id);
+    if (!loaded) return meta;
+    const result = replay(loaded.meta.game, loaded.meta.players, loaded.entries);
+    return await repo.updateMeta(meta.id, { outcome: outcomeOf(loaded.meta.game, loaded.meta.players, result) });
+  } catch {
+    return meta;
+  }
 }

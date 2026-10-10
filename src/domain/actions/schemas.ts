@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EndTriggerTypeSchema } from "../games/schema";
 import { holdsMoney, holdsShares, isHolderRef, type HolderRef } from "../types";
 
 /**
@@ -330,6 +331,17 @@ export const setTurnAction = z.object({
 });
 export const setMarketAction = z.object({ type: z.literal("setMarket"), company: companyId, cell: CellRefSchema });
 
+// ---------------------------------------------------------------------------------------------
+// Game end (feature 007). Both expand to one note: whether the game is finished is derived from
+// the log (research R1, R2).
+
+export const endGameAction = z.object({
+  type: z.literal("endGame"),
+  /** Fired conditions at the time of the end; null = filled by the expander. */
+  triggers: z.array(EndTriggerTypeSchema).nullable(),
+});
+export const reopenGameAction = z.object({ type: z.literal("reopenGame") });
+
 /**
  * Several actions recorded as one group (FR-071: a compound voice command). The items are
  * parsed with ActionSchema when expanded; a compound cannot contain another compound.
@@ -387,6 +399,8 @@ export const ActionSchema = z.discriminatedUnion("type", [
   setPhaseAction,
   setTurnAction,
   setMarketAction,
+  endGameAction,
+  reopenGameAction,
   compoundAction,
 ]);
 

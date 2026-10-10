@@ -56,3 +56,34 @@ test("RotLA: after a merger the minors are listed as closed, the major as in pla
   await expect(page.getByTestId("company-group-inPlay").getByTestId("treasury-UNI")).toBeVisible();
   await expect(page.getByTestId("company-group-available").getByTestId("treasury-EXP")).toHaveCount(0);
 });
+
+/** Feature 007: the end of the last cycle ends the game on its own and opens the results screen. */
+test("RotLA Short: finishing the last cycle opens the results, with the winner marked", async ({ page }) => {
+  await newRotla(page, ["Ana", "Bruno", "Carla"]);
+  await launch(page, "Ana", "TUN", 140);
+
+  // Jump to the end of OR 4.2 with the manual turn control (no company left to operate).
+  await page.getByRole("button", { name: /^Turno:/ }).click();
+  const turn = page.getByRole("dialog", { name: "Turno y fase" });
+  await turn.getByRole("button", { name: "Operaciones", exact: true }).click();
+  const setStepper = async (label: string, target: number) => {
+    const value = turn.locator(".row", { has: page.getByText(label, { exact: true }) }).locator(".stepper-value");
+    while (Number(await value.textContent()) < target) await turn.getByRole("button", { name: `${label}: más` }).click();
+    while (Number(await value.textContent()) > target) await turn.getByRole("button", { name: `${label}: menos` }).click();
+  };
+  await setStepper("Ronda de acciones", 4);
+  await setStepper("Set de OR", 4);
+  await setStepper("OR por set", 2);
+  await setStepper("OR del set", 2);
+  await turn.getByRole("button", { name: "Fijar turno" }).click();
+
+  await expect(page.getByRole("heading", { name: "Resultados" })).toBeVisible();
+  await expect(page.getByText(/· automático$/)).toBeVisible();
+  const rows = page.locator(".score-table tbody tr");
+  await expect(rows).toHaveCount(3);
+  await expect(rows.first().getByText("🏆 Ganador")).toBeVisible();
+
+  await page.getByRole("button", { name: "Volver" }).click();
+  await expect(page.getByRole("button", { name: "Ver resultados", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Partida completa · Ver resultados" })).toBeVisible();
+});

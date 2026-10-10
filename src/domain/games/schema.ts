@@ -262,7 +262,37 @@ export const EndTriggerSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("bankruptcy") }),
   /** The last slot of a fixed schedule has been played. */
   z.object({ type: z.literal("cyclesComplete") }),
+  /** The last OR of a fixed schedule is complete (21Moon §13: after OR 5.3). */
+  z.object({ type: z.literal("scheduleComplete") }),
 ]);
+
+export const EndTriggerTypeSchema = z.enum([
+  "bankBroken",
+  "topCell",
+  "loansIssued",
+  "takeovers",
+  "lastRound",
+  "bankruptcy",
+  "cyclesComplete",
+  "scheduleComplete",
+]);
+
+/**
+ * How a finished game is ranked (feature 007, data-model §1). Absent on definitions saved before
+ * the feature: `scoringOf` then falls back to the built-in game's block (research R16).
+ */
+export const ScoringSchema = z.object({
+  /** End triggers that end the game without the table. bankBroken counts once the OR set is complete. */
+  autoEnd: z
+    .array(z.enum(["cyclesComplete", "scheduleComplete", "bankBroken", "bankruptcy"]))
+    .refine((list) => new Set(list).size === list.length, "autoEnd holds distinct values"),
+  /** How a bankrupt player is ranked: listed last with no total, or scored on what they kept. */
+  bankruptPlayers: z.enum(["eliminated", "scored"]),
+  /** How equal totals are ordered. */
+  tieBreak: z.enum(["shared", "presidentEarliest"]),
+  /** Added to the final share price per unit of a company counter (21Moon §13). */
+  shareBonus: z.object({ counter: z.string().min(1), perUnit: posInt }).optional(),
+});
 
 export const CustomRuleSchema = z.object({
   id: z.string().min(1),
@@ -380,6 +410,7 @@ export const GameDefinitionSchema = z.object({
   }),
   loans: LoanDefSchema.optional(),
   endTriggers: z.array(EndTriggerSchema),
+  scoring: ScoringSchema.optional(),
   customRules: z.array(CustomRuleSchema),
   chipPreset: z.array(ChipSchema),
   /** Constitution III: every rule-dependent field is verified or marked unverified. */
@@ -400,6 +431,8 @@ export type Direction = z.infer<typeof DirectionSchema>;
 export type LoanDef = z.infer<typeof LoanDefSchema>;
 export type GrantDef = z.infer<typeof GrantSchema>;
 export type EndTriggerDef = z.infer<typeof EndTriggerSchema>;
+export type EndTriggerType = z.infer<typeof EndTriggerTypeSchema>;
+export type Scoring = z.infer<typeof ScoringSchema>;
 export type OptionDef = z.infer<typeof OptionDefSchema>;
 export type CustomRule = z.infer<typeof CustomRuleSchema>;
 export type PayoutMode = GameDefinition["payoutModes"][number];

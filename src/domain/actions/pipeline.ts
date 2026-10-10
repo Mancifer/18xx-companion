@@ -32,7 +32,7 @@ export function runPipeline(ctx: ActionContext, input: unknown): PipelineResult 
       issues: parsed.error.issues.map((i) => `${i.path.join(".") || "(root)"}: ${i.message}`),
     };
   }
-  const action = withCurrentCompany(ctx, parsed.data);
+  const action = normalize(ctx, withCurrentCompany(ctx, parsed.data));
   const unknown = referenceIssues(ctx, action);
   if (unknown.length > 0) return { kind: "invalid", issues: unknown };
   const availability = availabilityOf(ctx, action.type, action);
@@ -42,6 +42,11 @@ export function runPipeline(ctx: ActionContext, input: unknown): PipelineResult 
   const events = expandAction(ctx, action);
   const all = runTriggers({ game: ctx.game, players: ctx.players, stateBefore: ctx.state, action }, events);
   return { kind: "ok", action, events: all, warnings, touches: touchesOf(all) };
+}
+
+function normalize(ctx: ActionContext, action: Action): Action {
+  const handler: ActionHandler<ActionType> | undefined = handlerFor<ActionType>(ctx, action.type);
+  return handler?.normalize?.(ctx, action) ?? action;
 }
 
 /** Expansion only (no triggers), for compound actions and amends. */

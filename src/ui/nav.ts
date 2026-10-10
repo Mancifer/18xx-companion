@@ -8,6 +8,8 @@ export type Screen =
   | { name: "table" }
   | { name: "history" }
   | { name: "market" }
+  /** Final or provisional ranking (feature 007); `from` decides where Volver goes. */
+  | { name: "results"; from: "table" | "home" }
   | { name: "settings" };
 
 export interface Nav {

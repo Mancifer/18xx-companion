@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { getBuiltInGame } from "../../src/domain/games";
-import { endTriggers, gameOver } from "../../src/domain/mechanics/endTriggers";
+import type { GameDefinition } from "../../src/domain/games/schema";
+import { endTriggers, gameOver, scoringOf } from "../../src/domain/mechanics/endTriggers";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { seedCompany } from "../helpers/seed";
-import { rotlaSession, seedCompany as seedRotla } from "../helpers/rotla";
+import { rotlaGame, rotlaSession, seedCompany as seedRotla } from "../helpers/rotla";
 
 /** End-of-game triggers: warnings only, recomputed from state, never stored (data-model §9). */
 
@@ -109,5 +110,104 @@ describe("Bank Break (RotLA, US8)", () => {
     expect(gameOver(s.game, s.state)).toBe(true);
     const t = start("1830").apply({ t: "moneyTransfer", from: "bank", to: "player:p1", amount: 9600 });
     expect(gameOver(t.game, t.state)).toBe(false);
+  });
+});
+
+/** A definition as stored by a session created before feature 007: no `scoring` block. */
+function withoutScoring(game: GameDefinition, patch: Partial<GameDefinition> = {}): GameDefinition {
+  const copy: Partial<GameDefinition> = { ...game, ...patch };
+  delete copy.scoring;
+  return copy as GameDefinition;
+}
+
+describe("scheduleComplete (21Moon, feature 007)", () => {
+  // 21Moon's sequence: PRIVATES, then SR/CR/OR.1/OR.2 for sets 1–5, then OR5.3 at index 21.
+  const afterOR = (index: number, scheduleIndex: number) =>
+    start("21moon").apply({ t: "turnAdvance", round: "OR", srNumber: 5, orSet: 5, orIndex: index, orsInSet: 3, scheduleIndex, company: null });
+
+  it("fires after OR 5.3, the last slot of the fixed schedule, once the OR set is complete", () => {
+    const s = afterOR(3, 21);
+    expect(types(s)).toContain("scheduleComplete");
+    expect(endTriggers(s.game, s.state).find((t) => t.type === "scheduleComplete")?.messageEs).toBe(
+      "Fin de la partida: se jugó la última ronda de operaciones.",
+    );
+  });
+
+  it("does not fire after OR 5.2, nor while a company still operates in OR 5.3", () => {
+    expect(types(afterOR(2, 20))).not.toContain("scheduleComplete");
+    const operating = seedCompany(start("21moon"), "VH", { cell: { row: 4, col: 2 }, holders: { "player:p1": 2 } });
+    operating.apply({ t: "turnAdvance", round: "OR", srNumber: 5, orSet: 5, orIndex: 3, orsInSet: 3, scheduleIndex: 21, company: "VH" });
+    expect(types(operating)).not.toContain("scheduleComplete");
+  });
+});
+
+describe("gameOver from scoring.autoEnd (feature 007, research R3)", () => {
+  it("RotLA: unchanged after the last cycle's OR 2, and with Bank Break once the OR set is complete", () => {
+    const s = rotlaSession({ options: { mode: "short" } });
+    s.apply({ t: "turnAdvance", round: "OR", srNumber: 4, orSet: 4, orIndex: 2, orsInSet: 2, company: null });
+    expect(gameOver(s.game, s.state)).toBe(true);
+    const b = rotlaSession({ options: { bankBreak: "on" } }).do({ type: "startOR" });
+    b.apply({ t: "moneyTransfer", from: "bank", to: "player:p1", amount: b.state.money["bank"] ?? 0 });
+    expect(gameOver(b.game, b.state)).toBe(false);
+    b.apply({ t: "turnAdvance", orIndex: 2, company: null });
+    expect(gameOver(b.game, b.state)).toBe(true);
+  });
+
+  it("21Moon: over after OR 5.3, not after OR 5.2", () => {
+    const at = (orIndex: number, scheduleIndex: number) =>
+      start("21moon").apply({ t: "turnAdvance", round: "OR", srNumber: 5, orSet: 5, orIndex, orsInSet: 3, scheduleIndex, company: null });
+    const done = at(3, 21);
+    expect(gameOver(done.game, done.state)).toBe(true);
+    const notYet = at(2, 20);
+    expect(gameOver(notYet.game, notYet.state)).toBe(false);
+  });
+
+  it("1830 and 1848 are never over on their own, whatever fires", () => {
+    const t = start("1830")
+      .apply({ t: "moneyTransfer", from: "bank", to: "player:p1", amount: 9600 })
+      .apply({ t: "counterChange", subject: "player:p2", key: "bankrupt", delta: 1 });
+    expect(types(t)).toEqual(["bankBroken", "bankruptcy"]);
+    expect(gameOver(t.game, t.state)).toBe(false);
+    const u = seedCompany(start("1848"), "QR", { cell: { row: 0, col: 16 } }).apply({
+      t: "moneyTransfer",
+      from: "bank",
+      to: "player:p1",
+      amount: 7480,
+    });
+    expect(types(u)).toContain("topCell");
+    expect(gameOver(u.game, u.state)).toBe(false);
+  });
+
+  it("a RotLA session from before this feature (no scoring block) still ends after the last cycle (R16)", () => {
+    const s = rotlaSession({ options: { mode: "short" } });
+    s.apply({ t: "turnAdvance", round: "OR", srNumber: 4, orSet: 4, orIndex: 2, orsInSet: 2, company: null });
+    expect(gameOver(withoutScoring(s.game), s.state)).toBe(true);
+  });
+
+  it("a 21Moon session from before this feature (no scheduleComplete trigger) is not over after OR 5.3", () => {
+    const s = start("21moon").apply({ t: "turnAdvance", round: "OR", srNumber: 5, orSet: 5, orIndex: 3, orsInSet: 3, scheduleIndex: 21, company: null });
+    const old = withoutScoring(s.game, { endTriggers: [{ type: "lastRound" }, { type: "bankruptcy" }] });
+    expect(gameOver(old, s.state)).toBe(false);
+  });
+});
+
+describe("scoringOf (research R16)", () => {
+  const defaults = { autoEnd: [], bankruptPlayers: "eliminated", tieBreak: "shared" };
+
+  it("returns game.scoring when present", () => {
+    const g = rotlaGame();
+    expect(scoringOf(g)).toEqual(g.scoring);
+  });
+
+  it("falls back to the built-in game with id basedOn ?? id", () => {
+    const rotla = rotlaGame();
+    expect(scoringOf(withoutScoring(rotla))).toEqual(rotla.scoring);
+    expect(scoringOf(withoutScoring(rotla, { id: "custom-1", basedOn: "rotla" }))).toEqual(rotla.scoring);
+    expect(scoringOf(withoutScoring(getBuiltInGame("1830")))).toEqual(getBuiltInGame("1830").scoring);
+  });
+
+  it("only otherwise uses the defaults, and an unknown id never throws", () => {
+    expect(scoringOf(withoutScoring(rotlaGame(), { id: "hand-made" }))).toEqual(defaults);
+    expect(scoringOf(withoutScoring(rotlaGame(), { id: "custom-2", basedOn: "unknown-game" }))).toEqual(defaults);
   });
 });

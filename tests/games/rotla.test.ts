@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import { cashOf } from "../../src/domain/events/state";
 import { getBuiltInGame, hasUnverified, optionWarnings } from "../../src/domain/games";
 import { validateDefinition } from "../../src/domain/games/validateDefinition";
-import { cellTagsAt, priceOf } from "../../src/domain/mechanics/market";
+import { cellTagsAt, floorToTrack, priceOf } from "../../src/domain/mechanics/market";
+import { SessionStore } from "../../src/app/SessionStore";
+import { touchesOf, type GroupEntry, type LogEntry } from "../../src/domain/ledger/entries";
+import { endTriggers } from "../../src/domain/mechanics/endTriggers";
+import { finalResults } from "../../src/domain/mechanics/scores";
 import { bankTrainCounts, rotlaGame, rotlaSession } from "../helpers/rotla";
+import { makeMeta } from "../helpers/session";
 
 /** The RotLA definition (contracts/game-definition.md). */
 
@@ -186,5 +191,69 @@ describe("expansion: landmarks (US11)", () => {
     for (const id of ["CIR", "CPL", "MFG", "TWC", "AUT", "LGE"]) expect(ids(game)).not.toContain(id);
     expect(game.trains.some((t) => t.type === "M2")).toBe(false);
     expect(game.customRules.map((r) => r.id)).not.toContain("landmarks");
+  });
+});
+
+describe("US4: reopen an automatic end, fix the last dividend (feature 007, FR-005a–c)", () => {
+  /** RotLA Short in OR 4.2 with EXP (Ana's) operating: its turn is the last of the game. */
+  function lastTurnStore() {
+    const s = rotlaSession({ options: { mode: "short" } });
+    const seed: GroupEntry["events"] = [
+      { t: "companyStatus", company: "EXP", status: "floated", parPrice: 80 },
+      { t: "marketMove", company: "EXP", to: floorToTrack(s.game, 80), reason: "par" },
+      { t: "shareTransfer", company: "EXP", from: "ipo:EXP", to: "player:p1", units: 3, presidency: true },
+      { t: "shareTransfer", company: "EXP", from: "ipo:EXP", to: "player:p2", units: 1 },
+      { t: "turnAdvance", round: "OR", srNumber: 4, orSet: 4, orIndex: 2, orsInSet: 2, company: "EXP" },
+    ];
+    const group = (seq: number, action: GroupEntry["action"], events: GroupEntry["events"]): GroupEntry => ({
+      kind: "group", seq, id: `g${seq}`, at: `2026-10-10T20:0${seq}:00.000Z`, source: "system", action, events, touches: touchesOf(events), warnings: [],
+    });
+    const created = s.groups[0]!;
+    const log: LogEntry[] = [group(1, created.action, created.events), group(2, { type: "note", text: "seed" }, seed)];
+    return new SessionStore({ appendEntry: () => Promise.resolve() }, makeMeta({ game: s.game, players: [...s.players] }), log);
+  }
+  const pay = (amount: number) => ({ type: "runAndPayout", company: "EXP", parts: [{ part: "revenue", amount }], mode: "full" });
+  const must = async <T extends { ok: boolean }>(p: Promise<T>): Promise<Extract<T, { ok: true }>> => {
+    const r = await p;
+    if (!r.ok) throw new Error(JSON.stringify(r));
+    return r as Extract<T, { ok: true }>;
+  };
+  const anaTotal = (store: SessionStore) => {
+    const { meta, gameEnd } = store.getSnapshot();
+    const end = gameEnd.end!;
+    return finalResults(meta.game, meta.players, end.state, end.eliminationOrder).find((r) => r.player === "p1")!.total;
+  };
+
+  it("automatic end → reopen → no automatic end; fixing the dividend ends it again with the new results", async () => {
+    const store = lastTurnStore();
+    const paid = await must(store.dispatch(pay(100)));
+    const next = await must(store.dispatch({ type: "nextCompany" }));
+    expect(store.getSnapshot().gameEnd.end).toMatchObject({ groupId: next.group.id, auto: true });
+    const firstTotal = anaTotal(store);
+
+    await must(store.dispatch({ type: "reopenGame" }));
+    const open = store.getSnapshot();
+    expect(open.gameEnd.end).toBeNull();
+    expect(endTriggers(open.meta.game, open.state).map((t) => t.type)).toContain("cyclesComplete");
+
+    await must(store.revert(next.group.id, { confirmed: true }));
+    await must(store.revert(paid.group.id, { confirmed: true }));
+    expect(store.getSnapshot().gameEnd.end).toBeNull();
+    await must(store.dispatch(pay(200)));
+    const again = await must(store.dispatch({ type: "nextCompany" }));
+    expect(store.getSnapshot().gameEnd.end).toMatchObject({ groupId: again.group.id, auto: true });
+    expect(anaTotal(store)).toBeGreaterThan(firstTotal!);
+    expect(store.getSnapshot().autoEndGroups).toEqual([again.group.id]);
+  });
+
+  it("undoing the reopening instead restores the original end and results", async () => {
+    const store = lastTurnStore();
+    await must(store.dispatch(pay(100)));
+    const next = await must(store.dispatch({ type: "nextCompany" }));
+    const original = store.getSnapshot().gameEnd.end;
+    const reopened = await must(store.dispatch({ type: "reopenGame" }));
+    await must(store.revert(reopened.group.id));
+    expect(store.getSnapshot().gameEnd.end).toEqual(original);
+    expect(store.getSnapshot().gameEnd.end?.groupId).toBe(next.group.id);
   });
 });

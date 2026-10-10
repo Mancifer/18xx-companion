@@ -319,3 +319,40 @@ describe("validateDefinition: feature 004 rules", () => {
     expect(() => applyOptions(def, {})).toThrow(/startingCash/);
   });
 });
+
+describe("feature 007 schema fields: scoring and scheduleComplete", () => {
+  const scoring = { autoEnd: ["scheduleComplete"], bankruptPlayers: "eliminated", tieBreak: "shared" };
+
+  it("scoring is optional on GameDefinition", () => {
+    expect(parses(miniGame)).toBe(true);
+    expect(parses({ ...miniGame, scoring })).toBe(true);
+  });
+
+  it("autoEnd accepts only the four end types, and holds distinct values (`autoEnd` holds distinct values)", () => {
+    for (const t of ["cyclesComplete", "scheduleComplete", "bankBroken", "bankruptcy"]) {
+      expect(parses({ ...miniGame, scoring: { ...scoring, autoEnd: [t] } })).toBe(true);
+    }
+    expect(parses({ ...miniGame, scoring: { ...scoring, autoEnd: [] } })).toBe(true);
+    expect(parses({ ...miniGame, scoring: { ...scoring, autoEnd: ["topCell"] } })).toBe(false);
+    expect(parses({ ...miniGame, scoring: { ...scoring, autoEnd: ["bankBroken", "bankBroken"] } })).toBe(false);
+  });
+
+  it("bankruptPlayers is eliminated | scored, tieBreak is shared | presidentEarliest", () => {
+    expect(parses({ ...miniGame, scoring: { ...scoring, bankruptPlayers: "scored" } })).toBe(true);
+    expect(parses({ ...miniGame, scoring: { ...scoring, bankruptPlayers: "removed" } })).toBe(false);
+    expect(parses({ ...miniGame, scoring: { ...scoring, tieBreak: "presidentEarliest" } })).toBe(true);
+    expect(parses({ ...miniGame, scoring: { ...scoring, tieBreak: "seat" } })).toBe(false);
+  });
+
+  it("shareBonus.perUnit is a positive integer (`perUnit` is a positive integer)", () => {
+    const bonus = (perUnit: number) => ({ ...miniGame, scoring: { ...scoring, shareBonus: { counter: "eastWestTokens", perUnit } } });
+    expect(parses(bonus(50))).toBe(true);
+    expect(parses(bonus(0))).toBe(false);
+    expect(parses(bonus(-50))).toBe(false);
+    expect(parses(bonus(2.5))).toBe(false);
+  });
+
+  it("{ type: scheduleComplete } is a valid end trigger", () => {
+    expect(parses({ ...miniGame, endTriggers: [{ type: "scheduleComplete" }] })).toBe(true);
+  });
+});

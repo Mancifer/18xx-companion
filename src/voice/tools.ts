@@ -53,6 +53,7 @@ export const ACTION_TOOLS: readonly ActionType[] = [
   "endCR",
   "startOR",
   "nextCompany",
+  "endGame",
   "transferMoney",
   "adjustMoney",
   "setMarket",
@@ -102,6 +103,7 @@ const DESCRIPTIONS: Readonly<Record<string, string>> = {
   endCR: "Termina la ronda corporativa. «fin de la ronda corporativa».",
   startOR: "Empieza una ronda de operaciones. «empieza la ronda de operaciones» · «siguiente OR».",
   nextCompany: "Pasa a la siguiente compañía. «siguiente compañía» · «siguiente».",
+  endGame: "Terminar la partida (fin del juego). Sin argumentos.",
   transferMoney: "Pago directo entre el banco, jugadores y compañías. «Ana le paga 50 a Bruno» · «Carla paga 100 al banco».",
   adjustMoney: "Corregir el dinero de alguien: sumar/restar (delta) o fijar (setTo). «Ana tiene 520» · «súmale 20 a Bruno».",
   setMarket: "Mover a mano la ficha de una compañía en el mercado. «pon la PRR en 90».",
@@ -261,6 +263,19 @@ function sortKeys(value: unknown): unknown {
   );
 }
 
+/**
+ * Action fields the model never sees, with the value the app fills in (endGame: the expander
+ * records the fired conditions).
+ */
+const HIDDEN_FIELDS: { readonly [K in ActionType]?: Readonly<Record<string, unknown>> } = {
+  endGame: { triggers: null },
+};
+
+/** The action a tool call stands for: its input plus the hidden fields' values. */
+export function voiceAction(name: string, input: Readonly<Record<string, unknown>>): Record<string, unknown> {
+  return { ...HIDDEN_FIELDS[name as ActionType], ...input, type: name };
+}
+
 function actionSchema(type: ActionType): z.ZodType | undefined {
   return ActionSchema.options.find((o) => o.shape.type.value === type);
 }
@@ -269,8 +284,8 @@ function inputSchema(type: ActionType): Json {
   const schema = actionSchema(type);
   if (!schema) return { type: "object", properties: {} };
   const json = z.toJSONSchema(schema, { unrepresentable: "any", io: "input" }) as Json;
-  const properties = { ...((json["properties"] as Json | undefined) ?? {}) };
-  delete properties["type"];
+  const hidden = new Set(["type", ...Object.keys(HIDDEN_FIELDS[type] ?? {})]);
+  const properties = Object.fromEntries(Object.entries((json["properties"] as Json | undefined) ?? {}).filter(([key]) => !hidden.has(key)));
   return { ...json, properties };
 }
 

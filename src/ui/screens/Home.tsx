@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppActions, useServices } from "../../app/AppProvider";
-import { deleteSession } from "../../app/sessions";
+import { backfillOutcome, deleteSession } from "../../app/sessions";
 import type { SessionMeta } from "../../domain/session";
 import { importSession, parseImport, type ParsedImport } from "../../persistence/exportImport";
 import { Sheet } from "../components/Sheet";
@@ -8,6 +8,13 @@ import { useNav } from "../nav";
 import { exportSessionFile } from "../useExport";
 
 type Ready = Extract<ParsedImport, { ok: true }>;
+
+/** "Ganó Ana", "Ganaron Ana y Bruno", "Ganaron Ana, Bruno y Carla" (feature 007). */
+function winnersEs(meta: SessionMeta, winners: readonly string[]): string {
+  const names = winners.map((id) => meta.players.find((p) => p.id === id)?.name ?? id);
+  if (names.length === 1) return `Ganó ${names[0] ?? ""}`;
+  return `Ganaron ${names.slice(0, -1).join(", ")} y ${names.at(-1) ?? ""}`;
+}
 
 /**
  * Resume the last session (FR-006), open another, start a new one, import a file (US8), or
@@ -25,6 +32,7 @@ export function Home() {
   const [busy, setBusy] = useState<"export" | "delete" | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const backfilled = useRef(new Set<string>());
 
   /** Reads the list and the "Continuar" pointer from storage, the single source of truth. */
   const load = useCallback(() => Promise.all([sessions.listSessions(), settings.get()]), [sessions, settings]);
@@ -40,6 +48,22 @@ export function Home() {
       cancelled = true;
     };
   }, [load]);
+
+  // Sessions saved before feature 007 have no outcome: replay each once, then show its marker.
+  useEffect(() => {
+    const legacy = (list ?? []).filter((s) => !("outcome" in s) && !backfilled.current.has(s.id));
+    if (legacy.length === 0) return;
+    for (const s of legacy) backfilled.current.add(s.id);
+    let cancelled = false;
+    void Promise.all(legacy.map((s) => backfillOutcome(sessions, s))).then((updated) => {
+      if (cancelled) return;
+      const byId = new Map(updated.map((m) => [m.id, m]));
+      setList((current) => current?.map((m) => byId.get(m.id) ?? m) ?? null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [list, sessions]);
 
   const reload = async () => {
     const [all, s] = await load();
@@ -78,9 +102,11 @@ export function Home() {
     }
   };
 
-  const open = async (id: string) => {
-    if (await openSession(id)) go({ name: "table" });
+  /** A finished game opens on its results (FR-016); any other on the Table. */
+  const open = async (id: string, finished = false) => {
+    if (await openSession(id)) go(finished ? { name: "results", from: "home" } : { name: "table" });
   };
+  const isFinished = (s: SessionMeta) => Boolean(s.outcome);
 
   const readFile = async (file: File) => {
     setImportError(null);
@@ -104,7 +130,7 @@ export function Home() {
     if (!pending) return;
     const meta = await importSession(sessions, pending.parsed, { mode });
     setPending(null);
-    await open(meta.id);
+    await open(meta.id, isFinished(meta));
   };
 
   const last = list?.find((s) => s.id === lastId);
@@ -114,7 +140,7 @@ export function Home() {
       <div className="screen-body">
         <h1>18xx Companion</h1>
         {last ? (
-          <button className="primary big" onClick={() => void open(last.id)}>
+          <button className="primary big" onClick={() => void open(last.id, isFinished(last))}>
             Continuar · {last.name}
           </button>
         ) : null}
@@ -148,8 +174,12 @@ export function Home() {
               {list.map((s) => (
                 <li key={s.id}>
                   <div className="session-row">
-                    <button className="session-item" onClick={() => void open(s.id)}>
-                      <span>{s.name}</span>
+                    <button className="session-item" onClick={() => void open(s.id, isFinished(s))}>
+                      <span>
+                        {s.name}
+                        {s.outcome ? <span className="badge ok">Completa</span> : null}
+                      </span>
+                      {s.outcome?.winners.length ? <span>{winnersEs(s, s.outcome.winners)}</span> : null}
                       <span className="muted">
                         {s.players.map((p) => p.name).join(", ")} · {s.entryCount} entradas
                       </span>

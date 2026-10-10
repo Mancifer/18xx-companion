@@ -368,7 +368,7 @@ describe("Merger sheet (US7)", () => {
   });
 });
 
-describe("Cycle round controls and the Score sheet (US8)", () => {
+describe("Cycle round controls and the results (US8, feature 007)", () => {
   const startOR = { type: "startOR" };
   const turn = (t: Record<string, unknown>) => ({
     type: "setTurn",
@@ -380,7 +380,14 @@ describe("Cycle round controls and the Score sheet (US8)", () => {
     company: null,
     ...t,
   });
-  const lastCycleDone = turn({ round: "OR", srNumber: 4, orSet: 4, orIndex: 2, orsInSet: 2 });
+  // OR 4.1 of a Short game is over; moving the turn to OR 4.2 (no company left) ends the game.
+  const lastCycleOR1 = turn({ round: "OR", srNumber: 4, orSet: 4, orIndex: 1, orsInSet: 2 });
+  async function finishLastCycle(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole("button", { name: /^Turno:/ }));
+    const sheet = await screen.findByRole("dialog", { name: "Turno y fase" });
+    await user.click(within(sheet).getByRole("button", { name: "OR del set: más" }));
+    await user.click(within(sheet).getByRole("button", { name: "Fijar turno" }));
+  }
 
   it("one button per transition: RO 1, RO 2, then export and a new SR with its preview", async () => {
     const { user } = await openSeededTable({ game: "rotla", players: three });
@@ -401,36 +408,42 @@ describe("Cycle round controls and the Score sheet (US8)", () => {
     expect(screen.getByRole("button", { name: /^Exportar y nueva RA/ })).toBeTruthy();
   });
 
-  it("after the last cycle: Ver puntuación, and the Score sheet opens by itself", async () => {
+  it("the automatic end after the last cycle opens the results; then the cycle controls offer Ver resultados", async () => {
     const { user } = await openSeededTable({
       game: "rotla",
       players: three,
       options: { mode: "short" },
-      actions: [{ type: "launchCompany", player: "p1", company: "EXP", bid: 160, price: null }, lastCycleDone],
+      actions: [{ type: "launchCompany", player: "p1", company: "EXP", bid: 160, price: null }, lastCycleOR1],
     });
-    const sheet = await screen.findByRole("dialog", { name: "Puntuación" });
-    const rows = within(sheet).getAllByRole("row").slice(1);
+    await finishLastCycle(user);
+    expect(await screen.findByRole("heading", { name: "Resultados" })).toBeTruthy();
+    expect(screen.getByText(/· automático$/)).toBeTruthy();
+    const rows = within(screen.getByRole("table")).getAllByRole("row").slice(1);
     expect(rows.map((r) => within(r).getAllByRole("cell").map((c) => c.textContent))).toEqual([
-      ["1", "Ana", "$140", "$160", "$300"],
-      ["2", "Bruno", "$300", "$0", "$300"],
-      ["2", "Carla", "$300", "$0", "$300"],
+      ["1", "Ana 🏆 Ganador", "$140", "$160", "$300"],
+      ["=2", "Bruno", "$300", "$0", "$300"],
+      ["=2", "Carla", "$300", "$0", "$300"],
     ]);
-    expect(within(sheet).getByText("desempate: presidente de EXP")).toBeTruthy();
-    await user.click(within(sheet).getByRole("button", { name: "Cerrar" }));
-    expect(screen.getByRole("button", { name: "Ver puntuación" })).toBeTruthy();
+    expect(screen.getByText("desempate: presidente de EXP")).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: "Puntuación" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Volver" }));
+    await user.click(await screen.findByRole("button", { name: "Ver resultados" }));
+    expect(await screen.findByRole("heading", { name: "Resultados" })).toBeTruthy();
   });
 
-  it("the menu opens the Score sheet at any time", async () => {
+  it("the menu offers Clasificación (not Puntuación) at any time", async () => {
     const { user } = await openSeededTable({ game: "rotla", players: three });
-    await openMenuItem(user, "Puntuación");
-    expect(await screen.findByRole("dialog", { name: "Puntuación" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Menú" }));
+    expect(within(await screen.findByRole("dialog")).queryByRole("button", { name: "Puntuación" })).toBeNull();
+    await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Clasificación" }));
+    expect(await screen.findByRole("heading", { name: "Clasificación provisional" })).toBeTruthy();
   });
 });
 
 describe("Eliminated players (US9-4)", () => {
   const launch = (company: string, player: string, bid: number) => ({ type: "launchCompany", player, company, bid, price: null });
 
-  it("a bankruptcy offers Terminar partida, which lists the player last as Eliminado", async () => {
+  it("a bankruptcy offers Terminar partida, whose results list the player last as Eliminado", async () => {
     const { user } = await openSeededTable({ game: "rotla", players: three, actions: [launch("EXP", "p3", 160)] });
     await user.click(screen.getByRole("tab", { name: "Jugadores" }));
     await user.click(screen.getByTestId("cash-p3").closest("button")!);
@@ -439,8 +452,10 @@ describe("Eliminated players (US9-4)", () => {
     expect(within(confirm).getByText(/se cierran las compañías que preside/)).toBeTruthy();
     await user.click(within(confirm).getByRole("button", { name: "Declarar quiebra" }));
     await user.click(await screen.findByRole("button", { name: "Terminar partida" }));
-    const sheet = await screen.findByRole("dialog", { name: "Puntuación" });
-    const last = within(sheet).getAllByRole("row").at(-1)!;
+    const end = await screen.findByRole("dialog", { name: "¿Terminar la partida?" });
+    await user.click(within(end).getByRole("button", { name: "Terminar" }));
+    await screen.findByRole("heading", { name: "Resultados" });
+    const last = within(screen.getByRole("table")).getAllByRole("row").at(-1)!;
     expect(within(last).getAllByRole("cell").map((c) => c.textContent)).toEqual(["—", "Carla", "$0", "$0", "Eliminado"]);
   });
 

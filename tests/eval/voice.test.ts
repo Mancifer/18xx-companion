@@ -125,7 +125,7 @@ describe("seed cases (T136)", () => {
       costs: 7,
       stock: 18,
       loans: 3,
-      flow: 6,
+      flow: 9, // + 3 endGame cases (feature 007)
       compound: 5,
       corrections: 4,
       queries: 4,

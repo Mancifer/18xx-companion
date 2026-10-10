@@ -360,6 +360,10 @@ export const grotla: GameDefinition = {
     maxSharesPerBuy: 1,
   },
   endTriggers: [{ type: "cyclesComplete" }],
+  // B p.17, p.19: the game ends after the last cycle (or, with Bank Break, a bankruptcy or the
+  // bank breaking once the OR set is over); bankrupt players are removed; a tie goes to the
+  // president of the company highest in the operating order.
+  scoring: { autoEnd: ["cyclesComplete", "bankBroken", "bankruptcy"], bankruptPlayers: "eliminated", tieBreak: "presidentEarliest" },
   customRules: [
     { id: "auctionLaunch", config: {} },
     { id: "mergers", config: { round: "MR" } },
@@ -399,5 +403,6 @@ export const grotla: GameDefinition = {
     auction: "verified",
     trainExport: "verified",
     customRules: "verified",
+    scoring: "verified",
   },
 };

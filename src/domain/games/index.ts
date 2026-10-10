@@ -16,7 +16,19 @@ export function getBuiltInGame(id: string): GameDefinition {
   return game;
 }
 
+/**
+ * The built-in game a definition comes from (`basedOn ?? id`), or undefined for a hand-written one.
+ * Sessions keep their own copy of the definition, so blocks added later (`scoring`) are read from
+ * here for sessions and custom games saved before them (research R16). Never throws.
+ */
+export function builtInBase(game: GameDefinition): GameDefinition | undefined {
+  const id = game.basedOn ?? game.id;
+  return builtInGames.find((g) => g.id === id);
+}
+
+/** A definition with no `scoring` block and no built-in to inherit it from counts as unverified (FR-011). */
 export function hasUnverified(game: GameDefinition): boolean {
+  if (!game.scoring && !builtInBase(game)?.scoring) return true;
   return Object.values(game.verification).some((v) => v === "unverified");
 }
 

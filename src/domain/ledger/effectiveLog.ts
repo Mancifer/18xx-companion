@@ -6,6 +6,8 @@ import type { EntrySource, GroupEntry, GroupId, LogEntry } from "./entries";
 export interface EffectiveGroup {
   readonly id: GroupId;
   readonly seq: number;
+  /** When the group was first recorded. */
+  readonly at: string;
   readonly source: EntrySource;
   readonly action: Action;
   readonly events: readonly PrimitiveEvent[];
@@ -64,6 +66,7 @@ export function effectiveLog(log: readonly LogEntry[]): EffectiveGroup[] {
     result.push({
       id: t.group.id,
       seq: t.group.seq,
+      at: t.group.at,
       source: t.group.source,
       action: latest.action,
       events: latest.events,

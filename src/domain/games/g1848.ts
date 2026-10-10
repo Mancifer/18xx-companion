@@ -177,6 +177,8 @@ export const g1848: GameDefinition = {
     { type: "loansIssued", count: 16 },
     { type: "takeovers", count: 5 },
   ],
+  // §13.1–13.2: the table ends the game; cash plus shares at market value, no tie rule.
+  scoring: { autoEnd: [], bankruptPlayers: "eliminated", tieBreak: "shared" },
   customRules: [
     { id: "loans", config: {} },
     { id: "nationalBank", config: { company: "BOE", dividendSource: "bank", minDividendByPhase: { "3": 100, "5": 200, "8": 300 } } },
@@ -215,5 +217,6 @@ export const g1848: GameDefinition = {
     loans: "verified",
     endTriggers: "verified",
     customRules: "verified",
+    scoring: "verified",
   },
 };

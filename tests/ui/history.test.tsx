@@ -84,3 +84,81 @@ describe("History marks out-of-turn actions (T028, FR-012)", () => {
     expect(item("NYC paga $20").textContent).toContain("NYC opera fuera de turno (le toca a PRR).");
   });
 });
+
+describe("History: the game end (feature 007, contracts/ui.md §4)", () => {
+  async function endFromMenu(user: Awaited<ReturnType<typeof openSeededTable>>["user"]) {
+    await openMenuItem(user, "Terminar partida");
+    await user.click(within(await screen.findByRole("dialog", { name: "¿Terminar la partida?" })).getByRole("button", { name: "Terminar" }));
+    await screen.findByRole("heading", { name: "Resultados" });
+    await user.click(screen.getByRole("button", { name: "Volver" }));
+  }
+
+  it("an endGame entry reads Fin de la partida with its conditions, and can be undone but not corrected", async () => {
+    const { user } = await openSeededTable();
+    await endFromMenu(user);
+    await openMenuItem(user, "Historial");
+    const entry = item("Fin de la partida (sin condición de fin)");
+    expect(within(entry).getByRole("button", { name: "Deshacer" })).toBeTruthy();
+    expect(within(entry).queryByRole("button", { name: "Corregir" })).toBeNull();
+  });
+
+  it("the group that reached an automatic end carries Fin de la partida (automático)", async () => {
+    const setTurn = { type: "setTurn", round: "OR", srNumber: 4, orSet: 4, orIndex: 1, orsInSet: 2, company: null };
+    const { user } = await openSeededTable({ game: "rotla", players: ["Ana", "Bruno", "Carla"], options: { mode: "short" }, actions: [setTurn] });
+    await user.click(screen.getByRole("button", { name: /^Turno:/ }));
+    const sheet = await screen.findByRole("dialog", { name: "Turno y fase" });
+    await user.click(within(sheet).getByRole("button", { name: "OR del set: más" }));
+    await user.click(within(sheet).getByRole("button", { name: "Fijar turno" }));
+    await screen.findByRole("heading", { name: "Resultados" });
+    await user.click(screen.getByRole("button", { name: "Volver" }));
+    await openMenuItem(user, "Historial");
+    const tagged = screen.getAllByText("Fin de la partida (automático)");
+    expect(tagged).toHaveLength(1);
+    expect(tagged[0]!.closest("li")?.getAttribute("data-group")).toBe("g3");
+  });
+});
+
+describe("History: a reopened game (feature 007, US4-3)", () => {
+  type User = Awaited<ReturnType<typeof openSeededTable>>["user"];
+  async function setOrIndex(user: User, button: "más" | "menos") {
+    await user.click(screen.getByRole("button", { name: /^Turno:/ }));
+    const sheet = await screen.findByRole("dialog", { name: "Turno y fase" });
+    await user.click(within(sheet).getByRole("button", { name: `OR del set: ${button}` }));
+    await user.click(within(sheet).getByRole("button", { name: "Fijar turno" }));
+  }
+  async function reopen(user: User) {
+    await user.click(await screen.findByRole("button", { name: "Reabrir partida" }));
+    await user.click(within(await screen.findByRole("dialog", { name: "¿Reabrir la partida?" })).getByRole("button", { name: "Reabrir" }));
+    await screen.findByRole("button", { name: "Menú" });
+  }
+
+  it("shows the end and the reopening, earlier entries unchanged", async () => {
+    const { user } = await openSeededTable({ actions: [pay("player:p1", "bank", 100)] });
+    await openMenuItem(user, "Terminar partida");
+    await user.click(within(await screen.findByRole("dialog", { name: "¿Terminar la partida?" })).getByRole("button", { name: "Terminar" }));
+    await reopen(user);
+    await openMenuItem(user, "Historial");
+    expect(item("Fin de la partida (sin condición de fin)")).toBeTruthy();
+    expect(item("Partida reabierta")).toBeTruthy();
+    expect(within(item("Ana paga $100 al banco")).queryByText("deshecha")).toBeNull();
+  });
+
+  it("RotLA: the reached end keeps its automático tag after a reopening, and a new automatic end is tagged too", async () => {
+    const setTurn = { type: "setTurn", round: "OR", srNumber: 4, orSet: 4, orIndex: 1, orsInSet: 2, company: null };
+    const { user } = await openSeededTable({ game: "rotla", players: ["Ana", "Bruno", "Carla"], options: { mode: "short" }, actions: [setTurn] });
+    await setOrIndex(user, "más");
+    await screen.findByRole("heading", { name: "Resultados" });
+    await reopen(user);
+    await openMenuItem(user, "Historial");
+    expect(screen.getAllByText("Fin de la partida (automático)")).toHaveLength(1);
+    expect(item("Partida reabierta")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Volver" }));
+
+    await setOrIndex(user, "menos");
+    await setOrIndex(user, "más");
+    await screen.findByRole("heading", { name: "Resultados" });
+    await user.click(screen.getByRole("button", { name: "Volver" }));
+    await openMenuItem(user, "Historial");
+    expect(screen.getAllByText("Fin de la partida (automático)")).toHaveLength(2);
+  });
+});

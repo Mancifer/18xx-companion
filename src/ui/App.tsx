@@ -8,12 +8,13 @@ import { History } from "./screens/History";
 import { Market } from "./screens/Market";
 import { Home } from "./screens/Home";
 import { NewSession } from "./screens/NewSession";
+import { Results } from "./screens/Results";
 import { Settings } from "./screens/Settings";
 import { Table } from "./screens/Table";
 
 function Screens({ screen }: { screen: Screen }): ReactNode {
   const hasSession = useHasSession();
-  const needsSession = screen.name === "table" || screen.name === "history" || screen.name === "market";
+  const needsSession = screen.name === "table" || screen.name === "history" || screen.name === "market" || screen.name === "results";
   if (needsSession && !hasSession) return <Home />;
   switch (screen.name) {
     case "home":
@@ -28,6 +29,8 @@ function Screens({ screen }: { screen: Screen }): ReactNode {
       return <History />;
     case "market":
       return <Market />;
+    case "results":
+      return <Results from={screen.from} />;
     case "settings":
       return <Settings />;
   }

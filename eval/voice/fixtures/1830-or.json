@@ -53,7 +53,8 @@
                   "id": "corporateBankruptcy",
                   "config": {
                     "trigger": "manual",
-                    "endsGame": true
+                    "endsGame": true,
+                    "playerMode": "keepHoldings"
                   }
                 }
               ]
@@ -1191,6 +1192,11 @@
           "type": "bankruptcy"
         }
       ],
+      "scoring": {
+        "autoEnd": [],
+        "bankruptPlayers": "scored",
+        "tieBreak": "shared"
+      },
       "customRules": [
         {
           "id": "privateGrants",
@@ -1266,7 +1272,8 @@
         "orOrder": "verified",
         "limits": "verified",
         "options": "verified",
-        "endTriggers": "verified"
+        "endTriggers": "verified",
+        "scoring": "verified"
       }
     },
     "options": {

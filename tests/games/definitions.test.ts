@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { builtInGames, applyOptions, getBuiltInGame } from "../../src/domain/games";
+import { builtInGames, applyOptions, getBuiltInGame, hasUnverified } from "../../src/domain/games";
+import { createCustomGame } from "../../src/domain/games/customGame";
 import { validateDefinition } from "../../src/domain/games/validateDefinition";
 import type { GameDefinition } from "../../src/domain/games/schema";
 
@@ -110,5 +111,43 @@ describe("21Moon (research R15)", () => {
     const def = applyOptions(g, { lateCompany: "KR" });
     expect(def.companies.find((c) => c.id === "KR")?.availableFrom).toBe("SR3");
     expect(def.companies.filter((c) => c.availableFrom !== undefined)).toHaveLength(1);
+  });
+});
+
+describe("scoring blocks (feature 007, data-model §1)", () => {
+  it.each([
+    ["1830", { autoEnd: [], bankruptPlayers: "scored", tieBreak: "shared" }],
+    ["1848", { autoEnd: [], bankruptPlayers: "eliminated", tieBreak: "shared" }],
+    [
+      "21moon",
+      { autoEnd: ["scheduleComplete"], bankruptPlayers: "eliminated", tieBreak: "shared", shareBonus: { counter: "eastWestTokens", perUnit: 50 } },
+    ],
+    ["rotla", { autoEnd: ["cyclesComplete", "bankBroken", "bankruptcy"], bankruptPlayers: "eliminated", tieBreak: "presidentEarliest" }],
+  ] as const)("%s has the rulebook scoring block, verified", (id, scoring) => {
+    const g = game(id);
+    expect(g.scoring).toEqual(scoring);
+    expect(g.verification["scoring"]).toBe("verified");
+  });
+
+  it("21Moon lists scheduleComplete among its end triggers", () => {
+    expect(game("21moon").endTriggers).toEqual([{ type: "lastRound" }, { type: "scheduleComplete" }, { type: "bankruptcy" }]);
+  });
+
+  it("a definition without scoring is unverified only when no built-in matches basedOn ?? id (FR-011, R16)", () => {
+    const strip = (g: GameDefinition, patch: Partial<GameDefinition> = {}): GameDefinition => {
+      const copy: Partial<GameDefinition> = { ...structuredClone(g), ...patch };
+      delete copy.scoring;
+      return copy as GameDefinition;
+    };
+    // 1830 has every other entry verified, so only the scoring lookup can flag it.
+    const g1830 = game("1830");
+    expect(hasUnverified(g1830)).toBe(false);
+    expect(hasUnverified(strip(g1830))).toBe(false);
+    expect(hasUnverified(strip(g1830, { id: "custom-old", basedOn: "1830" }))).toBe(false);
+    expect(hasUnverified(strip(g1830, { id: "hand-made" }))).toBe(true);
+  });
+
+  it("a custom game inherits its base's scoring", () => {
+    expect(createCustomGame(game("21moon"), "Variante").scoring).toEqual(game("21moon").scoring);
   });
 });

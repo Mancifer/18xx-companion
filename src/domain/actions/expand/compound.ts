@@ -19,6 +19,10 @@ function walk(ctx: ActionContext, a: ActionOf<"compound">): { steps: Step[]; eve
     const step0 = { ...ctx, state };
     const action = withCurrentCompany(step0, parsed.data);
     if (action.type === "compound") return { steps, events, error: "Una acción compuesta no puede anidar otra" };
+    // The game-end fold reads a group's own action, so ending or reopening is an entry of its own.
+    if (action.type === "endGame" || action.type === "reopenGame") {
+      return { steps, events, error: `Acción ${i + 1}: terminar o reabrir la partida va en una entrada aparte` };
+    }
     const step = { ...ctx, state };
     const handler = handlerFor(step, action.type);
     if (!handler) return { steps, events, error: `Acción ${i + 1}: no disponible en este juego` };

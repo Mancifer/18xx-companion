@@ -1084,9 +1084,23 @@
           "type": "lastRound"
         },
         {
+          "type": "scheduleComplete"
+        },
+        {
           "type": "bankruptcy"
         }
       ],
+      "scoring": {
+        "autoEnd": [
+          "scheduleComplete"
+        ],
+        "bankruptPlayers": "eliminated",
+        "tieBreak": "shared",
+        "shareBonus": {
+          "counter": "eastWestTokens",
+          "perUnit": 50
+        }
+      },
       "customRules": [
         {
           "id": "corporateRound",
@@ -1163,7 +1177,8 @@
         "orOrder": "verified",
         "limits": "verified",
         "endTriggers": "verified",
-        "customRules": "verified"
+        "customRules": "verified",
+        "scoring": "verified"
       }
     },
     "options": {

@@ -78,3 +78,6 @@
 {"id": "rl-lm-rock-01", "fixture": "rotla-lm", "transcript": "formación rocosa", "category": "costs", "expect": {"kind": "actions", "actions": [{"type": "rockFormation", "company": null}]}, "tags": ["rotla", "landmarks"], "heldout": false}
 {"id": "rl-lm-cliff-01", "fixture": "rotla-lm", "transcript": "la Express vende el 5 en el acantilado", "category": "trains", "expect": {"kind": "actions", "actions": [{"type": "cliffSale", "company": "EXP", "train": "5"}]}, "tags": ["rotla", "landmarks"], "heldout": false}
 {"id": "rl-lm-canyon-01", "fixture": "rotla-lm", "transcript": "tren del cañón", "category": "trains", "expect": {"kind": "actions", "actions": [{"type": "canyonTrain", "company": null}]}, "tags": ["rotla", "landmarks"], "heldout": true}
+{"id": "fl-end-01", "fixture": "1830-or", "transcript": "terminamos la partida", "category": "flow", "expect": {"kind": "actions", "actions": [{"type": "endGame"}]}, "tags": ["game-end"], "heldout": false}
+{"id": "fl-end-02", "fixture": "rotla-or", "transcript": "fin del juego", "category": "flow", "expect": {"kind": "actions", "actions": [{"type": "endGame"}]}, "tags": ["game-end"], "heldout": false}
+{"id": "fl-end-03", "fixture": "21moon-or", "transcript": "damos por terminada la partida", "category": "flow", "expect": {"kind": "actions", "actions": [{"type": "endGame"}]}, "tags": ["game-end"], "heldout": true}

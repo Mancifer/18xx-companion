@@ -6,7 +6,7 @@ import { endTriggers, gameOver } from "../../src/domain/mechanics/endTriggers";
 import { priceOf } from "../../src/domain/mechanics/market";
 import { countedTrains, phaseReached, trainLimitFor, trainStack, trainsHeldBy } from "../../src/domain/mechanics/phases";
 import { mergerRoundDue } from "../../src/domain/mechanics/schedule";
-import { finalScores } from "../../src/domain/mechanics/scores";
+import { finalResults } from "../../src/domain/mechanics/scores";
 import type { TestSession } from "../helpers/dispatch";
 import { netMoney } from "../helpers/flows";
 import { rotlaSession } from "../helpers/rotla";
@@ -116,7 +116,7 @@ describe("a 3-player Short game, start to finish (SC-001)", () => {
       expect(Object.values(netMoney(g.events)).reduce((a, b) => a + b, 0)).toBe(0);
     }
 
-    const scores = finalScores(s.game, s.players, s.state);
+    const scores = finalResults(s.game, s.players, s.state, []);
     expect(scores).toHaveLength(3);
     expect(scores.map((r) => r.rank)).toEqual([1, 2, 3]);
     for (const r of scores) expect(r.total).toBe(r.cash + r.sharesValue);

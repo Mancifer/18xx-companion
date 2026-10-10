@@ -1,5 +1,6 @@
 import { cashOf, counterOf, isPlayerBankrupt, type SessionState } from "../events/state";
-import type { EndTriggerDef, GameDefinition } from "../games/schema";
+import { builtInBase } from "../games";
+import type { EndTriggerDef, EndTriggerType, GameDefinition, Scoring } from "../games/schema";
 import { parseHolder } from "../types";
 import { cellTagsAt } from "./market";
 import { mergerRoundDue } from "./schedule";
@@ -14,6 +15,16 @@ export interface EndTrigger {
  * only SR, OR and MR slots (RotLA). Undefined otherwise.
  */
 export function cycleCount(game: GameDefinition): number | undefined {
+  if (cycleCounts.has(game)) return cycleCounts.get(game);
+  const count = countCycles(game);
+  cycleCounts.set(game, count);
+  return count;
+}
+
+/** Definitions are frozen (built-ins, session copies), so per-definition values are cached. */
+const cycleCounts = new WeakMap<GameDefinition, number | undefined>();
+
+function countCycles(game: GameDefinition): number | undefined {
   const schedule = game.roundSchedule;
   if (schedule.type !== "fixed" || schedule.sequence[0] !== "SR1") return undefined;
   if (!schedule.sequence.every((slot) => /^(SR\d+|OR\d+\.\d+|MR\d+)$/.test(slot))) return undefined;
@@ -36,15 +47,47 @@ function cyclesComplete(game: GameDefinition, state: SessionState, cycles: numbe
   return orSetComplete(state) && !mergerRoundDue(game, state);
 }
 
+const DEFAULT_SCORING: Scoring = { autoEnd: [], bankruptPlayers: "eliminated", tieBreak: "shared" };
+
 /**
- * Whether the game has ended, for games that end on their own schedule (`cyclesComplete`): the
- * cycles are done, a bankruptcy ended it, or the bank broke and the set of ORs is over. Other
- * games leave the end to the table (warnings only).
+ * The game's scoring rules (research R16): its own `scoring` block, else the block of the built-in
+ * game it comes from (sessions and custom games saved before feature 007), else the defaults.
+ */
+export function scoringOf(game: GameDefinition): Scoring {
+  return game.scoring ?? builtInBase(game)?.scoring ?? DEFAULT_SCORING;
+}
+
+/**
+ * The fired end triggers that end the game without the table (`scoring.autoEnd`), in definition
+ * order. bankBroken counts only once the set of ORs is over (RotLA B p.21).
+ */
+export function autoEndTriggers(game: GameDefinition, state: SessionState): EndTriggerType[] {
+  const defs = autoEndDefs(game);
+  if (defs.length === 0) return [];
+  const fired: EndTriggerType[] = [];
+  for (const def of defs) {
+    if (fires(game, state, def) && (def.type !== "bankBroken" || orSetComplete(state))) fired.push(def.type);
+  }
+  return fired;
+}
+
+/** The game's end triggers that `scoring.autoEnd` lists (replay runs this once per group). */
+function autoEndDefs(game: GameDefinition): readonly EndTriggerDef[] {
+  const cached = autoEndCache.get(game);
+  if (cached) return cached;
+  const auto = new Set<EndTriggerType>(scoringOf(game).autoEnd);
+  const defs = game.endTriggers.filter((d) => auto.has(d.type));
+  autoEndCache.set(game, defs);
+  return defs;
+}
+const autoEndCache = new WeakMap<GameDefinition, readonly EndTriggerDef[]>();
+
+/**
+ * Whether the game has ended on its own (research R3): RotLA after its cycles, a bankruptcy or a
+ * broken bank with Bank Break; 21Moon after OR 5.3. Other games leave the end to the table.
  */
 export function gameOver(game: GameDefinition, state: SessionState): boolean {
-  if (!game.endTriggers.some((t) => t.type === "cyclesComplete")) return false;
-  const fired = new Set(endTriggers(game, state).map((t) => t.type));
-  return fired.has("cyclesComplete") || fired.has("bankruptcy") || (fired.has("bankBroken") && orSetComplete(state));
+  return autoEndTriggers(game, state).length > 0;
 }
 
 /**
@@ -54,55 +97,52 @@ export function gameOver(game: GameDefinition, state: SessionState): boolean {
 export function endTriggers(game: GameDefinition, state: SessionState): EndTrigger[] {
   const result: EndTrigger[] = [];
   for (const def of game.endTriggers) {
-    switch (def.type) {
-      case "bankBroken":
-        if (game.bank !== "unlimited" && cashOf(state, "bank") <= 0) {
-          result.push({ type: def.type, messageEs: "Banca quebrada: se termina el set de rondas de operaciones." });
-        }
-        break;
-      case "topCell":
-        if (Object.values(state.companies).some((c) => cellTagsAt(game, c.position).includes("top"))) {
-          result.push({ type: def.type, messageEs: "Una compañía llegó a la casilla final del mercado." });
-        }
-        break;
-      case "loansIssued": {
-        const loans = game.loans;
-        if (!loans) break;
-        const held = Object.entries(state.assets).filter(([a, h]) => a.startsWith("loan:") && h === loans.lender).length;
-        if (loans.supply - held >= def.count) {
-          result.push({ type: def.type, messageEs: `Se han emitido ${loans.supply - held} préstamos (fin con ${def.count}).` });
-        }
-        break;
-      }
-      case "takeovers": {
-        const n = counterOf(state, "bank", "nationalTakeovers");
-        if (n >= def.count) result.push({ type: def.type, messageEs: `${n} compañías en administración: fin de la partida.` });
-        break;
-      }
-      case "lastRound": {
-        const schedule = game.roundSchedule;
-        if (schedule.type === "fixed" && state.turn.scheduleIndex === schedule.sequence.length - 1) {
-          result.push({ type: def.type, messageEs: "Última ronda de la partida." });
-        }
-        break;
-      }
-      case "cyclesComplete": {
-        const cycles = cycleCount(game);
-        if (cycles !== undefined && cyclesComplete(game, state, cycles)) {
-          result.push({ type: def.type, messageEs: `Fin de la partida: se completaron los ${cycles} ciclos.` });
-        }
-        break;
-      }
-      case "bankruptcy": {
-        const company = Object.values(state.companies).some((c) => c.status === "bankrupt");
-        const player = Object.keys(state.counters).some((subject) => {
-          const h = parseHolder(subject as never);
-          return h.kind === "player" && isPlayerBankrupt(state, h.id);
-        });
-        if (company || player) result.push({ type: def.type, messageEs: "Hay una quiebra: fin de la partida." });
-        break;
-      }
-    }
+    const fired = fires(game, state, def);
+    if (fired) result.push({ type: def.type, messageEs: fired });
   }
   return result;
+}
+
+/** The trigger's Spanish message when it fires in this state, else undefined. */
+function fires(game: GameDefinition, state: SessionState, def: EndTriggerDef): string | undefined {
+  switch (def.type) {
+    case "bankBroken":
+      return game.bank !== "unlimited" && cashOf(state, "bank") <= 0 ? "Banca quebrada: se termina el set de rondas de operaciones." : undefined;
+    case "topCell":
+      return Object.values(state.companies).some((c) => cellTagsAt(game, c.position).includes("top"))
+        ? "Una compañía llegó a la casilla final del mercado."
+        : undefined;
+    case "loansIssued": {
+      const loans = game.loans;
+      if (!loans) return undefined;
+      const held = Object.entries(state.assets).filter(([a, h]) => a.startsWith("loan:") && h === loans.lender).length;
+      return loans.supply - held >= def.count ? `Se han emitido ${loans.supply - held} préstamos (fin con ${def.count}).` : undefined;
+    }
+    case "takeovers": {
+      const n = counterOf(state, "bank", "nationalTakeovers");
+      return n >= def.count ? `${n} compañías en administración: fin de la partida.` : undefined;
+    }
+    case "lastRound": {
+      const schedule = game.roundSchedule;
+      return schedule.type === "fixed" && state.turn.scheduleIndex === schedule.sequence.length - 1 ? "Última ronda de la partida." : undefined;
+    }
+    case "scheduleComplete": {
+      const schedule = game.roundSchedule;
+      return schedule.type === "fixed" && state.turn.scheduleIndex === schedule.sequence.length - 1 && orSetComplete(state)
+        ? "Fin de la partida: se jugó la última ronda de operaciones."
+        : undefined;
+    }
+    case "cyclesComplete": {
+      const cycles = cycleCount(game);
+      return cycles !== undefined && cyclesComplete(game, state, cycles) ? `Fin de la partida: se completaron los ${cycles} ciclos.` : undefined;
+    }
+    case "bankruptcy": {
+      const company = Object.values(state.companies).some((c) => c.status === "bankrupt");
+      const player = Object.keys(state.counters).some((subject) => {
+        const h = parseHolder(subject as never);
+        return h.kind === "player" && isPlayerBankrupt(state, h.id);
+      });
+      return company || player ? "Hay una quiebra: fin de la partida." : undefined;
+    }
+  }
 }

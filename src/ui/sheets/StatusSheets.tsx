@@ -41,7 +41,7 @@ export function ConfirmSheet({
   }
   return (
     <Sheet title={title} onClose={onClose}>
-      <p>{body}</p>
+      {typeof body === "string" ? <p>{body}</p> : body}
       <div className="row">
         <button onClick={onClose}>Cancelar</button>
         <span className="spacer" />

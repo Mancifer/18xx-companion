@@ -4,7 +4,7 @@ import { startSession } from "../../src/app/sessions";
 import { getBuiltInGame } from "../../src/domain/games";
 import { canonicalJson, stateHash } from "../../src/persistence/canonical";
 import { openCompanionDb } from "../../src/persistence/db";
-import { buildExport, exportFileName, importSession, parseImport } from "../../src/persistence/exportImport";
+import { buildExport, EXPORT_VERSION, exportFileName, importSession, parseImport } from "../../src/persistence/exportImport";
 import { SessionRepo } from "../../src/persistence/sessionRepo";
 import { SettingsRepo } from "../../src/persistence/settingsRepo";
 import { makePlayers } from "../helpers/dispatch";
@@ -122,6 +122,38 @@ describe("import (US8-1)", () => {
     const parsed = await parseImport({ hello: "world" });
     expect(parsed.ok).toBe(false);
     if (!parsed.ok) expect(parsed.errorEs).toMatch(/no es una partida/i);
+  });
+});
+
+describe("the outcome on export and import (feature 007, FR-018, SC-005)", () => {
+  it("a finished session's file has no outcome and stays version 1; importing it writes the same outcome", async () => {
+    const { repo, store } = await midGame();
+    await store.dispatch({ type: "transferMoney", from: "bank", to: "player:p4", amount: 100 });
+    const ended = await store.dispatch({ type: "endGame", triggers: null });
+    if (!ended.ok) throw new Error(ended.messageEs);
+    const { meta } = store.getSnapshot();
+    expect(meta.outcome).toEqual({ endedAt: ended.group.at, winners: ["p4"] });
+
+    const file = await buildExport(repo, meta.id, { appVersion: "test", now });
+    expect(file.version).toBe(1);
+    expect(EXPORT_VERSION).toBe(1);
+    expect(JSON.stringify(file)).not.toContain("outcome");
+
+    const fresh = new SessionRepo(await openCompanionDb(freshDbName()));
+    const parsed = await parseImport(JSON.parse(JSON.stringify(file)));
+    if (!parsed.ok) throw new Error(parsed.errorEs);
+    const imported = await importSession(fresh, parsed, { mode: "replace" });
+    expect(imported.outcome).toEqual(meta.outcome);
+    expect((await fresh.loadSession(meta.id))?.meta.outcome).toEqual(meta.outcome);
+  });
+
+  it("an unfinished session imports with outcome null", async () => {
+    const { repo, store } = await midGame();
+    const file = await buildExport(repo, store.getSnapshot().meta.id, { appVersion: "test", now });
+    const parsed = await parseImport(JSON.parse(JSON.stringify(file)));
+    if (!parsed.ok) throw new Error(parsed.errorEs);
+    const imported = await importSession(new SessionRepo(await openCompanionDb(freshDbName())), parsed, { mode: "copy" });
+    expect(imported.outcome).toBeNull();
   });
 });
 

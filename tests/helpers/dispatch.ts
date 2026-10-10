@@ -43,7 +43,7 @@ export class TestSession {
     this.lastEvents = result.events;
     this.lastWarnings = result.warnings;
     const seq = this.groups.length + 1;
-    this.groups.push({ id: `g${seq}`, seq, source: "touch", action: result.action, events: result.events, touches: result.touches });
+    this.groups.push({ id: `g${seq}`, seq, at: "2026-10-10T20:00:00.000Z", source: "touch", action: result.action, events: result.events, touches: result.touches });
     this.state = reduceAll(this.state, result.events);
     return this;
   }

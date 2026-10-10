@@ -9,7 +9,7 @@ import { cycleCount } from "../mechanics/endTriggers";
 import type { ExportPreview } from "../mechanics/schedule";
 import { displayName, effectiveTraits } from "../mechanics/traits";
 import { perShareAmount } from "../mechanics/payout";
-import type { GameDefinition } from "../games/schema";
+import type { EndTriggerType, GameDefinition } from "../games/schema";
 import { parseHolder, type HolderRef, type Player } from "../types";
 import { formatMoney } from "./format";
 
@@ -202,6 +202,8 @@ const summaries: SummaryMap = {
     return exported ? `Empieza la ronda de acciones · ${exported}` : "Empieza la ronda de acciones";
   },
   endSR: () => "Fin de la ronda de acciones",
+  endGame: (a) => `Fin de la partida ${endConditionsEs(a.triggers ?? [])}`,
+  reopenGame: () => "Partida reabierta",
   confirmFloatCondition: (a, ctx) => `Condición de flotación confirmada para ${companyName(a.company, ctx)}`,
   issueShares: (a, ctx) =>
     ctx.game.market.moves.issue?.from === "treasury"
@@ -310,6 +312,29 @@ const SOURCE_ES: Readonly<Record<"ipo" | "pool" | "treasury", string>> = {
   pool: "del pool",
   treasury: "de la tesorería",
 };
+
+/** End conditions as the History and the end confirmation name them (feature 007). */
+export const END_TRIGGER_LABELS: Readonly<Record<EndTriggerType, string>> = {
+  bankBroken: "banca quebrada",
+  topCell: "casilla final del mercado",
+  loansIssued: "préstamos emitidos",
+  takeovers: "compañías en administración",
+  lastRound: "última ronda",
+  bankruptcy: "quiebra",
+  cyclesComplete: "ciclos completos",
+  scheduleComplete: "última ronda de operaciones",
+};
+
+export const GAME_END_ES = {
+  noEndCondition: "Todavía no se cumplió ninguna condición de fin de partida.",
+  alreadyEnded: "La partida ya estaba terminada: el final pasa a esta entrada.",
+  notEnded: "La partida no está terminada",
+} as const;
+
+/** "(banca quebrada, quiebra)" or "(sin condición de fin)". */
+export function endConditionsEs(triggers: readonly EndTriggerType[]): string {
+  return triggers.length > 0 ? `(${triggers.map((t) => END_TRIGGER_LABELS[t]).join(", ")})` : "(sin condición de fin)";
+}
 
 export const COUNTER_LABELS: Readonly<Record<string, string>> = {
   debt: "deuda",
@@ -444,6 +469,15 @@ export function summaryEs(action: Action, ctx: SummaryContext, events?: readonly
   const effects =
     events && !SELF_DESCRIBED.has(action.type) && !(action.type === "startSR" && exportedEs(events, ctx)) ? effectsEs(events, ctx) : [];
   return effects.length > 0 ? `${base} · ${effects.join(" · ")}` : base;
+}
+
+/**
+ * The voice confirmation card's line: a proposal, so "Terminar la partida (…)" where History
+ * records "Fin de la partida (…)" (feature 007).
+ */
+export function proposalSummaryEs(action: Action, ctx: SummaryContext, events?: readonly PrimitiveEvent[]): string {
+  if (action.type === "endGame") return `Terminar la partida ${endConditionsEs(action.triggers ?? [])}`;
+  return summaryEs(action, ctx, events);
 }
 
 /**

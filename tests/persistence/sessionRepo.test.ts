@@ -88,7 +88,7 @@ async function seeded(repo: SessionRepo, settings: SettingsRepo, name: string) {
   }
   const { meta, state, log } = store.getSnapshot();
   const last = log[log.length - 1]!;
-  await repo.putSnapshot(meta.id, { seq: last.seq, groupCount: log.length, state, firstSeen: {} });
+  await repo.putSnapshot(meta.id, { seq: last.seq, groupCount: log.length, state, firstSeen: {}, over: false, end: null, eliminationOrder: [], autoEndGroups: [] });
   return meta.id;
 }
 
@@ -98,6 +98,44 @@ async function rowsOf(db: CompanionDb, id: string) {
     snapshots: await db.getAllKeysFromIndex("snapshots", "bySession", id),
   };
 }
+
+describe("appendEntry with a meta patch (feature 007, contracts/domain.md §6)", () => {
+  const outcome = { endedAt: "2026-10-07T20:00:00.000Z", winners: ["p1"] };
+
+  it("merges the patch into the meta row in the entry's transaction", async () => {
+    const repo = new SessionRepo(await openCompanionDb(freshDbName()));
+    const meta = makeMeta();
+    await repo.createSession(meta);
+    await repo.appendEntry(meta.id, note(1), { outcome });
+    const loaded = await repo.loadSession(meta.id);
+    expect(loaded?.meta).toMatchObject({ outcome, entryCount: 1 });
+    expect(loaded?.entries).toHaveLength(1);
+  });
+
+  it("an aborted transaction writes neither the entry nor the patch", async () => {
+    const repo = new SessionRepo(await openCompanionDb(freshDbName()));
+    const meta = makeMeta();
+    await repo.createSession(meta);
+    await repo.appendEntry(meta.id, note(1));
+    // The same seq again: the entries store refuses the key and the transaction aborts.
+    await expect(repo.appendEntry(meta.id, note(1), { outcome })).rejects.toBeDefined();
+    const loaded = await repo.loadSession(meta.id);
+    expect(loaded?.entries).toHaveLength(1);
+    expect(loaded?.meta.entryCount).toBe(1);
+    expect("outcome" in (loaded?.meta ?? {})).toBe(false);
+  });
+
+  it("without a patch the meta row keeps its outcome as it was", async () => {
+    const repo = new SessionRepo(await openCompanionDb(freshDbName()));
+    const meta = makeMeta();
+    await repo.createSession(meta);
+    await repo.appendEntry(meta.id, note(1));
+    expect("outcome" in ((await repo.loadSession(meta.id))?.meta ?? {})).toBe(false);
+    await repo.appendEntry(meta.id, note(2), { outcome });
+    await repo.appendEntry(meta.id, note(3));
+    expect((await repo.loadSession(meta.id))?.meta.outcome).toEqual(outcome);
+  });
+});
 
 describe("deleteSession (feature 006)", () => {
   it("removes the session's meta, entries and snapshots", async () => {

@@ -1075,6 +1075,11 @@
           "count": 5
         }
       ],
+      "scoring": {
+        "autoEnd": [],
+        "bankruptPlayers": "eliminated",
+        "tieBreak": "shared"
+      },
       "customRules": [
         {
           "id": "loans",
@@ -1183,7 +1188,8 @@
         "limits": "verified",
         "loans": "verified",
         "endTriggers": "verified",
-        "customRules": "verified"
+        "customRules": "verified",
+        "scoring": "verified"
       }
     },
     "options": {},

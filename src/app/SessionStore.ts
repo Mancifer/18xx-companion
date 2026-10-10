@@ -4,17 +4,13 @@ import type { SessionState } from "../domain/events/state";
 import { buildAmend } from "../domain/ledger/amend";
 import { dependentsOf } from "../domain/ledger/dependencies";
 import { effectiveLog, type EffectiveGroup } from "../domain/ledger/effectiveLog";
-import type { AmendEntry, EntrySource, GroupEntry, LogEntry, RevertEntry } from "../domain/ledger/entries";
-import { advance, startCursor, type ReplayCursor } from "../domain/ledger/replay";
-import {
-  SNAPSHOT_EVERY,
-  cursorFromSnapshot,
-  invalidatedBy,
-  toSnapshot,
-  type Snapshot,
-} from "../domain/ledger/snapshots";
+import type { AmendEntry, EntrySource, GroupEntry, GroupId, LogEntry, RevertEntry } from "../domain/ledger/entries";
+import { advance, type ReplayCursor } from "../domain/ledger/replay";
+import { SNAPSHOT_EVERY, invalidatedBy, rebuild, toSnapshot, type Snapshot } from "../domain/ledger/snapshots";
+import { gameEndStatus, outcomeOf, sameOutcome, type GameEndStatus } from "../domain/mechanics/gameEnd";
 import type { InvariantWarning } from "../domain/mechanics/invariants";
 import type { SessionMeta } from "../domain/session";
+import type { PlayerId } from "../domain/types";
 import type { EntryWriter, SessionRepo } from "../persistence/sessionRepo";
 
 export type { EntryWriter } from "../persistence/sessionRepo";
@@ -26,6 +22,12 @@ export interface StoreSnapshot {
   readonly state: SessionState;
   /** Invariant violations at the current state (FR-015). Shown, never corrected. */
   readonly violations: readonly InvariantWarning[];
+  /** Whether the game is finished, derived from the log (feature 007). */
+  readonly gameEnd: GameEndStatus;
+  /** Live elimination order (the frozen one is gameEnd.end.eliminationOrder). */
+  readonly eliminationOrder: readonly PlayerId[];
+  /** Every group that reached an automatic end, for History. */
+  readonly autoEndGroups: readonly GroupId[];
 }
 
 export type StoreError =
@@ -149,8 +151,8 @@ export class SessionStore {
   }
 
   private async doDispatch(action: unknown, options: DispatchOptions): Promise<DispatchResult> {
-    const { meta, state, log } = this.snapshot;
-    const result = runPipeline({ game: meta.game, players: meta.players, state }, action);
+    const { meta, state, log, gameEnd } = this.snapshot;
+    const result = runPipeline({ game: meta.game, players: meta.players, state, gameEnd }, action);
     if (result.kind === "invalid") {
       return { ok: false, error: "invalid", messageEs: "Acción no válida", issues: result.issues };
     }
@@ -215,52 +217,50 @@ export class SessionStore {
     };
   }
 
-  /** Persist first; only a committed entry changes state and notifies. */
+  /**
+   * Persist first; only a committed entry changes state and notifies. The next cursor is computed
+   * before the write so the Home outcome (feature 007) goes into the entry's own transaction.
+   */
   private async persist(entry: LogEntry): Promise<StoreError | undefined> {
     const { meta, log } = this.snapshot;
+    const nextLog = [...log, entry];
+    // A new group only appends: apply it to the current cursor. A revert or amend changes
+    // history: replay from the last snapshot it leaves valid.
+    const stale = entry.kind === "group" ? [] : this.snapshots.filter((s) => invalidatedBy(log, entry, s));
+    const cursor =
+      entry.kind === "group"
+        ? advance(meta.game, this.cursor, entry)
+        : rebuild(meta.game, meta.players, nextLog, this.snapshots.filter((s) => !stale.includes(s)));
+    const outcome = outcomeOf(meta.game, meta.players, cursor);
+    const metaPatch = sameOutcome(meta.outcome, outcome) ? undefined : { outcome };
     try {
-      await this.writer.appendEntry(meta.id, entry);
+      await this.writer.appendEntry(meta.id, entry, metaPatch);
     } catch {
       return { ok: false, error: "persist", messageEs: "No se pudo guardar. Inténtalo de nuevo." };
     }
-    const nextMeta = { ...meta, updatedAt: entry.at, entryCount: meta.entryCount + 1 };
-    const nextLog = [...log, entry];
+    const nextMeta = { ...meta, ...metaPatch, updatedAt: entry.at, entryCount: meta.entryCount + 1 };
 
     if (entry.kind === "group") {
-      // A new group only appends: apply it to the current cursor.
-      this.cursor = advance(meta.game, this.cursor, entry);
       const count = effectiveLog(nextLog).length;
       if (count % SNAPSHOT_EVERY === 0) {
-        const snap = toSnapshot(this.cursor, entry.seq, count);
+        const snap = toSnapshot(cursor, entry.seq, count);
         this.snapshots.push(snap);
         void this.writer.putSnapshot?.(meta.id, snap).catch(() => undefined);
       }
-    } else {
-      // A revert or amend changes history: drop stale snapshots and replay from the last good one.
-      const stale = this.snapshots.filter((s) => invalidatedBy(log, entry, s));
-      if (stale.length > 0) {
-        this.snapshots = this.snapshots.filter((s) => !stale.includes(s));
-        const from = Math.min(...stale.map((s) => s.seq));
-        void this.writer.deleteSnapshotsFrom?.(meta.id, from).catch(() => undefined);
-      }
-      this.cursor = this.rebuild(nextMeta, nextLog);
+    } else if (stale.length > 0) {
+      this.snapshots = this.snapshots.filter((s) => !stale.includes(s));
+      const from = Math.min(...stale.map((s) => s.seq));
+      void this.writer.deleteSnapshotsFrom?.(meta.id, from).catch(() => undefined);
     }
 
-    this.snapshot = view(nextMeta, nextLog, this.cursor);
+    this.cursor = cursor;
+    this.snapshot = view(nextMeta, nextLog, cursor);
     for (const listener of this.listeners) listener();
     return undefined;
   }
 
   private rebuild(meta: SessionMeta, log: readonly LogEntry[]): ReplayCursor {
-    const effective = effectiveLog(log);
-    const usable = [...this.snapshots]
-      .sort((a, b) => b.seq - a.seq)
-      .find((s) => effective.filter((g) => g.seq <= s.seq).length === s.groupCount);
-    let cursor = usable ? cursorFromSnapshot(meta.game, usable) : startCursor(meta.game, meta.players);
-    for (const g of effective) {
-      if (!usable || g.seq > usable.seq) cursor = advance(meta.game, cursor, g);
-    }
-    return cursor;
+    return rebuild(meta.game, meta.players, log, this.snapshots);
   }
 }
 
@@ -269,5 +269,15 @@ function nextSeq(log: readonly LogEntry[]): number {
 }
 
 function view(meta: SessionMeta, log: readonly LogEntry[], cursor: ReplayCursor): StoreSnapshot {
-  return { meta, log, effective: effectiveLog(log), state: cursor.state, violations: cursor.violations };
+  const effective = effectiveLog(log);
+  return {
+    meta,
+    log,
+    effective,
+    state: cursor.state,
+    violations: cursor.violations,
+    gameEnd: gameEndStatus(cursor, effective),
+    eliminationOrder: cursor.eliminationOrder,
+    autoEndGroups: cursor.autoEndGroups,
+  };
 }

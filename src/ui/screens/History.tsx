@@ -3,6 +3,7 @@ import { useDispatch, useSession } from "../../app/useSession";
 import type { Action } from "../../domain/actions/schemas";
 import type { PrimitiveEvent } from "../../domain/events/types";
 import { eventLineEs, summaryEs } from "../../domain/i18n/es";
+import { isAmendable } from "../../domain/ledger/amend";
 import type { EffectiveGroup } from "../../domain/ledger/effectiveLog";
 import { groupHistory, type GroupHistory } from "../../domain/ledger/effectiveLog";
 import type { EntrySource } from "../../domain/ledger/entries";
@@ -28,7 +29,7 @@ function time(iso: string): string {
  * highlighted (FR-015). Each active entry can be undone or corrected.
  */
 export function History({ extraActions }: { extraActions?: ReactNode }) {
-  const { meta, log, violations } = useSession();
+  const { meta, log, violations, autoEndGroups } = useSession();
   const { revert } = useDispatch();
   const { go } = useNav();
   const exportSession = useExportSession();
@@ -66,6 +67,7 @@ export function History({ extraActions }: { extraActions?: ReactNode }) {
               key={h.group.id}
               item={h}
               bad={badGroups.has(h.group.id)}
+              autoEnd={autoEndGroups.includes(h.group.id)}
               summary={(a, events) => summaryEs(a, ctx, events)}
               lines={(e) => eventLineEs(e, ctx)}
               onUndo={() => void undo(h.group.id, false)}
@@ -99,6 +101,7 @@ const MULTI_STEP: ReadonlySet<string> = new Set(["mergeCompanies", "forcedTrainP
 function HistoryItem({
   item,
   bad,
+  autoEnd,
   summary,
   lines,
   onUndo,
@@ -106,6 +109,8 @@ function HistoryItem({
 }: {
   item: GroupHistory;
   bad: boolean;
+  /** The group reached an automatic game end (feature 007), even if the game was reopened since. */
+  autoEnd: boolean;
   summary: (a: Action, events: readonly PrimitiveEvent[]) => string;
   /** One line per transfer, for multi-step groups (US7-7). */
   lines?: (e: PrimitiveEvent) => string | undefined;
@@ -127,6 +132,7 @@ function HistoryItem({
         {status === "reverted" ? <span className="badge">deshecha</span> : null}
         {status === "amended" ? <span className="badge">corregida</span> : null}
         {bad ? <span className="badge danger">descuadre desde aquí</span> : null}
+        {autoEnd ? <span className="badge">Fin de la partida (automático)</span> : null}
       </div>
       {status === "amended" && original && latest ? (
         <div className="history-summary">
@@ -162,7 +168,7 @@ function HistoryItem({
       {editable ? (
         <div className="row">
           <button onClick={onUndo}>{status === "amended" ? "Deshacer corrección" : "Deshacer"}</button>
-          <button onClick={onAmend}>Corregir</button>
+          {isAmendable(group.action) ? <button onClick={onAmend}>Corregir</button> : null}
         </div>
       ) : null}
     </li>

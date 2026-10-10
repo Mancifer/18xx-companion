@@ -95,7 +95,7 @@ export function useVoice(): { controller: VoiceController; phase: VoicePhase; av
       },
       context: () => {
         const snap = store.getSnapshot();
-        return { game: snap.meta.game, players: snap.meta.players, state: snap.state, effective: snap.effective };
+        return { game: snap.meta.game, players: snap.meta.players, state: snap.state, effective: snap.effective, gameEnd: snap.gameEnd };
       },
       effects: {
         dispatch: (action, options) => dispatch(action, options),

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { SessionStore } from "../../src/app/SessionStore";
 import { zeroRunAction } from "../../src/domain/actions/expand/operating";
+import { finalResults } from "../../src/domain/mechanics/scores";
 import { cashOf } from "../../src/domain/events/state";
 import type { PrimitiveEvent } from "../../src/domain/events/types";
 import { touchesOf, type LogEntry } from "../../src/domain/ledger/entries";
@@ -165,5 +166,54 @@ describe("zero run (T005, SC-002)", () => {
     s.do(zeroRunAction(g21, "VH"));
     expect(s.state.companies["VH"]?.position).toEqual({ row: 4, col: 1 });
     expect(cashOf(s.state, "bank")).toBe(bank);
+  });
+});
+
+describe("21Moon automatic end after OR 5.3 (feature 007, §13)", () => {
+  /** A store whose turn is in OR 5.<orIndex> with VH operating (schedule slot from the sequence). */
+  function storeInOR5(orIndex: number) {
+    const created = start();
+    const scheduleIndex = 18 + orIndex; // OR5.1 = 19, OR5.2 = 20, OR5.3 = 21
+    const log: LogEntry[] = [
+      seedGroup(1, { type: "createSession", players, walletMode: "appTruth" }, created.lastEvents),
+      seedGroup(2, { type: "note", text: "seed" }, [
+        ...seedEvents("VH", { cell: { row: 4, col: 2 }, holders: VH_HOLDERS }),
+        { t: "turnAdvance", round: "OR", srNumber: 5, orSet: 5, orIndex, orsInSet: 3, scheduleIndex, company: "VH" },
+      ]),
+    ];
+    return new SessionStore({ appendEntry: () => Promise.resolve() }, makeMeta({ game: g21, players }), log);
+  }
+
+  it("completing OR 5.2 does not end the game", async () => {
+    const store = storeInOR5(2);
+    expect((await store.dispatch({ type: "nextCompany" })).ok).toBe(true);
+    expect(store.getSnapshot().state.turn.orIndex).toBe(3);
+    expect(store.getSnapshot().gameEnd.end).toBeNull();
+  });
+
+  it("the entry that completes OR 5.3 (the 11th OR) ends the game on its own", async () => {
+    const store = storeInOR5(3);
+    const done = await store.dispatch({ type: "nextCompany" });
+    if (!done.ok) throw new Error(done.messageEs);
+    const { end } = store.getSnapshot().gameEnd;
+    expect(end).toMatchObject({ groupId: done.group.id, auto: true });
+    expect(end?.triggers).toContain("scheduleComplete");
+  });
+});
+
+describe("21Moon bankrupt players at the end (feature 007, §11.8.1, §13)", () => {
+  it("a bankrupt player (toPool) is listed last as eliminated; with two, the later one comes first", () => {
+    const s = start();
+    s.do({ type: "declareBankruptcy", player: "p2", company: null });
+    s.do({ type: "declareBankruptcy", player: "p4", company: null });
+    s.do({ type: "endGame", triggers: null });
+    const r = finalResults(g21, players, s.state, ["p2", "p4"]);
+    expect(r.map((x) => [x.player, x.status])).toEqual([
+      ["p1", "active"],
+      ["p3", "active"],
+      ["p4", "eliminated"],
+      ["p2", "eliminated"],
+    ]);
+    expect(r.slice(2).every((x) => x.total === null && x.rank === null)).toBe(true);
   });
 });

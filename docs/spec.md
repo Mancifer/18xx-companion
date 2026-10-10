@@ -156,7 +156,8 @@ rulebook for each game before implementation.
 | `phases[]` | Name, triggering train, ORs per set, rusting/obsolescence events, private closure |
 | `trains[]` | Type, cost, count, rusts-on |
 | `loans` | Optional block (amount, lender, interest, repayable, limits, market effect). 1848: £100 from the Bank of England, no interest, never repaid |
-| `endTrigger` | e.g. bank broken, plus how the final OR set is handled |
+| `endTriggers` | Game-end conditions shown as warnings: bank broken, top cell, loans issued, takeovers, last round, bankruptcy, cycles complete (RotLA), schedule complete (21Moon: the last OR of a fixed schedule is over, after OR 5.3) |
+| `scoring` | How a finished game is ranked: `autoEnd` (the end triggers that end the game without the table: RotLA `cyclesComplete`, `bankBroken` once the OR set is over, `bankruptcy`; 21Moon `scheduleComplete`; none for 1830 and 1848), `bankruptPlayers` (`eliminated`, listed last; or `scored` on what they kept, 1830 C-2.5), `tieBreak` (`shared` ranks, or RotLA's `presidentEarliest`) and an optional `shareBonus` (21Moon: +50 per East-West token per share). A definition saved without it (older sessions and custom games) uses the block of the built-in game it comes from; a hand-written one gets the defaults and counts as unverified |
 | `customRules` | Escape hatch: named flags handled by small per-game code hooks, used sparingly |
 
 **v1 games.** The values for each game come from its rulebook. They are not written from memory.
@@ -229,6 +230,22 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 | Loans | `takeLoan(company, n)` | only if the game defines loans. Repayment and interest are definition fields for future games; v1 builds no repay action |
 | Flow | `nextCompany / startSR / startOR / endSR / startCR / endCR` | turn events; `nextCompany` for a company with no run this OR first records a zero run (the game's withhold move, warning "no corrió"). `startSR / startCR / startOR` first apply, in the same group, the end step of the round being left, at most once per round: at the end of the SR, the capital of companies floated during the SR and the sold-out moves; at the end of the CR, the sold-out and pool-penalty moves. Leaving an OR, an MR or the private auction applies nothing. In games with a train export (RotLA), `startSR` then exports the top of the train stack (with its phase change and rust) before the new SR. `endSR / endCR` are voice only, apply the same step, and are unavailable once it was applied or outside their round |
 | Manual | `adjust(holder, amount)` / `setPrice(company, position)` | overrides, recorded as events |
+| Game end | `endGame(triggers)` / `reopenGame()` | one `note` each; nothing moves. `endGame` records the end conditions that had fired (info warning when none, or when the game was already finished) and is also a voice tool. `reopenGame` is touch only and unavailable unless the game is finished. Neither can be amended (undo them), and neither can go inside a compound command |
+
+**Whether the game is finished is derived, never stored.** Replay folds over the effective log:
+an `endGame` group ends the game at that group, a `reopenGame` group cancels the end, and for
+games with `scoring.autoEnd` the group that turns the game-over check from false to true ends it
+(History tags that group "Fin de la partida (automático)", also after a reopening). After a
+reopening the game does not end again until a new false→true transition. The end keeps the state
+right after its group, so the results are frozen: later entries count as "entradas posteriores".
+Undo of any of these groups simply changes the replay.
+
+**Final results** rank players by cash plus their shares at the final share value (price plus the
+game's bonus; 0 for a company with no price). Company treasuries, trains, privates and loans never
+count, and negative values are shown as they are. Bankrupt players follow `scoring.bankruptPlayers`
+(eliminated players are listed last, the latest first, with no rank or total), and equal totals
+follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsold shares
+(`corporateBankruptcy` player mode `keepHoldings`), so they are scored on them.
 
 ### 6.1 Stock round entry modes
 
@@ -338,6 +355,9 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
    players and entry count, the warning "Esta acción no se puede deshacer." and Cancelar /
    Exportar antes / Eliminar; "Exportar antes" downloads the usual export file and keeps the sheet
    open. Deleting is only offered here: never inside an open session and never by voice.
+   A finished game's row shows a "Completa" badge and "Ganó {name}" ("Ganaron A y B" on a shared
+   win); tapping it, or "Continuar" when it is the last session, opens its results. Other rows
+   open the Table.
 2. **New session**: pick game → players (names, colors, aliases) → chip set (preset +
    colors) → wallet mode.
 3. **Table** (main screen):
@@ -349,7 +369,13 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
      OR, "Comprar privada" only while a private can actually be bought (unsold in the bank, or
      resellable under the game's rules in this round), and the start buttons for each round.
      There are no "end of round" buttons: starting the next round applies the end step.
-     An end-of-game banner shows any end trigger reached (warnings only).
+     An end-of-game banner shows any end trigger reached (warnings only), with a primary
+     "Terminar partida" button (2 taps with the confirmation). The menu always offers "Terminar
+     partida" on an open game and "Clasificación" (the provisional or final ranking). The
+     confirmation "¿Terminar la partida?" lists the fired conditions, or says none has fired yet.
+     When the game ends while the Table is shown (confirmed, by voice, or on its own) the results
+     open; a finished game shows a "Partida completa · Ver resultados" banner and still accepts
+     entries.
    - **Player grid**: large tiles with name, cash, and share summary. Tap opens a detail sheet;
      ± gestures allow quick adjustments.
    - **Company grid** (tab or second row): treasury, price, president, trains. On phones the
@@ -371,6 +397,14 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 8. **Market view**: grid with company tokens stacked by arrival, plus 1-D tracks such as the
    1848 BoE. A token moves by dragging it, or by tapping it and then a cell; each move is a
    recorded manual override, so cell effects (receivership, closed) still apply.
+9. **Results**: "Resultados" once the game is finished (frozen at the end, with the game, the end
+   time and "automático" or the conditions), or "Clasificación provisional" before. A table of
+   Puesto, Jugador, Dinero, Acciones and Total, with text markers: "🏆 Ganador" on every rank-1
+   row, "=n" for shared ranks, "Quiebra" for a scored bankrupt player, "—" and "Eliminado" for an
+   eliminated one, and the RotLA tie-break line. A notice counts entries recorded after the end.
+   "Reabrir partida" (finished only) asks for confirmation and goes back to the Table; opened from
+   Home it also offers "Ver mesa", and "Volver" returns to Home. On phones Dinero and Acciones stack
+   under the player's name.
 
 ### 9.2 Touch & accessibility
 
@@ -386,6 +420,12 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
   corrections) plus a hash of the replayed state. On import the log is replayed: a hash mismatch
   is shown as a warning but the session still imports. A session that already exists on the
   device can be replaced or imported as a copy.
+- Each session row keeps a derived `outcome` for Home: `null` while open, or the end time and the
+  rank-1 players. The store writes it in the same strict transaction as the entry that changes it,
+  import computes it from the replay, and sessions saved before it existed are backfilled once by
+  replaying them. It is never exported and the export format is unchanged; the log stays the only
+  source of truth. Snapshots also store the game-end fold; older snapshots are skipped and the
+  log is replayed from the start once.
 - Deleting a session removes its `sessions`, `entries` and `snapshots` rows in one strict
   transaction, then clears the last-session pointer if it named that session. Custom games and
   other sessions are untouched, nothing is logged, and the deleted session's export file later

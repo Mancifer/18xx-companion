@@ -53,8 +53,9 @@ export const g1830: GameDefinition = {
         {
           value: "classic",
           label: "1830 Classic",
-          // C-2.3–2.5: a president who cannot pay goes bankrupt and the game ends.
-          addCustomRules: [{ id: "corporateBankruptcy", config: { trigger: "manual", endsGame: true } }],
+          // C-2.3–2.5: a president who cannot pay goes bankrupt and the game ends; the note on
+          // p. 28 scores the shares they could not sell, so they keep them (research R6).
+          addCustomRules: [{ id: "corporateBankruptcy", config: { trigger: "manual", endsGame: true, playerMode: "keepHoldings" } }],
         },
       ],
     },
@@ -156,6 +157,9 @@ export const g1830: GameDefinition = {
     pool: { maxCerts: 5 },
   },
   endTriggers: [{ type: "bankBroken" }, { type: "bankruptcy" }],
+  // §8.0: the table ends the game. C-2.5 note (p. 28): a bankrupt player's final score is the value
+  // of the shares they could not sell, and they can still win. §8.0 has no tie rule.
+  scoring: { autoEnd: [], bankruptPlayers: "scored", tieBreak: "shared" },
   customRules: [{ id: "privateGrants", config: {} }],
   chipPreset: [
     { value: 500, color: "#6a1b9a", label: "500" },
@@ -185,5 +189,6 @@ export const g1830: GameDefinition = {
     limits: "verified",
     options: "verified",
     endTriggers: "verified",
+    scoring: "verified",
   },
 };

@@ -3,6 +3,7 @@ import { cashOf, counterOf } from "../../src/domain/events/state";
 import { applyOptions, getBuiltInGame } from "../../src/domain/games";
 import { zeroRunAction } from "../../src/domain/actions/expand/operating";
 import { priceOf } from "../../src/domain/mechanics/market";
+import { finalResults } from "../../src/domain/mechanics/scores";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { eventsOf, netMoney } from "../helpers/flows";
 import { seedCompany } from "../helpers/seed";
@@ -175,12 +176,17 @@ describe("1830 Classic: bankruptcy ends the game (C-2.3–2.5)", () => {
     expect(s.lastWarnings.map((w) => w.code)).toContain("presidentShort");
     expect(counterOf(s.state, "company:PRR", "debt")).toBe(0);
 
+    // C-2.5 note (p. 28, research R6): the player keeps what they could not sell and is scored on it.
     s.do({ type: "declareBankruptcy", player: "p1", company: null });
+    expect(s.lastEvents).toEqual([{ t: "counterChange", subject: "player:p1", key: "bankrupt", delta: 1 }]);
     expect(counterOf(s.state, "player:p1", "bankrupt")).toBe(1);
-    expect(s.state.holdings["player:p1"]?.["PRR"] ?? 0).toBe(0);
-    expect(eventsOf(s.lastEvents, "shareTransfer")[0]).toMatchObject({ from: "player:p1", to: "pool", units: 6 });
-    // The presidency leaves the pool for the player with the most shares.
-    expect(s.state.presidency["PRR"]).toBe("player:p2");
+    expect(s.state.holdings["player:p1"]?.["PRR"]).toBe(6);
+    expect(s.state.presidency["PRR"]).toBe("player:p1");
+
+    s.do({ type: "endGame", triggers: null });
+    const ana = finalResults(s.game, s.players, s.state, ["p1"]).find((r) => r.player === "p1");
+    expect(ana).toMatchObject({ cash: 0, sharesValue: 6 * priceOf(s.game, s.state, "PRR")!, status: "bankrupt" });
+    expect(ana?.rank).not.toBeNull();
   });
 });
 

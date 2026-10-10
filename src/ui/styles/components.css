@@ -852,7 +852,137 @@ button.stacked .subtitle {
 
 .score-table tr.eliminated {
   color: var(--text-muted);
-  text-decoration: line-through;
+}
+
+.score-table td.num,
+.score-table th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.score-table tr.winner td {
+  font-weight: 700;
+}
+
+/* Text markers, never color alone (FR-013). */
+.badge.winner {
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.badge.ok {
+  border: 1px solid var(--ok);
+  color: var(--ok);
+}
+
+.badge.muted {
+  background: var(--surface-2);
+  color: var(--text-muted);
+}
+
+/* Results screen (feature 007). */
+.results-layout {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.results-subtitle {
+  margin: 0;
+}
+
+.results-notice {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--warn-bg);
+  color: var(--warn);
+}
+
+.results-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.results-actions button {
+  min-height: var(--tap);
+}
+
+.end-banner button {
+  align-self: flex-start;
+  min-height: var(--tap);
+}
+
+.finished-banner {
+  width: 100%;
+  min-height: var(--tap);
+  border-radius: 0;
+  background: var(--surface-2);
+  font-weight: 600;
+}
+
+/* Phone portrait (360 px): Dinero and Acciones stack under the player's name. */
+@media (max-width: 480px) {
+  .score-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .score-table tr {
+    display: grid;
+    grid-template-columns: 3em minmax(0, 1fr) minmax(0, 1fr) auto;
+    grid-template-areas:
+      "rank name name total"
+      "rank cash shares total";
+    align-items: center;
+    border-bottom: 1px solid var(--surface-2);
+  }
+
+  .score-table td {
+    border-bottom: 0;
+    padding: 2px var(--space-2);
+  }
+
+  .score-table td:nth-child(1) {
+    grid-area: rank;
+  }
+
+  .score-table td:nth-child(2) {
+    grid-area: name;
+  }
+
+  .score-table td:nth-child(3) {
+    grid-area: cash;
+  }
+
+  .score-table td:nth-child(4) {
+    grid-area: shares;
+  }
+
+  .score-table td:nth-child(5) {
+    grid-area: total;
+  }
+
+  .score-table td:nth-child(3),
+  .score-table td:nth-child(4) {
+    text-align: left;
+    font-size: var(--text-sm);
+    color: var(--text-muted);
+  }
+
+  .score-table td[data-label]::before {
+    content: attr(data-label) " ";
+  }
+}
+
+/* Tablet landscape: the ranking beside the notes and actions. */
+@media (orientation: landscape) and (min-width: 900px) {
+  .results-layout {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    align-items: start;
+  }
 }
 
 .ability-chips button.used {

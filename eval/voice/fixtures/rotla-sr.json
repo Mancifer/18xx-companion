@@ -1782,6 +1782,15 @@
           "type": "cyclesComplete"
         }
       ],
+      "scoring": {
+        "autoEnd": [
+          "cyclesComplete",
+          "bankBroken",
+          "bankruptcy"
+        ],
+        "bankruptPlayers": "eliminated",
+        "tieBreak": "presidentEarliest"
+      },
       "customRules": [
         {
           "id": "auctionLaunch",
@@ -1855,7 +1864,8 @@
         "limits": "verified",
         "auction": "verified",
         "trainExport": "verified",
-        "customRules": "verified"
+        "customRules": "verified",
+        "scoring": "verified"
       }
     },
     "options": {

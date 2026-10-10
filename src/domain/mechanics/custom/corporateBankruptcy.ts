@@ -27,9 +27,10 @@ export const CorporateBankruptcyConfig = z.object({
   /**
    * A player's bankruptcy (default "toPool": cash to the bank, shares to the pool). RotLA
    * "liquidatePresided" (B p.17) first closes every company the player presides, paying its other
-   * players the current price.
+   * players the current price. 1830 Classic "keepHoldings" (C-2.5 note, p. 28) only marks the
+   * player bankrupt: they keep the cash and shares they could not sell, and are scored on them.
    */
-  playerMode: z.enum(["toPool", "liquidatePresided"]).optional(),
+  playerMode: z.enum(["toPool", "liquidatePresided", "keepHoldings"]).optional(),
 });
 export type CorporateBankruptcyConfig = z.infer<typeof CorporateBankruptcyConfig>;
 
@@ -114,9 +115,14 @@ export function liquidatePresidedEvents(game: GameDefinition, state: SessionStat
 
 /** A player's bankruptcy as the game's config says (`playerMode`). */
 export function playerBankruptcyFor(game: GameDefinition, state: SessionState, player: PlayerId): PrimitiveEvent[] {
-  return configOf(game)?.playerMode === "liquidatePresided"
-    ? liquidatePresidedEvents(game, state, player)
-    : playerBankruptcyEvents(game, state, player);
+  switch (configOf(game)?.playerMode) {
+    case "liquidatePresided":
+      return liquidatePresidedEvents(game, state, player);
+    case "keepHoldings":
+      return [{ t: "counterChange", subject: `player:${player}`, key: "bankrupt", delta: 1 }];
+    default:
+      return playerBankruptcyEvents(game, state, player);
+  }
 }
 
 /**

@@ -1,11 +1,16 @@
 import type { LogEntry } from "../domain/ledger/entries";
 import type { Snapshot } from "../domain/ledger/snapshots";
-import type { SessionMeta } from "../domain/session";
+import type { SessionMeta, SessionOutcome } from "../domain/session";
+
+/** Derived meta written with an entry, in its transaction (feature 007). */
+export interface MetaPatch {
+  readonly outcome: SessionOutcome | null;
+}
 import type { CompanionDb } from "./db";
 
 /** The store's write port (tests can fake it). Snapshot methods are optional: an optimization. */
 export interface EntryWriter {
-  appendEntry(sessionId: string, entry: LogEntry): Promise<void>;
+  appendEntry(sessionId: string, entry: LogEntry, metaPatch?: MetaPatch): Promise<void>;
   putSnapshot?(sessionId: string, snapshot: Snapshot): Promise<void>;
   deleteSnapshotsFrom?(sessionId: string, seq: number): Promise<void>;
   /** Table configuration outside the log (name, chip set, data-model §2). */
@@ -30,15 +35,20 @@ export class SessionRepo implements EntryWriter {
 
   /**
    * Writes the entry and the session's updatedAt/entryCount in one strict transaction, and
-   * resolves only once it has committed (FR-090, research R6).
+   * resolves only once it has committed (FR-090, research R6). A meta patch (the Home outcome)
+   * goes into the same transaction, so the cache never disagrees with the log.
    */
-  async appendEntry(sessionId: string, entry: LogEntry): Promise<void> {
+  async appendEntry(sessionId: string, entry: LogEntry, metaPatch?: MetaPatch): Promise<void> {
     const tx = this.db.transaction(["entries", "sessions"], "readwrite", STRICT);
+    // A failed request aborts the transaction; the caller gets that request's error, so the
+    // abort itself must not surface as an unhandled rejection.
+    tx.done.catch(() => undefined);
     const meta = await tx.objectStore("sessions").get(sessionId);
     if (!meta) throw new Error(`Unknown session ${sessionId}`);
     await tx.objectStore("entries").add({ sessionId, seq: entry.seq, entry });
     await tx.objectStore("sessions").put({
       ...meta,
+      ...metaPatch,
       updatedAt: entry.at,
       entryCount: meta.entryCount + 1,
     });

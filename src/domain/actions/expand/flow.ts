@@ -5,7 +5,7 @@ import { phaseIndex } from "../../mechanics/phases";
 import { roundEndEvents } from "../../mechanics/roundEnd";
 import { endTriggers } from "../../mechanics/endTriggers";
 import { exportEvents, exportPreview, slotIndex, startOREvents } from "../../mechanics/schedule";
-import { exportInfoEs } from "../../i18n/es";
+import { exportInfoEs, GAME_END_ES } from "../../i18n/es";
 import { AVAILABLE, unavailable, warning, type ActionContext, type ActionHandler, type HandlerMap } from "../context";
 import type { Warning } from "../schemas";
 import { operatingHandlers, zeroRunAction } from "./operating";
@@ -118,6 +118,27 @@ export const flowHandlers: HandlerMap = {
       return warnings;
     },
     expand: (ctx) => nextCompanyEvents(ctx).events,
+  },
+
+  /**
+   * The table ends the game (feature 007): one note, nothing moves. The fired conditions are
+   * recorded with it; whether the game is finished is derived from the log (research R1, R2).
+   */
+  endGame: {
+    normalize: (ctx, a) => (a.triggers !== null ? a : { ...a, triggers: endTriggers(ctx.game, ctx.state).map((t) => t.type) }),
+    validate: (ctx) => {
+      const warnings: Warning[] = [];
+      if (ctx.gameEnd?.end) warnings.push(warning("alreadyEnded", GAME_END_ES.alreadyEnded, "info"));
+      if (endTriggers(ctx.game, ctx.state).length === 0) warnings.push(warning("noEndCondition", GAME_END_ES.noEndCondition, "info"));
+      return warnings;
+    },
+    expand: () => [{ t: "note", text: "Fin de la partida" }],
+  },
+
+  /** Cancels the current end (feature 007, FR-005a): its own entry, so it can be undone. */
+  reopenGame: {
+    available: (ctx) => (ctx.gameEnd?.end ? AVAILABLE : unavailable(GAME_END_ES.notEnded)),
+    expand: () => [{ t: "note", text: "Partida reabierta" }],
   },
 
   setPhase: {

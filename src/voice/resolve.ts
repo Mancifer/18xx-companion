@@ -4,12 +4,13 @@ import type { ActionContext } from "../domain/actions/context";
 import { runPipeline } from "../domain/actions/pipeline";
 import { ActionSchema, type Action, type Warning } from "../domain/actions/schemas";
 import type { PrimitiveEvent } from "../domain/events/types";
-import { summaryEs } from "../domain/i18n/es";
+import { proposalSummaryEs, summaryEs } from "../domain/i18n/es";
 import type { EffectiveGroup } from "../domain/ledger/effectiveLog";
 import { bankFlows, type MoneyFlow } from "../domain/ledger/flows";
 import { answerQuery, QUERY_KINDS, type QueryAnswer } from "../domain/queries";
 import { VoiceProviderError, type ProviderErrorKind } from "./errors";
 import type { ModelReply } from "./reply";
+import { voiceAction } from "./tools";
 
 /**
  * Model response → what the app shows (contracts/voice-tools.md "Response handling",
@@ -118,7 +119,7 @@ export function resolveResponse(reply: ModelReply, ctx: ResolveContext, transcri
 
   const actions: Action[] = [];
   for (const call of calls) {
-    const parsed = ActionSchema.safeParse({ ...call.input, type: call.name });
+    const parsed = ActionSchema.safeParse(voiceAction(call.name, call.input));
     if (!parsed.success) return notUnderstood(transcript, "La orden llegó incompleta.", call.name);
     actions.push(parsed.data);
   }
@@ -134,7 +135,7 @@ export function resolveResponse(reply: ModelReply, ctx: ResolveContext, transcri
     action: result.action,
     events: result.events,
     warnings: result.warnings,
-    summaryEs: summaryEs(result.action, ctx, result.events),
+    summaryEs: proposalSummaryEs(result.action, ctx, result.events),
     flows: bankFlows(result.events),
   };
 }

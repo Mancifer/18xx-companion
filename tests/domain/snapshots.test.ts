@@ -6,6 +6,7 @@ import {
   replayFromSnapshot,
   snapshotsFor,
   invalidatedBy,
+  rebuild,
   type Snapshot,
 } from "../../src/domain/ledger/snapshots";
 import { miniGame, miniPlayers } from "../helpers/miniGame";
@@ -62,5 +63,64 @@ describe("snapshots (research R3)", () => {
     log[9] = { ...(log[9] as GroupEntry), events: [{ t: "moneyTransfer", from: "bank", to: "pool", amount: 1 }] };
     const [snap] = snapshotsFor(miniGame, miniPlayers, log);
     expect(replayFromSnapshot(miniGame, log, snap as Snapshot).violations[0]?.firstBadGroupId).toBe("g10");
+  });
+});
+
+describe("snapshots carry the game-end status (feature 007, research R9)", () => {
+  const endGame = (seq: number): GroupEntry => ({
+    ...pay(seq, 1),
+    action: { type: "endGame", triggers: [] },
+    events: [{ t: "note", text: "Fin de la partida" }],
+  });
+  const bankrupt = (seq: number): GroupEntry => ({
+    ...pay(seq, 1),
+    events: [{ t: "counterChange", subject: "player:p2", key: "bankrupt", delta: 1 }],
+  });
+  function endedLog(): LogEntry[] {
+    const log = longLog(130);
+    log[29] = bankrupt(30);
+    log[59] = endGame(60);
+    return log;
+  }
+
+  it("a snapshot stores over, end, eliminationOrder and autoEndGroups", () => {
+    const [, second] = snapshotsFor(miniGame, miniPlayers, endedLog());
+    expect(second).toMatchObject({ seq: 100, over: false, eliminationOrder: ["p2"], autoEndGroups: [] });
+    expect(second?.end).toMatchObject({ groupId: "g60", auto: false, eliminationOrder: ["p2"] });
+  });
+
+  it("replayFromSnapshot returns the same end status as a full replay", () => {
+    const log = endedLog();
+    const snaps = snapshotsFor(miniGame, miniPlayers, log);
+    for (const snap of snaps) {
+      const r = replayFromSnapshot(miniGame, log, snap);
+      const full = replay(miniGame, miniPlayers, log);
+      expect(r).toEqual(full);
+      expect(r.end?.groupId).toBe("g60");
+    }
+  });
+
+  it("rebuild uses a current snapshot, and skips a pre-feature one (no end fields), replaying from the start", () => {
+    const log = endedLog();
+    const full = replay(miniGame, miniPlayers, log);
+    const [first] = snapshotsFor(miniGame, miniPlayers, log);
+    const fromCurrent = rebuild(miniGame, miniPlayers, log, [first as Snapshot]);
+    expect(fromCurrent.state).toEqual(full.state);
+    expect(fromCurrent.end).toEqual(full.end);
+
+    // The old shape: { seq, groupCount, state, firstSeen }, with a state that would be wrong if used.
+    const legacy = {
+      seq: first!.seq,
+      groupCount: first!.groupCount,
+      state: { ...first!.state, money: { ...first!.state.money, bank: 0 } },
+      firstSeen: first!.firstSeen,
+    } as unknown as Snapshot;
+    const rebuilt = rebuild(miniGame, miniPlayers, log, [legacy]);
+    expect(rebuilt.state).toEqual(full.state);
+    expect(rebuilt.end).toEqual(full.end);
+    expect(rebuilt.eliminationOrder).toEqual(full.eliminationOrder);
+    expect(rebuilt.autoEndGroups).toEqual(full.autoEndGroups);
+    expect(rebuilt.over).toBe(full.over);
+    expect(rebuilt.violations).toEqual(full.violations);
   });
 });

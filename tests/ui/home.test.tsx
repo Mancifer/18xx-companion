@@ -200,3 +200,99 @@ describe("Home: export before deleting (US3)", () => {
     expect(rowNames()).toContain("Eliminar partida «Lunes»");
   });
 });
+
+describe("Home: finished games (feature 007, US3, contracts/ui.md §3)", () => {
+  interface Game {
+    readonly name: string;
+    readonly players: readonly string[];
+    /** Actions after createSession. */
+    readonly actions?: readonly unknown[];
+    /** Store the meta without the outcome key, as a session from before the feature. */
+    readonly legacy?: boolean;
+  }
+  const END = { type: "endGame", triggers: null };
+  const pay = (to: string) => ({ type: "transferMoney", from: "bank", to, amount: 100 });
+
+  async function homeWith(games: readonly Game[]) {
+    const dbName = freshDbName();
+    const db = await openCompanionDb(dbName);
+    const sessions = new SessionRepo(db);
+    const settings = new SettingsRepo(db);
+    for (const g of games) {
+      const store = await startSession(sessions, settings, {
+        game: getBuiltInGame("1830"),
+        options: {},
+        players: makePlayers(g.players),
+        walletMode: "appTruth",
+        name: g.name,
+      });
+      for (const action of g.actions ?? []) await store.dispatch(action);
+      if (g.legacy) {
+        const loaded = (await sessions.loadSession(store.getSnapshot().meta.id))!;
+        const { outcome: _dropped, ...meta } = loaded.meta;
+        await sessions.importSession(meta, loaded.entries);
+      }
+    }
+    db.close();
+    const user = userEvent.setup();
+    const view = render(<App dbName={dbName} />);
+    await screen.findByRole("heading", { name: "Partidas" });
+    return { user, view, dbName };
+  }
+  const row = (name: string) => screen.getByRole("button", { name: `Eliminar partida «${name}»` }).closest("li")!;
+  const openRow = (name: string) => within(row(name)).getAllByRole("button")[0]!;
+
+  it("a finished row shows the Completa badge and the winner; an unfinished one looks as before (FR-015)", async () => {
+    await homeWith([
+      { name: "Abierta", players: ["Ana", "Bruno"] },
+      { name: "Ganada", players: ["Carla", "Dani"], actions: [pay("player:p2"), END] },
+      { name: "Empate", players: ["Eva", "Fede", "Gala"], actions: [pay("player:p1"), pay("player:p3"), END] },
+    ]);
+    expect(within(row("Ganada")).getByText("Completa")).toBeTruthy();
+    expect(within(row("Ganada")).getByText("Ganó Dani")).toBeTruthy();
+    expect(within(row("Empate")).getByText("Ganaron Eva y Gala")).toBeTruthy();
+    expect(within(row("Abierta")).queryByText("Completa")).toBeNull();
+    expect(within(row("Abierta")).queryByText(/^Gan/)).toBeNull();
+  });
+
+  it("tapping a finished row opens its results from Home in 1 tap (SC-004); Volver closes it and returns", async () => {
+    const { user } = await homeWith([{ name: "Ganada", players: ["Carla", "Dani"], actions: [pay("player:p2"), END] }, { name: "Otra", players: ["Ana", "Bruno"] }]);
+    await user.click(openRow("Ganada"));
+    expect(await screen.findByRole("heading", { name: "Resultados" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Volver" }));
+    expect(await screen.findByRole("heading", { name: "Partidas" })).toBeTruthy();
+  });
+
+  it("an unfinished row opens the Table", async () => {
+    const { user } = await homeWith([{ name: "Abierta", players: ["Ana", "Bruno"] }]);
+    await user.click(openRow("Abierta"));
+    expect(await screen.findByRole("button", { name: "Menú" })).toBeTruthy();
+  });
+
+  it("Continuar on a finished last session opens its results (FR-016)", async () => {
+    const { user } = await homeWith([{ name: "Ganada", players: ["Carla", "Dani"], actions: [END] }]);
+    await user.click(screen.getByRole("button", { name: /^Continuar/ }));
+    expect(await screen.findByRole("heading", { name: "Resultados" })).toBeTruthy();
+  });
+
+  it("a row with no outcome key gets the marker once the backfill finishes", async () => {
+    await homeWith([{ name: "Vieja", players: ["Ana", "Bruno"], actions: [pay("player:p1"), END], legacy: true }]);
+    expect(await within(row("Vieja")).findByText("Completa")).toBeTruthy();
+    expect(within(row("Vieja")).getByText("Ganó Ana")).toBeTruthy();
+  });
+
+  it("Ver mesa opens the Table; undoing the end there makes the game open, and Home drops the marker (US3-3)", async () => {
+    const { user } = await homeWith([{ name: "Ganada", players: ["Carla", "Dani"], actions: [END] }]);
+    await user.click(openRow("Ganada"));
+    await user.click(await screen.findByRole("button", { name: "Ver mesa" }));
+    await user.click(await screen.findByRole("button", { name: "Menú" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Historial" }));
+    const entry = (await screen.findByText(/^Fin de la partida/)).closest("li")!;
+    await user.click(within(entry).getByRole("button", { name: "Deshacer" }));
+    await user.click(screen.getByRole("button", { name: "Volver" }));
+    await user.click(await screen.findByRole("button", { name: "Menú" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Salir al inicio" }));
+    await screen.findByRole("heading", { name: "Partidas" });
+    expect(within(row("Ganada")).queryByText("Completa")).toBeNull();
+  });
+});

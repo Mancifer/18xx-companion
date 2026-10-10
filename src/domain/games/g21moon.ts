@@ -159,7 +159,15 @@ export const g21moon: GameDefinition = {
     perCompanyPercentByPlayers: { "2": 60 },
     pool: { maxPercent: 50 },
   },
-  endTriggers: [{ type: "lastRound" }, { type: "bankruptcy" }],
+  endTriggers: [{ type: "lastRound" }, { type: "scheduleComplete" }, { type: "bankruptcy" }],
+  // §13: the game ends at the conclusion of OR 5.3; each share is worth its price plus 50 per
+  // East-West bonus token its company holds. §11.8.1: a bankrupt player leaves the game.
+  scoring: {
+    autoEnd: ["scheduleComplete"],
+    bankruptPlayers: "eliminated",
+    tieBreak: "shared",
+    shareBonus: { counter: "eastWestTokens", perUnit: 50 },
+  },
   customRules: [
     { id: "corporateRound", config: {} },
     { id: "forcedWithhold", config: {} },
@@ -195,5 +203,6 @@ export const g21moon: GameDefinition = {
     limits: "verified",
     endTriggers: "verified",
     customRules: "verified",
+    scoring: "verified",
   },
 };

@@ -1,9 +1,15 @@
 import { runPipeline } from "../actions/pipeline";
+import type { Action } from "../actions/schemas";
 import type { GameDefinition } from "../games/schema";
 import type { Player } from "../types";
 import { effectiveLog, groupHistory } from "./effectiveLog";
 import type { AmendEntry, LogEntry } from "./entries";
 import { advance, startCursor } from "./replay";
+
+/** Ending and reopening the game have nothing to correct: they are undone instead (feature 007). */
+export function isAmendable(action: Action): boolean {
+  return action.type !== "endGame" && action.type !== "reopenGame";
+}
 
 export type AmendResult =
   | { readonly ok: true; readonly entry: AmendEntry }
@@ -26,6 +32,7 @@ export function buildAmend(
   if (history.status === "reverted") {
     return { ok: false, reasonEs: "No se puede corregir una entrada deshecha" };
   }
+  if (!isAmendable(history.group.action)) return { ok: false, reasonEs: "No hay nada que corregir: deshazlo" };
 
   let cursor = startCursor(game, players);
   for (const g of effectiveLog(log)) {

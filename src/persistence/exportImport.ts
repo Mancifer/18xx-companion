@@ -5,7 +5,8 @@ import { PrimitiveEventSchema } from "../domain/events/schema";
 import { ChipSchema, GameDefinitionSchema } from "../domain/games/schema";
 import type { LogEntry } from "../domain/ledger/entries";
 import { replay } from "../domain/ledger/replay";
-import type { SessionMeta } from "../domain/session";
+import { outcomeOf } from "../domain/mechanics/gameEnd";
+import type { SessionMeta, SessionOutcome } from "../domain/session";
 import { stateHash } from "./canonical";
 import type { SessionRepo } from "./sessionRepo";
 
@@ -113,6 +114,8 @@ export type ParsedImport =
       readonly ok: true;
       readonly file: SessionExport;
       readonly state: SessionState;
+      /** Derived from the replayed log, never read from the file (feature 007, FR-018). */
+      readonly outcome: SessionOutcome | null;
       readonly hashMatches: boolean;
       readonly warningEs?: string;
     }
@@ -140,11 +143,13 @@ export async function parseImport(json: unknown): Promise<ParsedImport> {
     return { ok: false, errorEs: `Archivo dañado: ${first ? `${first.path.join(".")}: ${first.message}` : "formato inválido"}` };
   }
   const file = parsed.data;
-  const { state } = replay(file.session.game, file.session.players, file.entries as LogEntry[]);
+  const replayed = replay(file.session.game, file.session.players, file.entries as LogEntry[]);
+  const { state } = replayed;
+  const outcome = outcomeOf(file.session.game, file.session.players, replayed);
   const hashMatches = (await stateHash(state)) === file.stateHash;
   return hashMatches
-    ? { ok: true, file, state, hashMatches }
-    : { ok: true, file, state, hashMatches, warningEs: "el estado reproducido no coincide" };
+    ? { ok: true, file, state, outcome, hashMatches }
+    : { ok: true, file, state, outcome, hashMatches, warningEs: "el estado reproducido no coincide" };
 }
 
 /** Writes an imported session: replacing one with the same id, or as a copy with a new id. */
@@ -166,6 +171,7 @@ export async function importSession(
     createdAt: session.createdAt,
     updatedAt: session.updatedAt,
     entryCount: entries.length,
+    outcome: parsed.outcome,
   };
   if (!copy) await repo.deleteSession(meta.id);
   await repo.importSession(meta, entries as LogEntry[]);

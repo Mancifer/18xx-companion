@@ -3,7 +3,16 @@ import { describe, expect, it } from "vitest";
 import { loadFixture } from "../../eval/voice/load";
 import { applyOptions, getBuiltInGame } from "../../src/domain/games";
 import { systemPromptEs } from "../../src/voice/prompt";
-import { ACTION_TOOLS, buildToolSpecs, buildTools, GEMINI_SCHEMA_KEYWORDS, META_TOOLS, toAnthropicTools, toGeminiTools } from "../../src/voice/tools";
+import {
+  ACTION_TOOLS,
+  buildToolSpecs,
+  buildTools,
+  GEMINI_SCHEMA_KEYWORDS,
+  META_TOOLS,
+  toAnthropicTools,
+  toGeminiTools,
+  voiceAction,
+} from "../../src/voice/tools";
 import { makePlayers } from "../helpers/dispatch";
 
 /** contracts/voice-tools.md: strict tools generated from the action schemas. */
@@ -155,18 +164,21 @@ describe("RotLA tools (US10, T086)", () => {
     expect(names(session("1830"))).toEqual([
       ...common,
       ...["parCompany", "buyShare", "sellShares", "buyPrivate", "exchangePrivate", "stockBatch", "startSR", "endSR", "startOR", "nextCompany"],
+      "endGame",
       ...tail,
     ]);
     expect(names(session("1848"))).toEqual([
       ...common,
       ...["takeLoan", "nationalPayout", "parCompany", "buyShare", "sellShares", "buyPrivate", "exchangePrivate", "stockBatch"],
       ...["startSR", "endSR", "startOR", "nextCompany"],
+      "endGame",
       ...tail,
     ]);
     expect(names(session("21moon"))).toEqual([
       ...common,
       ...["parCompany", "buyShare", "sellShares", "swapCertificates", "issueShares", "buyPrivate", "exchangePrivate", "stockBatch"],
       ...["startSR", "endSR", "startCR", "endCR", "startOR", "nextCompany"],
+      "endGame",
       ...tail,
     ]);
   });
@@ -178,6 +190,27 @@ describe("RotLA tools (US10, T086)", () => {
     for (const n of landmarkTools) expect(names(withExpansion)).toContain(n);
     const cliff = buildTools(withExpansion).find((t) => t.name === "cliffSale")!.input_schema as Schema;
     expect(enumOf(props(cliff)["train"])).toEqual(["2", "3", "4", "5", "6", "7", "M2"]);
+  });
+});
+
+describe("endGame tool (feature 007, contracts/ui.md §5)", () => {
+  it("is offered in every game, with no input fields and a Spanish description", () => {
+    expect(ACTION_TOOLS).toContain("endGame");
+    for (const id of ["1830", "1848", "21moon", "rotla"]) {
+      const tool = buildTools(session(id)).find((t) => t.name === "endGame")!;
+      expect(tool.description).toBe("Terminar la partida (fin del juego). Sin argumentos.");
+      expect(props(tool.input_schema as Schema)).toEqual({});
+      expect((tool.input_schema as Schema)["required"]).toEqual([]);
+    }
+  });
+
+  it("the call resolves to { type: endGame, triggers: null }", () => {
+    expect(voiceAction("endGame", {})).toEqual({ type: "endGame", triggers: null });
+  });
+
+  it("reopenGame is not a voice tool", () => {
+    expect(ACTION_TOOLS).not.toContain("reopenGame");
+    for (const id of ["1830", "rotla"]) expect(buildTools(session(id)).map((t) => t.name)).not.toContain("reopenGame");
   });
 });
 

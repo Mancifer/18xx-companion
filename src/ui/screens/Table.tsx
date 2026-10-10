@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useAppActions } from "../../app/AppProvider";
 import { useDispatch, useSession } from "../../app/useSession";
 import { useVoice } from "../../app/useVoice";
@@ -7,7 +7,7 @@ import { isAvailable } from "../../domain/actions/availability";
 import type { ActionContext } from "../../domain/actions/context";
 import { counterOf } from "../../domain/events/state";
 import { formatMoney } from "../../domain/i18n/format";
-import { cycleCount, endTriggers, gameOver } from "../../domain/mechanics/endTriggers";
+import { cycleCount, endTriggers, type EndTrigger } from "../../domain/mechanics/endTriggers";
 import { overLimitCompanies, trainStack } from "../../domain/mechanics/phases";
 import { exportEvents, exportPreview, mergerRoundDue } from "../../domain/mechanics/schedule";
 import { reduceAll } from "../../domain/events/reduce";
@@ -32,7 +32,6 @@ import { CompanySheet } from "../sheets/CompanySheet";
 import { BatchSheet } from "../sheets/BatchSheet";
 import { LaunchSheet } from "../sheets/LaunchSheet";
 import { MergerSheet } from "../sheets/MergerSheet";
-import { ScoreSheet } from "../sheets/ScoreSheet";
 import { ExchangeSheet } from "../sheets/ExchangeSheet";
 import { OperateSheet } from "../sheets/OperateSheet";
 import { PlayerSheet } from "../sheets/PlayerSheet";
@@ -48,7 +47,7 @@ export type Open =
   | { kind: "batch" }
   | { kind: "launch" }
   | { kind: "merger" }
-  | { kind: "score" }
+  | { kind: "endGame" }
   | { kind: "privates" }
   | { kind: "exchange"; player: PlayerId }
   | { kind: "menu" }
@@ -67,7 +66,7 @@ const COMPANY_GROUPS: readonly (readonly [CompanyGroup, string])[] = [
 
 /** The main screen: a tile per player and a card per company (US1), with round controls (US3). */
 export function Table({ topCenter }: { topCenter?: ReactNode }) {
-  const { meta, state, effective } = useSession();
+  const { meta, state, effective, gameEnd } = useSession();
   const { dispatch } = useDispatch();
   const groups = companyGroups(meta.game, state);
   const { closeSession } = useAppActions();
@@ -113,13 +112,19 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
   const ending = endTriggers(meta.game, state);
   const cycles = cycleCount(meta.game);
   const liquidates = mechanicConfigOf(meta.game, "corporateBankruptcy", CorporateBankruptcyConfig)?.playerMode === "liquidatePresided";
-  // The Score sheet opens by itself once when the game ends (cycles done, Bank Break, bankruptcy).
-  const over = gameOver(meta.game, state);
-  const [scoreShown, setScoreShown] = useState(false);
-  if (over !== scoreShown) {
-    setScoreShown(over);
-    if (over) setOpen({ kind: "score" });
-  }
+  const finished = gameEnd.end !== null;
+  const showResults = () => go({ name: "results", from: "table" });
+  // FR-006: the results open when the game ends while the Table is shown (an automatic end, a
+  // confirmed endGame, or a voice endGame that moves the end), not when it opens on a finished game.
+  const endId = gameEnd.end?.groupId ?? null;
+  const seenEnd = useRef(endId);
+  useEffect(() => {
+    if (endId === seenEnd.current) return;
+    seenEnd.current = endId;
+    if (endId !== null) go({ name: "results", from: "table" });
+  }, [endId, go]);
+  // A player's bankruptcy may end the game (1830 Classic C-2.5, 21Moon §13, RotLA): offer it next.
+  const bankruptcyEnds = cycles !== undefined || meta.game.endTriggers.some((t) => t.type === "bankruptcy");
   const upcoming = upcomingCompanies(meta.game, state);
   const ownedPrivates = meta.game.privates.some((p) => {
     const holder = state.assets[`private:${p.id}`];
@@ -211,7 +216,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
                 : "Su dinero va al banco, sus acciones al pool y sus privadas se cierran.",
               confirmLabel: "Declarar quiebra",
               action: { type: "declareBankruptcy", player: id, company: null },
-              scoreAfter: cycles !== undefined,
+              scoreAfter: bankruptcyEnds,
             })
           }
         >
@@ -228,11 +233,21 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
         onWarnings={() => go({ name: "history" })}
         center={topCenter ?? <RoundIndicator onOpen={() => setOpen({ kind: "turn" })} />}
       />
+      {finished ? (
+        <button className="finished-banner" onClick={showResults}>
+          Partida completa · Ver resultados
+        </button>
+      ) : null}
       {ending.length > 0 ? (
         <div className="end-banner" role="alert">
           {ending.map((t) => (
             <span key={t.type}>⚑ {t.messageEs}</span>
           ))}
+          {!finished ? (
+            <button className="primary" onClick={() => setOpen({ kind: "endGame" })}>
+              Terminar partida
+            </button>
+          ) : null}
         </div>
       ) : null}
       {overLimitCompanies(meta.game, state).map((o) => (
@@ -275,7 +290,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
           <button onClick={() => setOpen({ kind: "merger" })}>Fusionar…</button>
         ) : null}
         {cycles !== undefined ? (
-          <CycleControls cycles={cycles} onScore={() => setOpen({ kind: "score" })} />
+          <CycleControls cycles={cycles} finished={finished} onEnd={() => setOpen({ kind: "endGame" })} onResults={showResults} />
         ) : (
           <>
             {round !== "SR" ? (
@@ -349,7 +364,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
       {open?.kind === "batch" ? <BatchSheet onClose={close} /> : null}
       {open?.kind === "launch" ? <LaunchSheet onClose={close} /> : null}
       {open?.kind === "merger" ? <MergerSheet onClose={close} /> : null}
-      {open?.kind === "score" ? <ScoreSheet onClose={close} /> : null}
+      {open?.kind === "endGame" ? <EndGameSheet ending={ending} onClose={close} /> : null}
       {open?.kind === "turn" ? <TurnSheet onClose={close} /> : null}
       {open?.kind === "chips" ? <ChipsSheet onClose={close} /> : null}
       {open?.kind === "privates" ? <PrivatesSheet onClose={close} /> : null}
@@ -364,7 +379,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
           confirmLabel={open.confirmLabel}
           action={open.action}
           onClose={close}
-          {...(open.scoreAfter ? { next: { label: "Terminar partida", onClick: () => setOpen({ kind: "score" }) } } : {})}
+          {...(open.scoreAfter ? { next: { label: "Terminar partida", onClick: () => setOpen({ kind: "endGame" }) } } : {})}
         />
       ) : null}
       {open?.kind === "counter" ? <CounterSheet subject={open.subject} initialKey={open.key} onClose={close} /> : null}
@@ -374,7 +389,9 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
             <button onClick={() => go({ name: "history" })}>Historial</button>
             <button onClick={() => go({ name: "market" })}>Mercado</button>
             <button onClick={() => setOpen({ kind: "chips" })}>Fichas</button>
-            {cycles !== undefined ? <button onClick={() => setOpen({ kind: "score" })}>Puntuación</button> : null}
+            {!finished ? <button onClick={() => setOpen({ kind: "endGame" })}>Terminar partida</button> : null}
+            <button onClick={showResults}>Clasificación</button>
+            {finished ? <button onClick={showResults}>Resultados</button> : null}
             <button onClick={() => void exportSession()}>Exportar partida</button>
             <button onClick={() => go({ name: "settings" })}>Ajustes</button>
             <button
@@ -401,11 +418,47 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
 }
 
 /**
- * Games played in cycles (contracts/ui.md "Round controls"): one button per transition. RO 1,
- * RO 2, then the Merger Round when due (its own button), the export and a new SR, or the scores
- * after the last cycle.
+ * "¿Terminar la partida?" (feature 007, contracts/ui.md §2): the fired end conditions, or a note
+ * that none has fired yet; the table decides either way (constitution III).
  */
-function CycleControls({ cycles, onScore }: { cycles: number; onScore: () => void }) {
+function EndGameSheet({ ending, onClose }: { ending: readonly EndTrigger[]; onClose: () => void }) {
+  return (
+    <ConfirmSheet
+      title="¿Terminar la partida?"
+      body={
+        ending.length > 0 ? (
+          <ul>
+            {ending.map((t) => (
+              <li key={t.type}>{t.messageEs}</li>
+            ))}
+          </ul>
+        ) : (
+          "Todavía no se cumplió ninguna condición de fin de partida."
+        )
+      }
+      confirmLabel="Terminar"
+      action={{ type: "endGame", triggers: null }}
+      onClose={onClose}
+    />
+  );
+}
+
+/**
+ * Games played in cycles (contracts/ui.md "Round controls"): one button per transition. RO 1,
+ * RO 2, then the Merger Round when due (its own button), the export and a new SR, or after the
+ * last cycle the results (or "Terminar partida" on a reopened game).
+ */
+function CycleControls({
+  cycles,
+  finished,
+  onEnd,
+  onResults,
+}: {
+  cycles: number;
+  finished: boolean;
+  onEnd: () => void;
+  onResults: () => void;
+}) {
   const { meta, state } = useSession();
   const { dispatch } = useDispatch();
   const turn = state.turn;
@@ -426,10 +479,12 @@ function CycleControls({ cycles, onScore }: { cycles: number; onScore: () => voi
   }
   if (turn.round === "OR" && mergerRoundDue(meta.game, state)) return null;
   if (last) {
-    return (
-      <button className={gameOver(meta.game, state) ? "primary" : undefined} onClick={onScore}>
-        Ver puntuación
+    return finished ? (
+      <button className="primary" onClick={onResults}>
+        Ver resultados
       </button>
+    ) : (
+      <button onClick={onEnd}>Terminar partida</button>
     );
   }
   return (

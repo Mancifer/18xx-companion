@@ -16,7 +16,7 @@ import type { GameDefinition } from "../../domain/games/schema";
 import { isEnabled } from "../../domain/mechanics/custom";
 import { mechanicConfigOf } from "../../domain/mechanics/custom/config";
 import { CorporateBankruptcyConfig } from "../../domain/mechanics/custom/corporateBankruptcy";
-import { currentORGroups, purchasablePrivates, upcomingCompanies } from "../../domain/queries";
+import { companyGroups, currentORGroups, purchasablePrivates, upcomingCompanies, type CompanyGroup } from "../../domain/queries";
 import type { CompanyId, HolderRef, PlayerId } from "../../domain/types";
 import { CompanyCard } from "../components/CompanyCard";
 import { MicButton } from "../components/MicButton";
@@ -58,10 +58,18 @@ export type Open =
   | { kind: "counter"; subject: HolderRef; key: string }
   | null;
 
+/** The Companies tab's sections, in display order. */
+const COMPANY_GROUPS: readonly (readonly [CompanyGroup, string])[] = [
+  ["inPlay", "En juego"],
+  ["available", "Disponibles"],
+  ["closed", "Cerradas"],
+];
+
 /** The main screen: a tile per player and a card per company (US1), with round controls (US3). */
 export function Table({ topCenter }: { topCenter?: ReactNode }) {
   const { meta, state, effective } = useSession();
   const { dispatch } = useDispatch();
+  const groups = companyGroups(meta.game, state);
   const { closeSession } = useAppActions();
   const exportSession = useExportSession();
   const voice = useVoice();
@@ -299,16 +307,24 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
           </div>
         </section>
         <section data-pane="companies" style={{ display: tab === "companies" ? "block" : "none" }}>
-          <div className="company-grid">
-            {meta.game.companies.map((c) => (
-              <CompanyCard
-                key={c.id}
-                companyId={c.id}
-                current={state.turn.currentCompany === c.id}
-                onOpen={() => setOpen({ kind: "company", id: c.id, view: companyView(c.id) })}
-              />
-            ))}
-          </div>
+          {COMPANY_GROUPS.map(([group, title]) => {
+            const ids = groups[group];
+            return ids.length > 0 ? (
+              <div key={group} className="company-group" role="group" aria-label={title} data-testid={`company-group-${group}`}>
+                <h2 className="company-group-title">{title}</h2>
+                <div className="company-grid">
+                  {ids.map((id) => (
+                    <CompanyCard
+                      key={id}
+                      companyId={id}
+                      current={state.turn.currentCompany === id}
+                      onOpen={() => setOpen({ kind: "company", id, view: companyView(id) })}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null;
+          })}
         </section>
       </div>
 

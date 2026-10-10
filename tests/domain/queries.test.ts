@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getBuiltInGame } from "../../src/domain/games";
-import { answerQuery, currentORGroups, turnActivity, upcomingCompanies } from "../../src/domain/queries";
+import { answerQuery, companyGroups, currentORGroups, turnActivity, upcomingCompanies } from "../../src/domain/queries";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { seedCompany } from "../helpers/seed";
 
@@ -142,5 +142,45 @@ describe("upcomingCompanies (T022)", () => {
     s.do({ type: "setMarket", company: "B&O", cell: { row: 0, col: 9 } });
     s.do({ type: "setTurn", round: null, srNumber: null, orSet: null, orIndex: null, orsInSet: null, company: "B&O" });
     expect(upcomingCompanies(s.game, s.state)).toEqual(["NYC"]);
+  });
+});
+
+describe("companyGroups (bug companies-tab-status-order)", () => {
+  const ids1830 = getBuiltInGame("1830").companies.map((c) => c.id);
+
+  it("with nothing closed, keeps definition order: companies in play first, then the available ones", () => {
+    const s = TestSession.start(getBuiltInGame("1830"), players);
+    seedCompany(s, "NYC", { cell: { row: 0, col: 6 }, holders: { "player:p2": 6 } });
+    seedCompany(s, "PRR", { cell: { row: 0, col: 8 }, holders: { "player:p1": 6 } });
+    const groups = companyGroups(s.game, s.state);
+    expect(groups.inPlay).toEqual(ids1830.filter((id) => id === "PRR" || id === "NYC"));
+    expect(groups.available).toEqual(ids1830.filter((id) => id !== "PRR" && id !== "NYC"));
+    expect(groups.closed).toEqual([]);
+  });
+
+  it("parred, floated and receivership are in play; closed and bankrupt go last", () => {
+    const s = TestSession.start(getBuiltInGame("1830"), players);
+    const [a, b, c, d, e] = ids1830 as [string, string, string, string, string, ...string[]];
+    s.apply({ t: "companyStatus", company: e, status: "parred", parPrice: 100 });
+    s.apply({ t: "companyStatus", company: d, status: "floated" });
+    s.apply({ t: "companyStatus", company: c, status: "receivership" });
+    s.apply({ t: "companyStatus", company: b, status: "bankrupt" });
+    s.apply({ t: "companyStatus", company: a, status: "closed" });
+    const groups = companyGroups(s.game, s.state);
+    expect(groups.inPlay).toEqual([c, d, e]);
+    expect(groups.available).toEqual(ids1830.slice(5));
+    expect(groups.closed).toEqual([a, b]);
+  });
+
+  it("RotLA: merged minors are closed, the new major is in play, other majors stay available", () => {
+    const s = TestSession.start(getBuiltInGame("rotla"), players.slice(0, 3));
+    s.apply({ t: "companyStatus", company: "UNI", status: "floated" });
+    s.apply({ t: "companyStatus", company: "EXP", status: "closed" });
+    s.apply({ t: "companyStatus", company: "TUN", status: "closed" });
+    const groups = companyGroups(s.game, s.state);
+    expect(groups.inPlay).toEqual(["UNI"]);
+    expect(groups.closed).toEqual(s.game.companies.map((c) => c.id).filter((id) => id === "EXP" || id === "TUN"));
+    expect(groups.available).toContain("CON");
+    expect(groups.available).not.toContain("UNI");
   });
 });

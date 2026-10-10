@@ -193,6 +193,25 @@ button[aria-pressed="true"] {
   border-color: var(--danger);
 }
 
+.company-card.status-closed {
+  opacity: 0.7;
+  border-style: dotted;
+  background: var(--surface-2);
+}
+
+.company-group + .company-group {
+  margin-top: var(--space-4);
+}
+
+.company-group-title {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
 .company-card-head {
   display: flex;
   align-items: center;

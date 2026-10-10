@@ -148,6 +148,23 @@ export function upcomingCompanies(game: GameDefinition, state: SessionState, n =
     .slice(0, n);
 }
 
+export type CompanyGroup = "inPlay" | "available" | "closed";
+
+/**
+ * The Companies tab's sections: companies in play, ones that can still be opened, and closed or
+ * bankrupt ones last. Each group keeps the game's definition order.
+ */
+export function companyGroups(game: GameDefinition, state: SessionState): Record<CompanyGroup, CompanyId[]> {
+  const groups: Record<CompanyGroup, CompanyId[]> = { inPlay: [], available: [], closed: [] };
+  for (const c of game.companies) {
+    const status = state.companies[c.id]?.status;
+    if (status === undefined) continue;
+    const group: CompanyGroup = status === "unstarted" ? "available" : status === "closed" || status === "bankrupt" ? "closed" : "inPlay";
+    groups[group].push(c.id);
+  }
+  return groups;
+}
+
 /**
  * The privates a player can buy right now (FR-014): unsold ones in the bank, or, where the game
  * allows trading and the round permits it, ones already owned. Closed privates never qualify.

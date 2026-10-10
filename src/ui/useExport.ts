@@ -2,6 +2,7 @@ import { useServices } from "../app/AppProvider";
 import { useSession } from "../app/useSession";
 import { APP_VERSION } from "../app/version";
 import { buildExport, exportFileName } from "../persistence/exportImport";
+import type { SessionRepo } from "../persistence/sessionRepo";
 
 /** Saves a file through the browser's download (no server involved). */
 export function downloadJson(fileName: string, data: unknown): void {
@@ -16,12 +17,15 @@ export function downloadJson(fileName: string, data: unknown): void {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+/** Builds the export of any stored session and saves it as a download. Never reads settings. */
+export async function exportSessionFile(repo: SessionRepo, sessionId: string): Promise<void> {
+  const file = await buildExport(repo, sessionId, { appVersion: APP_VERSION });
+  downloadJson(exportFileName(file), file);
+}
+
 /** Export of the open session (FR-091). Settings, and so the AI key, are never read (FR-092). */
 export function useExportSession(): () => Promise<void> {
   const { sessions } = useServices();
   const { meta } = useSession();
-  return async () => {
-    const file = await buildExport(sessions, meta.id, { appVersion: APP_VERSION });
-    downloadJson(exportFileName(file), file);
-  };
+  return () => exportSessionFile(sessions, meta.id);
 }

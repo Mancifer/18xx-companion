@@ -60,3 +60,12 @@ export async function startSession(
   await settings.set({ lastSessionId: meta.id });
   return store;
 }
+
+/**
+ * Removes a session with its whole log and snapshots (one strict transaction), then forgets it
+ * as the last session if it was. Rejects, with the pointer untouched, when the delete fails.
+ */
+export async function deleteSession(repo: SessionRepo, settings: SettingsRepo, id: string): Promise<void> {
+  await repo.deleteSession(id);
+  if ((await settings.get()).lastSessionId === id) await settings.set({ lastSessionId: undefined });
+}

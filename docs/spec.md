@@ -333,6 +333,11 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
    and per-day limits (voice pauses, touch keeps working). The privacy note says audio goes to the
    browser's speech service and transcripts and state to the **selected provider**. For Anthropic,
    use a dedicated Console workspace with a monthly spend limit.
+   Each row in the session list has an "Eliminar" button next to the open button (at least
+   48 px, accessible name "Eliminar partida «name»"). It opens a confirmation sheet with the game,
+   players and entry count, the warning "Esta acción no se puede deshacer." and Cancelar /
+   Exportar antes / Eliminar; "Exportar antes" downloads the usual export file and keeps the sheet
+   open. Deleting is only offered here: never inside an open session and never by voice.
 2. **New session**: pick game → players (names, colors, aliases) → chip set (preset +
    colors) → wallet mode.
 3. **Table** (main screen):
@@ -381,6 +386,10 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
   corrections) plus a hash of the replayed state. On import the log is replayed: a hash mismatch
   is shown as a warning but the session still imports. A session that already exists on the
   device can be replaced or imported as a copy.
+- Deleting a session removes its `sessions`, `entries` and `snapshots` rows in one strict
+  transaction, then clears the last-session pointer if it named that session. Custom games and
+  other sessions are untouched, nothing is logged, and the deleted session's export file later
+  imports as a new session.
 - One API key per provider, stored locally on the device, never exported and never logged. With
   "no recordar las claves" every provider's key is kept in memory only and is gone after a reload.
   The Gemini key travels only in the `x-goog-api-key` header, never in a URL. Settings saved

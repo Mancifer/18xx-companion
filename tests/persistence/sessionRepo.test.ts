@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { openCompanionDb } from "../../src/persistence/db";
+import { startSession } from "../../src/app/sessions";
+import { getBuiltInGame } from "../../src/domain/games";
+import { openCompanionDb, type CompanionDb } from "../../src/persistence/db";
+import { buildExport, importSession, parseImport } from "../../src/persistence/exportImport";
 import { SessionRepo } from "../../src/persistence/sessionRepo";
 import { SettingsRepo } from "../../src/persistence/settingsRepo";
 import type { GroupEntry } from "../../src/domain/ledger/entries";
+import { makePlayers } from "../helpers/dispatch";
 import { freshDbName, makeMeta } from "../helpers/session";
 
 function note(seq: number): GroupEntry {
@@ -66,6 +70,100 @@ describe("SessionRepo", () => {
     const loaded = await repo.loadSession(meta.id);
     expect(JSON.stringify(loaded)).not.toContain("sk-ant-secret");
     expect((await settings.get()).apiKeys.anthropic).toBe("sk-ant-secret");
+  });
+});
+
+/** A started 1830 session with a few notes and a stored snapshot, so every store has rows. */
+async function seeded(repo: SessionRepo, settings: SettingsRepo, name: string) {
+  const store = await startSession(repo, settings, {
+    game: getBuiltInGame("1830"),
+    options: {},
+    players: makePlayers(["Ana", "Bruno", "Carla"]),
+    walletMode: "appTruth",
+    name,
+  });
+  for (const text of ["uno", "dos", "tres"]) {
+    const result = await store.dispatch({ type: "note", text });
+    if (!result.ok) throw new Error(result.messageEs);
+  }
+  const { meta, state, log } = store.getSnapshot();
+  const last = log[log.length - 1]!;
+  await repo.putSnapshot(meta.id, { seq: last.seq, groupCount: log.length, state, firstSeen: {} });
+  return meta.id;
+}
+
+async function rowsOf(db: CompanionDb, id: string) {
+  return {
+    entries: await db.getAllKeysFromIndex("entries", "bySession", id),
+    snapshots: await db.getAllKeysFromIndex("snapshots", "bySession", id),
+  };
+}
+
+describe("deleteSession (feature 006)", () => {
+  it("removes the session's meta, entries and snapshots", async () => {
+    const db = await openCompanionDb(freshDbName());
+    const repo = new SessionRepo(db);
+    const a = await seeded(repo, new SettingsRepo(db), "A");
+    const before = await rowsOf(db, a);
+    expect(before.entries.length).toBeGreaterThan(1);
+    expect(before.snapshots.length).toBe(1);
+
+    await repo.deleteSession(a);
+
+    expect(await repo.loadSession(a)).toBeUndefined();
+    expect((await repo.listSessions()).map((m) => m.id)).not.toContain(a);
+    expect(await rowsOf(db, a)).toEqual({ entries: [], snapshots: [] });
+  });
+
+  it("leaves other sessions identical (FR-005)", async () => {
+    const db = await openCompanionDb(freshDbName());
+    const repo = new SessionRepo(db);
+    const settings = new SettingsRepo(db);
+    const a = await seeded(repo, settings, "A");
+    const b = await seeded(repo, settings, "B");
+    const bBefore = await repo.loadSession(b);
+    const bRows = await rowsOf(db, b);
+
+    await repo.deleteSession(a);
+
+    expect(await repo.loadSession(b)).toEqual(bBefore);
+    expect(await rowsOf(db, b)).toEqual(bRows);
+    expect((await repo.listSessions()).map((m) => m.id)).toEqual([b]);
+  });
+
+  it("is a no-op for a missing id", async () => {
+    const db = await openCompanionDb(freshDbName());
+    const repo = new SessionRepo(db);
+    const a = await seeded(repo, new SettingsRepo(db), "A");
+    const before = await repo.loadSession(a);
+
+    await expect(repo.deleteSession("missing-id")).resolves.toBeUndefined();
+
+    expect(await repo.loadSession(a)).toEqual(before);
+    expect(await repo.listSessions()).toHaveLength(1);
+  });
+
+  it("a deleted session's export re-imports as new, with the same state (SC-005, US3-2)", async () => {
+    const db = await openCompanionDb(freshDbName());
+    const repo = new SessionRepo(db);
+    const a = await seeded(repo, new SettingsRepo(db), "A");
+    const original = (await repo.loadSession(a))!;
+    const file = await buildExport(repo, a, { appVersion: "0.1.0" });
+
+    await repo.deleteSession(a);
+
+    const parsed = await parseImport(JSON.parse(JSON.stringify(file)));
+    if (!parsed.ok) throw new Error(parsed.errorEs);
+    expect(parsed.hashMatches).toBe(true);
+    // Home's "not on this device" path: no existing row, so a plain import.
+    expect(await repo.loadSession(parsed.file.session.id)).toBeUndefined();
+    const meta = await importSession(repo, parsed, { mode: "replace" });
+    const restored = (await repo.loadSession(meta.id))!;
+    expect(meta.id).toBe(a);
+    expect(restored.meta.name).toBe(original.meta.name);
+    expect(restored.meta.entryCount).toBe(original.meta.entryCount);
+    expect(restored.meta.players).toEqual(original.meta.players);
+    expect(restored.entries).toEqual(original.entries);
   });
 });
 

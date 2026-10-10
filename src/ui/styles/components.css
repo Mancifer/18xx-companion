@@ -344,6 +344,23 @@ button[aria-pressed="true"] {
   text-align: left;
 }
 
+/* Open and delete sit side by side, never nested (feature 006, FR-010). */
+.session-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.session-row .session-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-row .danger {
+  min-width: var(--tap);
+  min-height: var(--tap);
+}
+
 .player-rows {
   margin: 0;
   padding: 0;

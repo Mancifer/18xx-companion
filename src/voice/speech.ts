@@ -40,10 +40,33 @@ export function speechAvailable(factory: RecognizerFactory): boolean {
   return factory === browserRecognizer ? Boolean(w.SpeechRecognition ?? w.webkitSpeechRecognition) : true;
 }
 
+const norm = (s: string) => s.replace(/\s+/g, " ").trim();
+const startsWithCi = (s: string, prefix: string) => s.toLowerCase().startsWith(prefix.toLowerCase());
+
+/**
+ * Joins recognizer results into one transcript. Desktop Chrome sends separate segments
+ * ("Manuel abre Erie", " por 60"); Android Chrome appends cumulative revisions
+ * ("Manuel", "Manuel Abre", "Manuel Abre por 60"). A result that extends (or is a prefix of)
+ * the text so far or the previous segment is a revision and replaces it; anything else is a
+ * new segment, joined with a space.
+ */
+export function assembleTranscript(transcripts: readonly string[]): string {
+  const segments: string[] = [];
+  for (const raw of transcripts) {
+    const t = norm(raw);
+    if (!t) continue;
+    const last = segments.at(-1);
+    if (segments.length > 1 && startsWithCi(t, segments.join(" "))) segments.splice(0, segments.length, t);
+    else if (last !== undefined && (startsWithCi(t, last) || startsWithCi(last, t))) segments[segments.length - 1] = t;
+    else segments.push(t);
+  }
+  return segments.join(" ");
+}
+
 function textOf(event: SpeechEventLike): string {
-  let text = "";
-  for (let i = 0; i < event.results.length; i++) text += event.results[i]?.[0]?.transcript ?? "";
-  return text.trim();
+  const transcripts: string[] = [];
+  for (let i = 0; i < event.results.length; i++) transcripts.push(event.results[i]?.[0]?.transcript ?? "");
+  return assembleTranscript(transcripts);
 }
 
 /** One hold of the mic button. */

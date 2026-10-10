@@ -678,8 +678,8 @@ button[aria-pressed="true"] {
 }
 
 .mic-button {
-  width: 76px;
-  height: 76px;
+  width: var(--mic-size);
+  height: var(--mic-size);
   border-radius: 50%;
   font-size: 32px;
   box-shadow: var(--shadow);

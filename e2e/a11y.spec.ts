@@ -1,5 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { launch, newRotla, newSession, openCompany, showCompanies, trade } from "./helpers";
+import { launch, newRotla, newSession, openCompany, payBank, showCompanies, toast, trade } from "./helpers";
 
 /**
  * T167 (FR-101): on every main screen, in phone portrait and tablet landscape, each visible
@@ -121,4 +121,23 @@ test("RotLA sheets: Launch, Merger and Score (feature 004)", async ({ page }, in
   await page.getByRole("dialog").getByRole("button", { name: "Puntuación" }).click();
   await expect(page.getByRole("dialog", { name: "Puntuación" })).toBeVisible();
   await audit(page, info, "rotla-score", ROTLA_NAMES);
+});
+
+test("the undo toast never covers the mic (bug toast-obscures-voice-button)", async ({ page }) => {
+  await newSession(page, { players: ["Ana", "Bruno", "Carla", "Dani"] });
+  await payBank(page, "Ana", 100);
+  await expect(toast(page).getByRole("button", { name: "Deshacer" })).toBeVisible();
+  await page.waitForTimeout(300);
+
+  const mic = page.locator(".mic-button");
+  const [m, t] = [await mic.boundingBox(), await toast(page).boundingBox()];
+  if (!m || !t) throw new Error("mic or toast not laid out");
+  const overlap = m.x < t.x + t.width && t.x < m.x + m.width && m.y < t.y + t.height && t.y < m.y + m.height;
+  expect(overlap, `mic ${JSON.stringify(m)} vs toast ${JSON.stringify(t)}`).toBe(false);
+
+  const onTop = await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest(".mic-button") !== null, {
+    x: m.x + m.width / 2,
+    y: m.y + m.height / 2,
+  });
+  expect(onTop, "the mic's centre hits the mic").toBe(true);
 });

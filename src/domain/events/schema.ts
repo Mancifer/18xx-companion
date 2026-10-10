@@ -10,7 +10,7 @@ const cell = z.union([
   z.object({ row: z.number().int(), col: z.number().int() }),
   z.object({ index: z.number().int() }),
 ]);
-const round = z.enum(["PRIVATES", "SR", "CR", "OR"]);
+const round = z.enum(["PRIVATES", "SR", "CR", "OR", "MR"]);
 
 export const PrimitiveEventSchema: z.ZodType<PrimitiveEvent> = z.discriminatedUnion("t", [
   z.object({ t: z.literal("moneyTransfer"), from: holder, to: holder, amount: z.number().int() }),
@@ -26,7 +26,7 @@ export const PrimitiveEventSchema: z.ZodType<PrimitiveEvent> = z.discriminatedUn
     t: z.literal("marketMove"),
     company: z.string(),
     to: cell,
-    reason: z.enum(["payout", "withhold", "half", "sell", "soldOut", "poolPenalty", "issue", "loan", "par", "manual", "receivership"]),
+    reason: z.enum(["payout", "withhold", "half", "sell", "soldOut", "poolPenalty", "issue", "loan", "par", "manual", "receivership", "restack", "merge", "bonus"]),
   }),
   z.object({
     t: z.literal("companyStatus"),

@@ -1,7 +1,7 @@
 import type { SessionState } from "../domain/events/state";
-import { assetsHeldBy, cashOf, unitsOf } from "../domain/events/state";
+import { assetsHeldBy, cashOf, isPlayerBankrupt, unitsOf } from "../domain/events/state";
 import type { GameDefinition } from "../domain/games/schema";
-import { roundLabel, summaryEs } from "../domain/i18n/es";
+import { cycleRoundLabel, roundLabel, summaryEs } from "../domain/i18n/es";
 import { formatMoney } from "../domain/i18n/format";
 import type { EffectiveGroup } from "../domain/ledger/effectiveLog";
 import { priceOf } from "../domain/mechanics/market";
@@ -27,7 +27,8 @@ export function snapshotAndTranscript(input: SnapshotInput): string {
   const money = (n: number) => formatMoney(n, game);
   const lines: string[] = [];
   const current = state.turn.currentCompany;
-  lines.push(`Ronda: ${roundLabel(state.turn)}. Fase ${state.turn.phase}.${current ? ` Opera: ${current}.` : ""}`);
+  const round = cycleRoundLabel(game, state.turn) ?? roundLabel(state.turn);
+  lines.push(`Ronda: ${round}. Fase ${state.turn.phase}.${current ? ` Opera: ${current}.` : ""}`);
   lines.push(`Banco: ${game.bank === "unlimited" ? "ilimitado" : money(cashOf(state, "bank"))}.`);
   lines.push("Jugadores:");
   for (const p of [...players].sort((a, b) => a.seat - b.seat)) {
@@ -35,6 +36,10 @@ export function snapshotAndTranscript(input: SnapshotInput): string {
     const held = game.companies
       .filter((c) => unitsOf(state, ref, c.id) > 0)
       .map((c) => `${c.id} ${(unitsOf(state, ref, c.id) * 100) / c.shareCount}%`);
+    if (isPlayerBankrupt(state, p.id)) {
+      lines.push(`- ${p.name} (${p.id}): fuera de la partida (quiebra); no proponer acciones suyas`);
+      continue;
+    }
     lines.push(`- ${p.name} (${p.id}): ${money(cashOf(state, ref))}${held.length ? `; ${held.join(", ")}` : ""}`);
   }
   lines.push("Compañías:");
@@ -43,9 +48,18 @@ export function snapshotAndTranscript(input: SnapshotInput): string {
     if (!record || record.status === "unstarted") continue;
     const price = priceOf(game, state, c.id);
     const trains = assetsHeldBy(state, `company:${c.id}`, "train").map(trainTypeOf);
+    const tier = c.tier ? ` (${c.tier})` : "";
     lines.push(
-      `- ${c.id}: ${record.status}, caja ${money(cashOf(state, `company:${c.id}`))}${price !== undefined ? `, precio ${money(price)}` : ""}${trains.length ? `, trenes ${trains.join(" ")}` : ""}`,
+      `- ${c.id}${tier}: ${record.status}, caja ${money(cashOf(state, `company:${c.id}`))}${price !== undefined ? `, precio ${money(price)}` : ""}${trains.length ? `, trenes ${trains.join(" ")}` : ""}`,
     );
+  }
+  // Games with minors and majors (RotLA): what can still be launched or formed.
+  const unstarted = (tier: "minor" | "major") =>
+    game.companies.filter((c) => c.tier === tier && state.companies[c.id]?.status === "unstarted");
+  if (game.companies.some((c) => c.tier !== undefined)) {
+    lines.push(`Minors sin abrir: ${unstarted("minor").map((c) => c.id).join(", ") || "ninguna"}.`);
+    const majors = unstarted("major").map((c) => `${c.id} (${c.name}${c.altName ? ` / ${c.altName}` : ""})`);
+    lines.push(`Corporaciones sin abrir: ${majors.join(", ") || "ninguna"}.`);
   }
   const onSale = game.trains
     .map((t) => ({ t, left: t.count === "unlimited" ? "∞" : String(trainsHeldBy(state, "bank", t.type).length) }))

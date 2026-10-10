@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
 import type { Action } from "../../domain/actions/schemas";
 import type { PrimitiveEvent } from "../../domain/events/types";
-import { summaryEs } from "../../domain/i18n/es";
+import { eventLineEs, summaryEs } from "../../domain/i18n/es";
 import type { EffectiveGroup } from "../../domain/ledger/effectiveLog";
 import { groupHistory, type GroupHistory } from "../../domain/ledger/effectiveLog";
 import type { EntrySource } from "../../domain/ledger/entries";
@@ -67,6 +67,7 @@ export function History({ extraActions }: { extraActions?: ReactNode }) {
               item={h}
               bad={badGroups.has(h.group.id)}
               summary={(a, events) => summaryEs(a, ctx, events)}
+              lines={(e) => eventLineEs(e, ctx)}
               onUndo={() => void undo(h.group.id, false)}
               onAmend={() => {
                 const latest = h.versions[h.versions.length - 1] ?? h.versions[0];
@@ -92,16 +93,22 @@ export function History({ extraActions }: { extraActions?: ReactNode }) {
   );
 }
 
+/** Groups whose single line cannot show every transfer: History lists them on demand (US7-7). */
+const MULTI_STEP: ReadonlySet<string> = new Set(["mergeCompanies", "forcedTrainPurchase", "declareBankruptcy"]);
+
 function HistoryItem({
   item,
   bad,
   summary,
+  lines,
   onUndo,
   onAmend,
 }: {
   item: GroupHistory;
   bad: boolean;
   summary: (a: Action, events: readonly PrimitiveEvent[]) => string;
+  /** One line per transfer, for multi-step groups (US7-7). */
+  lines?: (e: PrimitiveEvent) => string | undefined;
   onUndo: () => void;
   onAmend: () => void;
 }) {
@@ -135,6 +142,17 @@ function HistoryItem({
           )}
         </div>
       )}
+      {MULTI_STEP.has(group.action.type) && lines ? (
+        <details className="history-moves">
+          <summary>Movimientos</summary>
+          <ul>
+            {group.events.map((e, i) => {
+              const line = lines(e);
+              return line ? <li key={i}>{line}</li> : null;
+            })}
+          </ul>
+        </details>
+      ) : null}
       {group.transcript ? <p className="muted transcript">«{group.transcript}»</p> : null}
       {group.warnings.map((w) => (
         <p key={w.code} className="toast-warning">

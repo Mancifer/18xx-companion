@@ -1,6 +1,6 @@
 import type { SessionState } from "../events/state";
 import type { GameDefinition } from "../games/schema";
-import { assetKind, holdsAsset, holdsMoney, parseHolder, type HolderRef } from "../types";
+import { holdsAsset, holdsMoney, parseHolder, type HolderRef } from "../types";
 
 /** data-model §11. Checked after every reduce; surfaced, never corrected (constitution II). */
 export type InvariantKind = "money" | "moneyHolder" | "shares" | "negativeUnits" | "assetHolder" | "loanSupply";
@@ -37,14 +37,21 @@ export function checkInvariants(game: GameDefinition, state: SessionState): Inva
     violations.push({ kind: "money", detail: `total ${total} ≠ ${expected}` });
   }
 
-  // 2. Shares, and 4. no negative units.
-  for (const [company, record] of Object.entries(state.companies)) {
-    let units = 0;
-    for (const [holder, byCompany] of Object.entries(state.holdings)) {
+  // 2. Shares, and 4. no negative units: one pass over the holdings (games with many companies
+  // and holders, such as RotLA, replay this after every group).
+  const totals = new Map<string, number>();
+  const negative = new Map<string, InvariantViolation[]>();
+  for (const holder in state.holdings) {
+    const byCompany = state.holdings[holder] ?? {};
+    for (const company in byCompany) {
       const u = byCompany[company] ?? 0;
-      units += u;
-      if (u < 0) violations.push({ kind: "negativeUnits", detail: `${holder} holds ${u} ${company}` });
+      totals.set(company, (totals.get(company) ?? 0) + u);
+      if (u < 0) negative.set(company, [...(negative.get(company) ?? []), { kind: "negativeUnits", detail: `${holder} holds ${u} ${company}` }]);
     }
+  }
+  for (const [company, record] of Object.entries(state.companies)) {
+    violations.push(...(negative.get(company) ?? []));
+    const units = totals.get(company) ?? 0;
     if (units !== record.shareCount) {
       violations.push({ kind: "shares", detail: `${company}: ${units} units ≠ ${record.shareCount}` });
     }
@@ -53,11 +60,13 @@ export function checkInvariants(game: GameDefinition, state: SessionState): Inva
   // 3. Assets: one holder each (guaranteed by the map), a holder that may hold it, and a
   //    conserved loan supply.
   let loans = 0;
-  for (const [asset, holder] of Object.entries(state.assets)) {
-    if (!holdsAsset(holder, asset)) {
+  for (const asset in state.assets) {
+    const holder = state.assets[asset];
+    // The bank and `removed` may hold any asset (most of a long game's trains end up removed).
+    if (holder !== undefined && holder !== "removed" && holder !== "bank" && !holdsAsset(holder, asset)) {
       violations.push({ kind: "assetHolder", detail: `${asset} held by ${parseHolder(holder).kind}` });
     }
-    if (assetKind(asset) === "loan") loans += 1;
+    if (asset.startsWith("loan:")) loans += 1;
   }
   if (game.loans && loans !== game.loans.supply) {
     violations.push({ kind: "loanSupply", detail: `${loans} loan markers ≠ ${game.loans.supply}` });

@@ -41,6 +41,8 @@ export const MoveRuleSchema = z.object({
     .optional(),
   dir: DirectionSchema,
   n: posInt,
+  /** "stackBottom": the price stays and the token goes to the bottom of its cell (research R2). */
+  effect: z.enum(["move", "stackBottom"]).optional(),
 });
 
 export const MarketSchema = z.object({
@@ -52,12 +54,21 @@ export const MarketSchema = z.object({
     payout: z.array(MoveRuleSchema),
     withhold: z.array(MoveRuleSchema),
     half: z.array(MoveRuleSchema).optional(),
-    sell: z.object({ per: z.enum(["share", "sale"]), n: posInt, onlyIfOperated: z.boolean() }),
+    sell: z.object({
+      per: z.enum(["share", "sale"]),
+      n: posInt,
+      onlyIfOperated: z.boolean(),
+      /** Warns (never blocks) on selling a company that has not operated (RotLA B p.10). */
+      warnUnlessOperated: z.boolean().optional(),
+    }),
     soldOut: z
       .object({ heldBy: z.enum(["players", "playersAndCompanies"]), at: z.enum(["endSR", "endCR"]) })
       .nullable(),
     poolPenalty: z.object({ at: z.literal("endCR"), onlyIfOperated: z.boolean() }).optional(),
-    issue: z.object({ onlyIfFloated: z.boolean(), n: posInt }).optional(),
+    /** Where issued shares come from: the IPO (default, 21Moon) or the company treasury (RotLA). */
+    issue: z.object({ from: z.enum(["ipo", "treasury"]).optional(), onlyIfFloated: z.boolean(), n: posInt }).optional(),
+    /** Present means `redeemShare` is available; n = steps up per redemption. */
+    redeem: z.object({ n: nonNegInt }).optional(),
   }),
   /** 1-D price tracks: the price after n loans = byLoansIssued[n − 1]. */
   tracks: z
@@ -70,6 +81,25 @@ export const MarketSchema = z.object({
       }),
     )
     .optional(),
+});
+
+export const NamedPaymentSchema = z.object({
+  id,
+  labelEs: z.string().min(1),
+  amount: nonNegInt,
+  direction: z.enum(["bankPays", "companyPays"]),
+  /** Paid by the company to the bank first, in the same group (Tunneling's mountain). */
+  cost: posInt.optional(),
+});
+
+/** Money- and train-relevant abilities as data (research R3). */
+export const CompanyTraitsSchema = z.object({
+  trainLimitBonus: nonNegInt.optional(),
+  keepsRustedTrains: z.boolean().optional(),
+  launchFee: posInt.optional(),
+  launchAssets: z.array(z.string().min(1)).optional(),
+  noLeadoffTrain: z.boolean().optional(),
+  payments: z.array(NamedPaymentSchema).optional(),
 });
 
 export const CompanyDefSchema = z.object({
@@ -89,6 +119,14 @@ export const CompanyDefSchema = z.object({
   kind: z.enum(["public", "national"]),
   /** Round slot from which the company can be started (21Moon late company). */
   availableFrom: z.string().optional(),
+  /** Per-tier train limit and merger role (RotLA minors and majors). */
+  tier: z.enum(["minor", "major"]).optional(),
+  /** How the company enters play; absent = "par". */
+  start: z.enum(["par", "auction", "merger"]).optional(),
+  /** A major's second identity (FR-005a). */
+  altName: z.string().min(1).optional(),
+  altAliases: z.array(z.string()).optional(),
+  traits: CompanyTraitsSchema.optional(),
 });
 
 export const GrantSchema = z.object({
@@ -128,15 +166,35 @@ export const PrivateDefSchema = z.object({
 
 export const TrainDefSchema = z.object({
   type: id,
-  variants: z.array(z.object({ name: z.string().min(1), cost: posInt })).min(1),
+  variants: z.array(z.object({ name: z.string().min(1), cost: nonNegInt })).min(1),
   count: z.union([posInt, z.literal("unlimited")]),
   rustsOnPhase: z.string().optional(),
   availableFromPhase: z.string().optional(),
   permanent: z.boolean(),
-  tradeIn: z.object({ fromTypes: z.array(z.string()).min(1), cost: posInt }).optional(),
+  tradeIn: z
+    .object({
+      fromTypes: z.array(z.string()).min(1),
+      cost: posInt,
+      /** The variant the trade-in price applies to; absent = every variant. */
+      variant: z.string().min(1).optional(),
+      /** Where the traded-in train goes; absent = "discard" (`discardedTrainsTo`). */
+      to: z.enum(["removed", "discard"]).optional(),
+      /**
+       * Rust is applied before the trade-in (RotLA, user 2026-10-09): a train of a type this
+       * purchase rusts cannot be traded in. Absent = the trade-in happens first (1830, 1848).
+       */
+      rustsFirst: z.boolean().optional(),
+    })
+    .optional(),
   countsForLimit: z.boolean(),
   /** Extra cards held by `removed` until added (21Moon UN transports). */
   reserve: nonNegInt.optional(),
+  /** Overrides `count` for the session's player count (FR-005). */
+  countByPlayers: z.record(z.string(), posInt).optional(),
+  /** Starts in `removed`, never in the stack, never exported (the Manufacturing 2-train). */
+  special: z.boolean().optional(),
+  /** Shown instead of `type` ("7/∞"). */
+  displayName: z.string().min(1).optional(),
 });
 
 export const PhaseEffectSchema = z.discriminatedUnion("type", [
@@ -153,6 +211,12 @@ export const PhaseDefSchema = z.object({
   orsPerSet: posInt,
   trainLimit: posInt,
   effects: z.array(PhaseEffectSchema),
+  /** Overrides `trainLimit` per company tier. */
+  trainLimitByTier: z.object({ minor: posInt.optional(), major: posInt.optional() }).optional(),
+  /** Starting-price bounds for `launchCompany`. */
+  launchPriceRange: z.tuple([posInt, posInt]).optional(),
+  /** Display name of the phase color; several ids may share one. */
+  color: z.string().min(1).optional(),
 });
 
 export const ScheduledEffectSchema = z.discriminatedUnion("type", [
@@ -166,6 +230,8 @@ export const RoundScheduleSchema = z.discriminatedUnion("type", [
     type: z.literal("fixed"),
     /** Slots such as "PRIVATES", "SR1", "CR1", "OR1.1". */
     sequence: z.array(z.string()).min(1),
+    /** Slots skipped unless the phase was reached (RotLA: MR* from green). */
+    conditional: z.array(z.object({ slotPrefix: z.string().min(1), phaseReached: z.string().min(1) })).optional(),
     events: z.array(z.object({ at: z.string(), effect: ScheduledEffectSchema })),
   }),
 ]);
@@ -194,6 +260,8 @@ export const EndTriggerSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("takeovers"), count: posInt }),
   z.object({ type: z.literal("lastRound") }),
   z.object({ type: z.literal("bankruptcy") }),
+  /** The last slot of a fixed schedule has been played. */
+  z.object({ type: z.literal("cyclesComplete") }),
 ]);
 
 export const CustomRuleSchema = z.object({
@@ -201,9 +269,17 @@ export const CustomRuleSchema = z.object({
   config: z.record(z.string(), z.unknown()),
 });
 
+/** A JSON object (an RFC 7386 merge patch). */
+const JsonObject = z.record(z.string(), z.unknown());
+
 export const OptionDefSchema = z.object({
   id,
   label: z.string().min(1),
+  /** "companySubset": the value is a comma-separated list of the `from` companies kept. */
+  kind: z.enum(["choice", "companySubset"]).optional(),
+  from: z.array(z.string().min(1)).optional(),
+  /** companySubset: the expected count by mode value (a warning only). */
+  size: z.record(z.string(), posInt).optional(),
   /** null = the app picks one at random at setup (21Moon late company). */
   default: z.string().nullable(),
   choices: z
@@ -214,6 +290,16 @@ export const OptionDefSchema = z.object({
         addCustomRules: z.array(CustomRuleSchema).optional(),
         /** Sets `availableFrom` on the company whose id equals `value`. */
         companyAvailableFrom: z.string().optional(),
+        /** An RFC 7386 merge patch applied to the session copy. */
+        patch: JsonObject.optional(),
+        removeCompanies: z.array(z.string().min(1)).optional(),
+        addCompanies: z.array(CompanyDefSchema).optional(),
+        /** Train types appended (a merge patch would replace the whole array). */
+        addTrains: z.array(TrainDefSchema).optional(),
+        /** A merge patch applied to each company (of a tier, when given). */
+        patchCompanies: z.array(z.object({ tier: z.enum(["minor", "major"]).optional(), patch: JsonObject })).optional(),
+        /** A New Session warning when the player count is outside this range. */
+        recommendedPlayers: z.object({ min: posInt, max: posInt }).optional(),
       }),
     )
     .min(1),
@@ -267,6 +353,10 @@ export const GameDefinitionSchema = z.object({
     z.literal("company"),
     z.object({ perBase: posInt, bases: z.array(z.string()).min(1) }),
   ]),
+  /** Launch warnings for `start: "auction"` companies. */
+  auction: z.object({ minBid: posInt, step: posInt }).optional(),
+  /** The train exported at each new SR (research R7); null or absent = none. */
+  trainExport: z.object({ allOfType: z.array(z.string()) }).nullable().optional(),
   /** Where discarded and traded-in trains go: the open market (1830) or out of the game (default). */
   discardedTrainsTo: z.enum(["pool", "removed"]).optional(),
   phases: z.array(PhaseDefSchema).min(1),
@@ -283,6 +373,8 @@ export const GameDefinitionSchema = z.object({
     perCompanyPercent: posInt,
     perCompanyPercentByPlayers: z.record(z.string(), posInt).optional(),
     pool: z.object({ maxPercent: posInt.optional(), maxCerts: posInt.optional() }),
+    /** Warns when one purchase takes more shares (RotLA: 1). */
+    maxSharesPerBuy: posInt.optional(),
   }),
   loans: LoanDefSchema.optional(),
   endTriggers: z.array(EndTriggerSchema),
@@ -309,3 +401,5 @@ export type EndTriggerDef = z.infer<typeof EndTriggerSchema>;
 export type OptionDef = z.infer<typeof OptionDefSchema>;
 export type CustomRule = z.infer<typeof CustomRuleSchema>;
 export type PayoutMode = GameDefinition["payoutModes"][number];
+export type CompanyTraits = z.infer<typeof CompanyTraitsSchema>;
+export type NamedPayment = z.infer<typeof NamedPaymentSchema>;

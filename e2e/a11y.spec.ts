@@ -1,5 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { newSession, openCompany, showCompanies, trade } from "./helpers";
+import { launch, newRotla, newSession, openCompany, showCompanies, trade } from "./helpers";
 
 /**
  * T167 (FR-101): on every main screen, in phone portrait and tablet landscape, each visible
@@ -10,7 +10,7 @@ import { newSession, openCompany, showCompanies, trade } from "./helpers";
 const TAP = 48;
 const SHORT_NAMES = ["PRR", "NYC", "CPR", "B&O", "C&O", "Erie", "NNH", "B&M"];
 
-async function audit(page: Page, info: TestInfo, screen: string) {
+async function audit(page: Page, info: TestInfo, screen: string, shortNames: readonly string[] = SHORT_NAMES) {
   // Let sheet and toast transitions settle before measuring.
   await page.waitForTimeout(300);
   const { small, total } = await page.evaluate((tap) => {
@@ -33,7 +33,7 @@ async function audit(page: Page, info: TestInfo, screen: string) {
   }, TAP);
   expect(total, `interactive elements on ${screen}`).toBeGreaterThan(3);
   const badges = await page.locator(".company-badge").allTextContents();
-  for (const text of badges) expect(SHORT_NAMES, `badge «${text}» on ${screen}`).toContain(text.trim());
+  for (const text of badges) expect(shortNames, `badge «${text}» on ${screen}`).toContain(text.trim());
   await info.attach(`${info.project.name}-${screen}.png`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
   expect(small, `targets under ${TAP}px on ${screen}`).toEqual([]);
 }
@@ -89,4 +89,36 @@ test("FR-101 tap targets and company names on the main screens", async ({ page }
   await page.getByRole("dialog").getByRole("button", { name: "Mercado" }).click();
   await expect(page.getByRole("heading", { name: "Mercado" })).toBeVisible();
   await audit(page, info, "market");
+});
+
+const ROTLA_NAMES = ["ADP", "AGR", "BRG", "EMN", "EXV", "EXP", "NPT", "OVN", "RES", "SPC", "SUB", "TUN", "CON", "UNI", "SYS", "INT", "FED", "EXM"];
+
+test("RotLA sheets: Launch, Merger and Score (feature 004)", async ({ page }, info) => {
+  await newRotla(page, ["Ana", "Bruno", "Carla"]);
+  await page.getByRole("button", { name: "Abrir minor" }).click();
+  await audit(page, info, "rotla-launch", ROTLA_NAMES);
+  await page.getByRole("button", { name: "Cerrar" }).click();
+  await launch(page, "Ana", "TUN", 140);
+  await launch(page, "Bruno", "EXP", 200);
+
+  // To the Merger Round: a 3 starts green, then both ORs of the cycle.
+  await page.getByRole("button", { name: "Empezar RO 1" }).click();
+  const exp = await openCompany(page, "EXP");
+  await exp.getByRole("button", { name: "Comprar tren" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: /^3 \(/ }).click();
+  await page.getByRole("button", { name: "Cerrar" }).click();
+  await page.getByRole("button", { name: "Empezar RO 2" }).click();
+  await page.getByRole("button", { name: "Ronda de fusiones" }).click();
+  await page.getByRole("button", { name: "Fusionar…" }).click();
+  const merger = page.getByRole("dialog");
+  await merger.getByRole("group", { name: "Minors" }).getByRole("button", { name: "EXP", exact: true }).click();
+  await merger.getByRole("group", { name: "Minors" }).getByRole("button", { name: "TUN", exact: true }).click();
+  await merger.getByRole("group", { name: "Corporación" }).getByRole("button", { name: /^UNI/ }).click();
+  await audit(page, info, "rotla-merger", ROTLA_NAMES);
+  await page.getByRole("button", { name: "Cerrar" }).click();
+
+  await page.getByRole("button", { name: "Menú" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Puntuación" }).click();
+  await expect(page.getByRole("dialog", { name: "Puntuación" })).toBeVisible();
+  await audit(page, info, "rotla-score", ROTLA_NAMES);
 });

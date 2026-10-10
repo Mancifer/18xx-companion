@@ -56,6 +56,15 @@ export function ConfirmationCard({
           ⚠ {w.messageEs}
         </p>
       ))}
+      {proposal.action.type === "launchCompany" && meta.chipSet.chips.length > 0 ? (
+        // US2-5: the whole bid goes from the player to the new treasury, in chips.
+        <ChipStrip
+          flow={{ counterparty: `player:${proposal.action.player}`, direction: "toBank", amount: proposal.action.bid }}
+          set={meta.chipSet}
+          game={meta.game}
+          label={`${name(`player:${proposal.action.player}`)} entrega`}
+        />
+      ) : null}
       {proposal.flows.length > 0 ? (
         <ul className="toast-flows">
           {proposal.flows.map((f) => (

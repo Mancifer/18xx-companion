@@ -53,10 +53,14 @@ export const setupHandlers: HandlerMap = {
         }
       }
       const schedule = ctx.game.roundSchedule;
+      // A fixed schedule that opens with a stock round (RotLA "SR1") starts there.
+      const firstSR = schedule.type === "fixed" ? /^SR(\d+)$/.exec(schedule.sequence[0] ?? "") : null;
       events.push(
-        schedule.type === "fixed"
-          ? { t: "turnAdvance", round: "PRIVATES", scheduleIndex: 0, phase: ctx.state.turn.phase }
-          : { t: "turnAdvance", round: "PRIVATES", phase: ctx.state.turn.phase },
+        firstSR
+          ? { t: "turnAdvance", round: "SR", srNumber: Number(firstSR[1]), scheduleIndex: 0, phase: ctx.state.turn.phase }
+          : schedule.type === "fixed"
+            ? { t: "turnAdvance", round: "PRIVATES", scheduleIndex: 0, phase: ctx.state.turn.phase }
+            : { t: "turnAdvance", round: "PRIVATES", phase: ctx.state.turn.phase },
       );
       return events;
     },

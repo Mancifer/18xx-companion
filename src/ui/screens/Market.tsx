@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
 import type { CompanyDef } from "../../domain/games/schema";
 import { formatMoney } from "../../domain/i18n/format";
+import { currentPhase, trainStack } from "../../domain/mechanics/phases";
 import { cellEquals, type CellRef, type CompanyId } from "../../domain/types";
 import { CompanyBadge } from "../components/CompanyBadge";
 import { UndoToast } from "../components/UndoToast";
@@ -27,6 +28,7 @@ export function Market() {
   const [selected, setSelected] = useState<CompanyId | null>(null);
   const dragging = useRef<CompanyId | null>(null);
   const game = meta.game;
+  const phase = currentPhase(game, state);
 
   const place = (company: CompanyId, cell: CellRef) => {
     setSelected(null);
@@ -92,7 +94,7 @@ export function Market() {
         if ((e.key === "Enter" || e.key === " ") && selected) place(selected, cell);
       }}
     >
-      <span className="market-price">{price > 0 ? formatMoney(price, game) : ""}</span>
+      <span className="market-price">{price > 0 ? formatMoney(price, game) : extraClass.includes("tag-closed") ? "Cerrada" : ""}</span>
       <span className="market-tokens">{tokensAt(cell).map(token)}</span>
     </div>
   );
@@ -114,21 +116,38 @@ export function Market() {
             ? `Toca la casilla a la que mover ${game.companies.find((c) => c.id === selected)?.shortName ?? selected}.`
             : "Arrastra una ficha, o tócala y después toca una casilla."}
         </p>
-        <div className="market-scroll">
-          <div className="market-grid" style={{ gridTemplateColumns: `repeat(${width}, minmax(56px, 1fr))` }}>
+        {game.market.shape === "1d" ? (
+          // RotLA (research R1): the one-column track as a strip that wraps on phones, highest
+          // price first; the current phase's launch range is highlighted.
+          <div className="market-strip" data-testid="market-strip">
             {game.market.cells.flatMap((row, r) =>
-              Array.from({ length: width }, (_, c) => {
-                const cell = row[c];
-                if (!cell) return <div key={`${r}-${c}`} className="market-gap" aria-hidden="true" />;
-                const tags = cell.tags ?? [];
-                const classes = [cell.zone ? `zone-${cell.zone}` : "", ...tags.map((t) => `tag-${t}`)].join(" ");
-                const tagText = tags.map((t) => TAG_LABEL[t] ?? t).join(", ");
-                const label = `Casilla ${tags.includes("receivership") ? "administración" : tags.includes("closed") ? "cerrada" : formatMoney(cell.price, game)} (fila ${r + 1}, columna ${c + 1})${tagText ? `, ${tagText}` : ""}`;
-                return cellView({ row: r, col: c }, cell.price, classes, label);
+              row.flatMap((cell, c) => {
+                if (!cell) return [];
+                const closed = cell.tags?.includes("closed") ?? false;
+                const range = phase?.launchPriceRange;
+                const inRange = range !== undefined && !closed && cell.price >= range[0] && cell.price <= range[1];
+                const label = `Casilla ${closed ? "cerrada" : formatMoney(cell.price, game)} (posición ${r + 1})${inRange ? ", precio de salida" : ""}`;
+                return [cellView({ row: r, col: c }, cell.price, `${closed ? "tag-closed" : ""}${inRange ? " launch-range" : ""}`, label)];
               }),
             )}
           </div>
-        </div>
+        ) : (
+          <div className="market-scroll">
+            <div className="market-grid" style={{ gridTemplateColumns: `repeat(${width}, minmax(56px, 1fr))` }}>
+              {game.market.cells.flatMap((row, r) =>
+                Array.from({ length: width }, (_, c) => {
+                  const cell = row[c];
+                  if (!cell) return <div key={`${r}-${c}`} className="market-gap" aria-hidden="true" />;
+                  const tags = cell.tags ?? [];
+                  const classes = [cell.zone ? `zone-${cell.zone}` : "", ...tags.map((t) => `tag-${t}`)].join(" ");
+                  const tagText = tags.map((t) => TAG_LABEL[t] ?? t).join(", ");
+                  const label = `Casilla ${tags.includes("receivership") ? "administración" : tags.includes("closed") ? "cerrada" : formatMoney(cell.price, game)} (fila ${r + 1}, columna ${c + 1})${tagText ? `, ${tagText}` : ""}`;
+                  return cellView({ row: r, col: c }, cell.price, classes, label);
+                }),
+              )}
+            </div>
+          </div>
+        )}
         {Object.entries(game.market.tracks ?? {}).map(([company, track]) => (
           <section key={company} className="stack">
             <h2>{game.companies.find((c) => c.id === company)?.name ?? company}</h2>
@@ -146,6 +165,19 @@ export function Market() {
             </div>
           </section>
         ))}
+        <section className="stack" aria-label="Trenes">
+          <h2>Trenes</h2>
+          <p data-testid="train-stack">
+            {trainStack(game, state)
+              .map((e) => `${e.displayName}×${e.left}`)
+              .join(" · ")}
+          </p>
+          {phase?.trainLimitByTier ? (
+            <p>
+              Límite: minor {phase.trainLimitByTier.minor ?? phase.trainLimit} · major {phase.trainLimitByTier.major ?? phase.trainLimit}
+            </p>
+          ) : null}
+        </section>
         {unplaced.length > 0 ? (
           <section className="stack">
             <h2>Sin ficha en el mercado</h2>

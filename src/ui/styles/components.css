@@ -743,3 +743,105 @@ button[aria-pressed="true"] {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
+
+/* RotLA (feature 004): over-limit banner, rusted trains, forced purchase, ability chips */
+.over-limit {
+  width: 100%;
+  min-height: 48px;
+  text-align: left;
+  background: var(--warn-bg);
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.rusted-train {
+  justify-content: space-between;
+  color: var(--warn);
+}
+
+.forced-purchase {
+  border: 2px solid var(--warn);
+  border-radius: 8px;
+  padding: var(--space-2) var(--space-3);
+}
+
+.forced-purchase legend {
+  font-weight: 600;
+  color: var(--warn);
+}
+
+.ability-chips {
+  flex-wrap: wrap;
+}
+
+.company-alt-name {
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.merge-preview .badge,
+.history-moves summary {
+  margin-left: var(--space-2);
+}
+
+.history-moves summary {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+button.stacked {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+button.stacked .subtitle {
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+
+.score-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.score-table th,
+.score-table td {
+  padding: var(--space-2);
+  text-align: left;
+  border-bottom: 1px solid var(--surface-2);
+}
+
+.score-table tr.eliminated {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.ability-chips button.used {
+  opacity: 0.6;
+}
+
+/* RotLA 1-D track (T102): a strip of cells that wraps on phones. */
+.market-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.market-strip .market-cell {
+  flex: 0 0 auto;
+  min-width: 56px;
+  min-height: 56px;
+}
+
+.market-strip .market-tokens {
+  display: flex;
+  flex-direction: column;
+}
+
+.market-cell.launch-range {
+  outline: 2px solid var(--warn);
+  outline-offset: -2px;
+}

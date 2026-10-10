@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { builtInGames } from "../../src/domain/games";
+import { applyOptions, builtInGames, getBuiltInGame } from "../../src/domain/games";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { FLOW, NAMES, candidates, rng } from "../helpers/randomWalk";
 
@@ -55,4 +55,43 @@ describe("random games reach the end step inside startOR (feature 003)", () => {
     );
     expect(covered).toBe(true);
   });
+});
+
+/**
+ * SC-005 (feature 004): RotLA over many seeded games, each with a different mix of options, never
+ * breaks the share or money invariants (the bank is unlimited unless Bank Break is on).
+ */
+const ROTLA_GAMES = Number(process.env["ROTLA_GAMES"] ?? 1000);
+const ROTLA_STEPS = 80;
+const ROTLA_OPTIONS: readonly Readonly<Record<string, string>>[] = [
+  {},
+  { mode: "short" },
+  { expansion: "landmarks" },
+  { bankBreak: "on", stockDrops: "perShare" },
+  { mode: "micro3", headquarters: "on" },
+];
+
+describe("RotLA random games keep the invariants (SC-005)", () => {
+  it(`${ROTLA_GAMES} seeded games`, () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= ROTLA_GAMES; seed++) {
+      const options = ROTLA_OPTIONS[seed % ROTLA_OPTIONS.length]!;
+      const game = applyOptions(getBuiltInGame("rotla"), options);
+      const rand = rng(seed * 104729);
+      const s = TestSession.start(game, makePlayers(NAMES.slice(0, options["mode"] === "micro3" ? 3 : 4)));
+      for (let step = 0; step < ROTLA_STEPS; step++) {
+        const next = [...candidates(s, rand), ...FLOW].find((a) => s.tryDo(a).kind === "ok");
+        if (!next) break;
+        s.do(next);
+        seen.add(next.type);
+        const violations = s.violations();
+        if (violations.length > 0) {
+          throw new Error(`rotla ${JSON.stringify(options)} seed ${seed} step ${step} after ${JSON.stringify(next)}: ${JSON.stringify(violations)}`);
+        }
+      }
+    }
+    for (const type of ["launchCompany", "buyShare", "runAndPayout", "buyTrain", "issueShares", "mergeCompanies", "startMR", "startSR"]) {
+      expect(seen, type).toContain(type);
+    }
+  }, 600_000);
 });

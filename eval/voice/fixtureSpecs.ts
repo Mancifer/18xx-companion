@@ -138,6 +138,27 @@ const G21_OR1 = [
   { type: "startOR" },
 ];
 
+const PROTLA = players("Ana", "Bruno", "Carla");
+const launch = (player: string, company: string, bid: number) => ({ type: "launchCompany", player, company, bid, price: null });
+const fromTreasury = (player: string, company: string) => ({ type: "buyShare", buyer: `player:${player}`, company, source: "treasury", count: 1 });
+
+/**
+ * RotLA cycle 1, OR 1.1 (feature 004): EXP (80) has operated (a 2, paid 90, issued a share to the
+ * pool); Tunneling (70) operates now; Expansive (70) is next. Ana presides TUN and holds 2 EXP.
+ */
+const ROTLA_OR1 = [
+  launch("p1", "TUN", 140),
+  launch("p2", "EXP", 165),
+  launch("p3", "EXV", 150),
+  fromTreasury("p1", "EXP"),
+  fromTreasury("p1", "EXP"),
+  { type: "startOR" },
+  train("EXP", "2"),
+  pay("EXP", 90),
+  { type: "issueShares", company: "EXP", count: 1 },
+  { type: "nextCompany" },
+];
+
 export const FIXTURE_SPECS: readonly FixtureSpec[] = [
   {
     // OR 2.1, PRR operating, 4 players.
@@ -217,6 +238,59 @@ export const FIXTURE_SPECS: readonly FixtureSpec[] = [
       { type: "nextCompany" },
       { type: "startSR" },
       { type: "startCR" },
+    ],
+  },
+  {
+    // RotLA SR 1: Agricultural launched (Carla), Tunneling and Express still to launch.
+    id: "rotla-sr",
+    game: "rotla",
+    players: PROTLA,
+    actions: [launch("p3", "AGR", 130)],
+  },
+  {
+    // RotLA OR 1.1, Tunneling operating; an EXP share in the pool; 7/∞ always on sale.
+    id: "rotla-or",
+    game: "rotla",
+    players: PROTLA,
+    actions: ROTLA_OR1,
+  },
+  {
+    // RotLA with Landmarks, OR 1.1: EXP (90) bought a 4 (every 2 rusted) and a 5; Tunneling
+    // operates now; Manufacturing has its own 2.
+    id: "rotla-lm",
+    game: "rotla",
+    options: { expansion: "landmarks" },
+    players: PROTLA,
+    actions: [
+      launch("p1", "TUN", 140),
+      launch("p2", "EXP", 200),
+      launch("p3", "MFG", 140),
+      { type: "startOR" },
+      { type: "transferMoney", from: "bank", to: "company:EXP", amount: 600 },
+      train("EXP", "4"),
+      train("EXP", "5"),
+      pay("EXP", 100),
+      { type: "nextCompany" },
+    ],
+  },
+  {
+    // RotLA end of OR 1.2 in green (EXP bought the first 3): the Merger Round is due.
+    id: "rotla-mr",
+    game: "rotla",
+    players: PROTLA,
+    actions: [
+      launch("p1", "TUN", 140),
+      launch("p2", "EXP", 200),
+      launch("p3", "SPC", 120),
+      { type: "startOR" },
+      train("EXP", "3"),
+      pay("EXP", 60),
+      { type: "nextCompany" },
+      { type: "nextCompany" },
+      { type: "nextCompany" },
+      { type: "nextCompany" },
+      { type: "nextCompany" },
+      { type: "nextCompany" },
     ],
   },
 ];

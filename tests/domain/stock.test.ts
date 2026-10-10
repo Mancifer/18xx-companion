@@ -6,6 +6,7 @@ import { TestSession, makePlayers } from "../helpers/dispatch";
 import { eventsOf, netMoney } from "../helpers/flows";
 import { seedCompany } from "../helpers/seed";
 import { buy, endSR, par, sell, startSR } from "../helpers/stock";
+import { rotlaSession, seedCompany as seedRotla } from "../helpers/rotla";
 
 /** Stock round actions (US4, FR-040–FR-042). */
 
@@ -255,5 +256,57 @@ describe("nationalBank stock (1848 §5.4)", () => {
     expect(priceOf(g1848, s.state, "BOE")).toBe(70);
     expect(s.state.presidency["BOE"]).toBeNull();
     expect(cashOf(s.state, "company:BOE")).toBe(2000);
+  });
+});
+
+describe("RotLA stock round (US3)", () => {
+  const minorAt80 = () =>
+    seedRotla(rotlaSession(), "EXP", { price: 80, holders: { "player:p1": 2, "company:EXP": 2, pool: 1 }, operated: true });
+
+  it("a treasury purchase pays the company", () => {
+    const s = minorAt80().do(buy("p2", "EXP", "treasury"));
+    expect(netMoney(s.lastEvents)).toEqual({ "player:p2": -80, "company:EXP": 80 });
+    expect(unitsOf(s.state, "company:EXP", "EXP")).toBe(1);
+  });
+
+  it("a pool purchase pays the bank", () => {
+    const s = minorAt80().do(buy("p2", "EXP", "pool"));
+    expect(netMoney(s.lastEvents)).toEqual({ "player:p2": -80, bank: 80 });
+  });
+
+  const majorAt100 = (options: Record<string, string> = {}) =>
+    seedRotla(rotlaSession({ options }), "CON", {
+      price: 100,
+      holders: { "player:p1": 4, "player:p2": 3, "player:p3": 3 },
+      operated: true,
+    });
+
+  it("selling 2 shares in one sale drops the price once", () => {
+    const s = majorAt100().do(sell("p2", "CON", 2));
+    expect(netMoney(s.lastEvents)).toEqual({ bank: -200, "player:p2": 200 });
+    expect(unitsOf(s.state, "pool", "CON")).toBe(2);
+    expect(priceOf(s.game, s.state, "CON")).toBe(90);
+  });
+
+  it("with stockDrops: perShare, it drops once per share", () => {
+    const s = majorAt100({ stockDrops: "perShare" }).do(sell("p2", "CON", 2));
+    expect(priceOf(s.game, s.state, "CON")).toBe(80);
+  });
+
+  it("the presidency moves to a player holding more", () => {
+    const t = majorAt100();
+    t.apply({ t: "shareTransfer", company: "CON", from: "player:p3", to: "pool", units: 1 });
+    t.do(buy("p2", "CON", "pool"));
+    expect(unitsOf(t.state, "player:p2", "CON")).toBe(4);
+    expect(presidentOf(t.state, "CON")).toBe("p1");
+    t.do(sell("p1", "CON", 1));
+    expect(presidentOf(t.state, "CON")).toBe("p2");
+  });
+
+  it("on a tie, the presidency goes to the next tied player clockwise from the president", () => {
+    const s = majorAt100().do(sell("p1", "CON", 2));
+    // Ana 2, Bruno 3, Carla 3: Bruno sits next after Ana.
+    expect(presidentOf(s.state, "CON")).toBe("p2");
+    expect(unitsOf(s.state, "player:p1", "CON")).toBe(2);
   });
 });

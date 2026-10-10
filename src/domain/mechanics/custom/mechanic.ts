@@ -14,6 +14,9 @@ export const MECHANIC_IDS = [
   "manualFloatCondition",
   "privateGrants",
   "corporateRound",
+  "auctionLaunch",
+  "mergers",
+  "landmarks",
 ] as const;
 
 export type MechanicId = (typeof MECHANIC_IDS)[number];

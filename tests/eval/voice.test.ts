@@ -5,6 +5,8 @@ import { buildFixture, FIXTURE_SPECS } from "../../eval/voice/fixtureSpecs";
 import { CaseSchema, CATEGORIES, gradeResponse, summarize, type EvalCase, type RunRecord } from "../../eval/voice/grade";
 import { loadFixture } from "../../eval/voice/load";
 import { parseImport } from "../../src/persistence/exportImport";
+import { unitsOf } from "../../src/domain/events/state";
+import { mergerRoundDue } from "../../src/domain/mechanics/schedule";
 
 /** T134–T136: fixtures, seed cases and the deterministic grader, all without the network. */
 
@@ -69,8 +71,19 @@ describe("eval fixtures (T135)", () => {
     expect(parsed.ok && parsed.hashMatches).toBe(true);
   });
 
-  it("covers the six R18 fixtures, with Ana/Anabel in at least two and a shared alias in 1830-or", () => {
-    expect([...fixtures.keys()].sort()).toEqual(["1830-or", "1830-sr", "1848-or", "1848-sr", "21moon-cr", "21moon-or"]);
+  it("covers the six R18 fixtures and the three RotLA ones, with Ana/Anabel in at least two and a shared alias in 1830-or", () => {
+    expect([...fixtures.keys()].sort()).toEqual([
+      "1830-or",
+      "1830-sr",
+      "1848-or",
+      "1848-sr",
+      "21moon-cr",
+      "21moon-or",
+      "rotla-lm",
+      "rotla-mr",
+      "rotla-or",
+      "rotla-sr",
+    ]);
     const confusable = [...fixtures.values()].filter((f) => {
       const names = f.session.players.map((p) => p.name);
       return names.includes("Ana") && names.includes("Anabel");
@@ -82,13 +95,18 @@ describe("eval fixtures (T135)", () => {
   });
 
   it("puts each OR fixture in an operating round with a current company", () => {
-    for (const id of ["1830-or", "1848-or", "21moon-or"]) {
+    for (const id of ["1830-or", "1848-or", "21moon-or", "rotla-or", "rotla-lm"]) {
       const { state } = fixture(id).ctx;
       expect(state.turn.round, id).toBe("OR");
       expect(state.turn.currentCompany, id).toBeTruthy();
     }
     expect(fixture("1848-or").ctx.state.turn.phase).toBe("3");
     expect(fixture("21moon-cr").ctx.state.turn.round).toBe("CR");
+    expect(fixture("rotla-or").ctx.state.turn.currentCompany).toBe("TUN");
+    expect(unitsOf(fixture("rotla-or").ctx.state, "pool", "EXP")).toBe(1);
+    const mr = fixture("rotla-mr").ctx;
+    expect(mr.state.turn.phase).toBe("green");
+    expect(mergerRoundDue(mr.game, mr.state)).toBe(true);
   });
 });
 
@@ -96,12 +114,12 @@ describe("seed cases (T136)", () => {
   it("has the R18 composition, unique ids and about 20% held out", () => {
     const count = (cat: string) => cases.filter((c) => c.category === cat).length;
     expect(Object.fromEntries(CATEGORIES.map((c) => [c, count(c)]))).toEqual({
-      payout: 14,
-      trains: 8,
-      costs: 4,
-      stock: 10,
+      payout: 16,
+      trains: 13,
+      costs: 7,
+      stock: 15,
       loans: 3,
-      flow: 3,
+      flow: 6,
       compound: 5,
       corrections: 4,
       queries: 4,

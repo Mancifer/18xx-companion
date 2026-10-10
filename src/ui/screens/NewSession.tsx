@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAppActions, useServices } from "../../app/AppProvider";
-import { builtInGames, hasUnverified } from "../../domain/games";
-import type { GameDefinition } from "../../domain/games/schema";
+import { ALL_COMPANIES, applyOptions, builtInGames, hasUnverified, optionWarnings, subsetIds } from "../../domain/games";
+import type { GameDefinition, OptionDef } from "../../domain/games/schema";
+import { trainCount } from "../../domain/events/state";
+import { formatMoney } from "../../domain/i18n/format";
 import type { ChipSet, Player, WalletMode } from "../../domain/types";
 import { ChipSetEditor, sortChips } from "../components/ChipSetEditor";
+import { CompanyBadge } from "../components/CompanyBadge";
 import { useNav } from "../nav";
 
 const PALETTE = ["#e53935", "#1e88e5", "#43a047", "#fdd835", "#8e24aa", "#fb8c00", "#6d4c41"];
@@ -17,7 +20,72 @@ interface Row {
 }
 
 let rowKey = 0;
-const newRow = (i: number): Row => ({ key: ++rowKey, name: "", color: PALETTE[i % PALETTE.length] ?? "#888888", aliases: "" });
+const newRow = (i: number): Row => ({
+  key: ++rowKey,
+  name: "",
+  color: PALETTE[i % PALETTE.length] ?? "#888888",
+  aliases: "",
+});
+
+/** The session copy for these options, or undefined when they do not make a valid game. */
+function patchedCopy(game: GameDefinition, options: Readonly<Record<string, string>>): GameDefinition | undefined {
+  try {
+    return applyOptions(game, options);
+  } catch {
+    return undefined;
+  }
+}
+
+/** "2×7 · 3×5 · 4×4 · 5×3 · 6×2 · 7/∞": the stack for this many players (special trains aside). */
+function trainPreview(game: GameDefinition, players: number): string {
+  return game.trains
+    .filter((t) => !t.special)
+    .map((t) => {
+      const count = trainCount(t, players);
+      const name = t.displayName ?? t.type;
+      return count === "unlimited" ? name : `${name}×${count}`;
+    })
+    .join(" · ");
+}
+
+/** A companySubset option as a checklist of the companies the other options leave in play. */
+function SubsetChecklist(props: {
+  game: GameDefinition;
+  option: OptionDef;
+  options: Readonly<Record<string, string>>;
+  onChange: (value: string) => void;
+}) {
+  const { game, option, options, onChange } = props;
+  const available = (patchedCopy(game, { ...options, [option.id]: ALL_COMPANIES })?.companies ?? []).filter((c) =>
+    (option.from ?? []).includes(c.id),
+  );
+  const chosen = new Set(subsetIds(option, options[option.id]));
+  const selected = available.filter((c) => options[option.id] === undefined || chosen.has(c.id));
+  const toggle = (id: string) => {
+    const ids = selected.map((c) => c.id);
+    const next = ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
+    onChange(next.length === available.length ? ALL_COMPANIES : next.join(","));
+  };
+  return (
+    <fieldset className="choice-fieldset">
+      <legend>
+        {option.label}{" "}
+        <span className="muted" data-testid="minors-count">
+          {selected.length} de {option.from?.length ?? 0}
+        </span>
+      </legend>
+      <div className="choice-grid">
+        {available.map((c) => (
+          <label key={c.id} className="check-row">
+            <input type="checkbox" checked={selected.includes(c)} onChange={() => toggle(c.id)} />
+            <CompanyBadge company={c} size="sm" />{" "}
+            {c.name}
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
 
 /** Game, options, players (within the game's range, never more than 7) and wallet mode. */
 export function NewSession() {
@@ -44,6 +112,15 @@ export function NewSession() {
   const game = all.find((g) => g.id === gameId);
   const max = Math.min(game?.playerCount.max ?? HARD_CAP, HARD_CAP);
   const min = game?.playerCount.min ?? 1;
+  const patched = useMemo(() => (game ? patchedCopy(game, options) : undefined), [game, options]);
+  const warnings = game ? optionWarnings(game, options, rows.length) : [];
+  const startingCash = patched?.startingCash[String(rows.length)];
+
+  /** A choice option changes which companies are in play, so company subsets start over. */
+  const setOption = (option: OptionDef, value: string) => {
+    const subsets = new Set(option.kind === "companySubset" ? [] : (game?.options ?? []).filter((o) => o.kind === "companySubset").map((o) => o.id));
+    setOptions({ ...Object.fromEntries(Object.entries(options).filter(([id]) => !subsets.has(id))), [option.id]: value });
+  };
 
   const chooseGame = (id: string) => {
     setGameId(id);
@@ -54,7 +131,8 @@ export function NewSession() {
     setRows((current) => {
       const lo = g.playerCount.min;
       const hi = Math.min(g.playerCount.max, HARD_CAP);
-      if (current.length < lo) return [...current, ...Array.from({ length: lo - current.length }, (_, i) => newRow(current.length + i))];
+      if (current.length < lo)
+        return [...current, ...Array.from({ length: lo - current.length }, (_, i) => newRow(current.length + i))];
       if (current.length > hi) return current.slice(0, hi);
       return current;
     });
@@ -99,7 +177,14 @@ export function NewSession() {
         .filter((a) => a !== ""),
     }));
     try {
-      await newSession({ game, options, players, walletMode, name, chipSet: sortChips(chipSet ?? { chips: game.chipPreset }) });
+      await newSession({
+        game,
+        options,
+        players,
+        walletMode,
+        name,
+        chipSet: sortChips(chipSet ?? { chips: game.chipPreset }),
+      });
       go({ name: "table" });
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -128,20 +213,41 @@ export function NewSession() {
           </div>
         </fieldset>
 
-        {game?.options.map((o) => (
-          <label key={o.id}>
-            {o.label}
-            <select value={options[o.id] ?? ""} onChange={(e) => setOptions({ ...options, [o.id]: e.target.value })}>
-              {o.default === null ? <option value="">Al azar</option> : null}
-              {o.choices.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                  {c.value === o.default ? " (por defecto)" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
+        {game?.options.map((o) =>
+          o.kind === "companySubset" ? (
+            <SubsetChecklist key={o.id} game={game} option={o} options={options} onChange={(v) => setOption(o, v)} />
+          ) : (
+            <label key={o.id}>
+              {o.label}
+              <select value={options[o.id] ?? ""} onChange={(e) => setOption(o, e.target.value)}>
+                {o.default === null ? <option value="">Al azar</option> : null}
+                {o.choices.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.label}
+                    {c.value === o.default ? " (por defecto)" : ""}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ),
+        )}
+
+        {game && game.options.length > 0 && patched ? (
+          <p className="muted">
+            <span data-testid="cash-preview">
+              Dinero inicial: {startingCash !== undefined ? formatMoney(startingCash, patched) : "—"} por jugador
+            </span>
+            <br />
+            Trenes: <span data-testid="train-preview">{trainPreview(patched, rows.length)}</span>
+          </p>
+        ) : null}
+        {warnings.length > 0 ? (
+          <ul className="warning-box" role="status">
+            {warnings.map((w) => (
+              <li key={w.code + w.messageEs}>{w.messageEs}</li>
+            ))}
+          </ul>
+        ) : null}
 
         <fieldset className="choice-fieldset">
           <legend>
@@ -209,7 +315,8 @@ export function NewSession() {
             <ChipSetEditor value={chipSet ?? { chips: game.chipPreset }} onChange={setChipSet} />
           ) : (
             <button onClick={() => setEditChips(true)}>
-              {(chipSet ?? { chips: game?.chipPreset ?? [] }).chips.map((c) => c.label ?? c.value).join(" · ") || "Sin fichas"} · Editar
+              {(chipSet ?? { chips: game?.chipPreset ?? [] }).chips.map((c) => c.label ?? c.value).join(" · ") || "Sin fichas"} ·
+              Editar
             </button>
           )}
         </fieldset>

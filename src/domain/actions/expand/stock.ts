@@ -9,7 +9,7 @@ import { moveTarget, parCellFor, parPricesFor, priceOf } from "../../mechanics/m
 import { parseHolder, type CompanyId, type HolderRef } from "../../types";
 import { AVAILABLE, unavailable, warning, type ActionContext, type AvailabilityResult, type HandlerMap } from "../context";
 import type { ActionOf, Warning } from "../schemas";
-import { holdingWarnings, poolWarnings } from "../limits";
+import { eliminatedWarnings, holdingWarnings, poolWarnings, sharesPerBuyWarnings, unoperatedSaleWarnings } from "../limits";
 import { payWarnings } from "./manual";
 
 /** Stock round actions (US4, contracts/actions.md). */
@@ -96,6 +96,8 @@ function parAvailable(ctx: ActionContext, a?: ParCompany): AvailabilityResult {
   if (!a) return AVAILABLE;
   const company = def(ctx.game, a.company);
   if (!company || company.kind === "national") return unavailable("Esta compañía no se abre");
+  if (company.start === "auction") return unavailable("Esta compañía se abre por subasta");
+  if (company.start === "merger") return unavailable("Esta compañía solo nace de una fusión");
   if (ctx.state.companies[a.company]?.status !== "unstarted") return unavailable("La compañía ya está abierta");
   if (!parPricesFor(ctx.game, a.company).includes(a.price) || !parCellFor(ctx.game, a.price)) {
     return unavailable(`Precio de salida no válido: ${formatMoney(a.price, ctx.game)}`);
@@ -142,7 +144,12 @@ function buyWarnings(ctx: ActionContext, a: BuyShare, assumed: number | null = n
   const events = buyEvents(ctx, a, assumed);
   const after = reduceAll(ctx.state, events);
   const cost = events.reduce((sum, e) => (e.t === "moneyTransfer" ? sum + e.amount : sum), 0);
-  const warnings = [...payWarnings(ctx, a.buyer, cost), ...holdingWarnings(ctx, after, a.buyer, a.company)];
+  const warnings = [
+    ...eliminatedWarnings(ctx, a.buyer),
+    ...payWarnings(ctx, a.buyer, cost),
+    ...holdingWarnings(ctx, after, a.buyer, a.company),
+    ...sharesPerBuyWarnings(ctx, a.count ?? 1),
+  ];
   const buyer = parseHolder(a.buyer);
   if (buyer.kind === "player" && ctx.state.turn.round === "SR" && ctx.state.soldThisSR[buyer.id]?.includes(a.company)) {
     warnings.push(warning("boughtAfterSelling", "Ya vendió esta compañía en esta ronda de acciones."));
@@ -154,6 +161,7 @@ function sellWarnings(ctx: ActionContext, a: SellShares): Warning[] {
   const warnings: Warning[] = [];
   const held = unitsOf(ctx.state, a.seller, a.company);
   if (held < a.count) warnings.push(warning("notEnoughShares", `Solo tiene ${held}.`));
+  warnings.push(...unoperatedSaleWarnings(ctx, a.seller, a.company));
   const after = reduceAll(ctx.state, sellEvents(ctx, a, null));
   warnings.push(...poolWarnings(ctx, after, a.company));
   return warnings;
@@ -228,7 +236,13 @@ export function batchItemPrices(ctx: ActionContext, items: readonly BatchItem[],
 }
 
 export const stockHandlers: HandlerMap = {
-  parCompany: { available: parAvailable, validate: parWarnings, expand: parEvents },
+  parCompany: {
+    // Offered when some company starts at a par price (not RotLA, where all launch by auction or merger).
+    offered: (game) => game.companies.some((c) => (c.start ?? "par") === "par"),
+    available: parAvailable,
+    validate: parWarnings,
+    expand: parEvents,
+  },
 
   buyShare: {
     available: buyAvailable,

@@ -11,7 +11,7 @@ export interface CustomGameEdit {
   readonly bank?: GameDefinition["bank"];
   readonly startingCash?: Readonly<Record<string, number>>;
   readonly companies?: Readonly<
-    Record<string, Partial<Pick<GameDefinition["companies"][number], "name" | "shortName" | "aliases" | "color">>>
+    Record<string, Partial<Pick<GameDefinition["companies"][number], "name" | "shortName" | "aliases" | "color" | "altName">>>
   >;
   readonly privates?: Readonly<Record<string, Partial<Pick<GameDefinition["privates"][number], "name" | "cost" | "income">>>>;
   readonly trains?: Readonly<Record<string, { readonly cost?: number; readonly count?: number | "unlimited" }>>;

@@ -3,7 +3,7 @@ import { useDispatch, useSession } from "../../app/useSession";
 import { availabilityOf } from "../../domain/actions/availability";
 import type { ActionContext } from "../../domain/actions/context";
 import { sharePrice } from "../../domain/actions/expand/stock";
-import { cashOf, presidencyHolder, unitsOf } from "../../domain/events/state";
+import { cashOf, isPlayerBankrupt, presidencyHolder, unitsOf } from "../../domain/events/state";
 import { formatMoney } from "../../domain/i18n/format";
 import { floatPending } from "../../domain/mechanics/capitalization";
 import { isEnabled } from "../../domain/mechanics/custom";
@@ -12,6 +12,7 @@ import { parPricesFor, priceOf } from "../../domain/mechanics/market";
 import type { CompanyId, HolderRef } from "../../domain/types";
 import { CompanyBadge } from "../components/CompanyBadge";
 import { Sheet } from "../components/Sheet";
+import { LaunchSheet } from "./LaunchSheet";
 
 /**
  * Stock round by touch (US4, T113). From the company card, one tap on "IPO", "Pool" or "Vender"
@@ -47,7 +48,10 @@ export function StockSheet({
   };
 
   const traders: HolderRef[] = [
-    ...[...meta.players].sort((a, b) => a.seat - b.seat).map((p) => `player:${p.id}` as const),
+    ...[...meta.players]
+      .sort((a, b) => a.seat - b.seat)
+      .filter((p) => !isPlayerBankrupt(state, p.id))
+      .map((p) => `player:${p.id}` as const),
     ...(isEnabled(meta.game, "corporateRound") && state.turn.round === "CR"
       ? meta.game.companies.filter((c) => state.companies[c.id]?.status === "floated").map((c) => `company:${c.id}` as const)
       : []),
@@ -72,6 +76,9 @@ export function StockSheet({
     </span>
   );
 
+  // Auction companies open with a bid (feature 004), not at a par price.
+  if (record.status === "unstarted" && def.start === "auction") return <LaunchSheet companyId={companyId} onClose={onClose} />;
+
   if (record.status === "unstarted" && def.kind !== "national") {
     const prices = parPricesFor(meta.game, companyId);
     return (
@@ -90,7 +97,7 @@ export function StockSheet({
           <fieldset className="choice-fieldset">
             <legend className="muted">Quién abre ({money(parPrice * def.presidencyUnits)})</legend>
             <div className="choice-grid">
-              {meta.players.map((p) => (
+              {meta.players.filter((p) => !isPlayerBankrupt(state, p.id)).map((p) => (
                 <button key={p.id} onClick={() => void run({ type: "parCompany", player: p.id, company: companyId, price: parPrice })}>
                   {p.name}
                 </button>
@@ -118,6 +125,10 @@ export function StockSheet({
     );
   };
   const ipoPrice = sharePrice(meta.game, state, companyId, "ipo");
+  // A company holding its own shares sells them from its treasury (RotLA); the IPO button stays
+  // unless the IPO is empty and the treasury is where the shares are.
+  const treasuryShares = unitsOf(state, `company:${companyId}`, companyId);
+  const showIpo = unitsOf(state, `ipo:${companyId}`, companyId) > 0 || treasuryShares === 0;
   const poolPrice = sharePrice(meta.game, state, companyId, "pool");
 
   return (
@@ -134,6 +145,7 @@ export function StockSheet({
       <div className="row">
         <span className="muted">
           IPO {unitsOf(state, `ipo:${companyId}`, companyId)} · Pool {unitsOf(state, "pool", companyId)}
+          {treasuryShares > 0 ? ` · Tesorería ${treasuryShares}` : ""}
           {ipoPrice !== undefined ? ` · IPO a ${money(ipoPrice)}` : ""}
         </span>
         <span className="spacer" />
@@ -160,7 +172,10 @@ export function StockSheet({
                   {money(cashOf(state, h))}
                 </span>
               </span>
-              {button("IPO", { type: "buyShare", buyer: h, company: companyId, source: "ipo", count })}
+              {showIpo ? button("IPO", { type: "buyShare", buyer: h, company: companyId, source: "ipo", count }) : null}
+              {treasuryShares > 0 && h !== `company:${companyId}`
+                ? button("Tesorería", { type: "buyShare", buyer: h, company: companyId, source: "treasury", count })
+                : null}
               {button("Pool", { type: "buyShare", buyer: h, company: companyId, source: "pool", count })}
               {units > 0 || h === `company:${companyId}` ? button("Vender", { type: "sellShares", seller: h, company: companyId, count }) : null}
             </li>

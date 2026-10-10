@@ -33,6 +33,8 @@ export interface TurnState {
   readonly loansThisOR: Readonly<Record<CompanyId, number>>;
   /** Derived: companies with a recorded run in this OR. */
   readonly operatedThisOR: readonly CompanyId[];
+  /** Derived: own shares each company issued or redeemed (treasury ↔ pool) in this OR. */
+  readonly treasuryTradesThisOR?: Readonly<Record<CompanyId, number>>;
   /** Derived: the current round's end step has been applied. */
   readonly roundEnded?: true;
 }
@@ -53,13 +55,24 @@ export interface SessionState {
   readonly soldThisSR: Readonly<Record<PlayerId, readonly CompanyId[]>>;
 }
 
-export function trainAssetIds(game: GameDefinition): { inBank: AssetId[]; reserve: AssetId[] } {
+/** A train type's card count for this many players: `countByPlayers` overrides `count` (FR-005). */
+export function trainCount(train: GameDefinition["trains"][number], playerCount?: number): number | "unlimited" {
+  if (train.count === "unlimited") return "unlimited";
+  return (playerCount !== undefined ? train.countByPlayers?.[String(playerCount)] : undefined) ?? train.count;
+}
+
+/**
+ * The pre-made train assets: in the bank, and in `removed` (reserve cards and `special` types,
+ * which enter play only through an action). Unlimited types have none.
+ */
+export function trainAssetIds(game: GameDefinition, playerCount?: number): { inBank: AssetId[]; reserve: AssetId[] } {
   const inBank: AssetId[] = [];
   const reserve: AssetId[] = [];
   for (const train of game.trains) {
-    if (train.count === "unlimited") continue;
-    for (let n = 1; n <= train.count; n++) inBank.push(`train:${train.type}:${n}`);
-    for (let n = 1; n <= (train.reserve ?? 0); n++) reserve.push(`train:${train.type}:${train.count + n}`);
+    const count = trainCount(train, playerCount);
+    if (count === "unlimited") continue;
+    for (let n = 1; n <= count; n++) (train.special ? reserve : inBank).push(`train:${train.type}:${n}`);
+    for (let n = 1; n <= (train.reserve ?? 0); n++) reserve.push(`train:${train.type}:${count + n}`);
   }
   return { inBank, reserve };
 }
@@ -91,7 +104,7 @@ export function initialState(game: GameDefinition, players: readonly Player[]): 
 
   const assets: Record<AssetId, HolderRef> = {};
   for (const p of game.privates) assets[`private:${p.id}`] = "bank";
-  const trains = trainAssetIds(game);
+  const trains = trainAssetIds(game, players.length);
   for (const t of trains.inBank) assets[t] = "bank";
   for (const t of trains.reserve) assets[t] = "removed";
 

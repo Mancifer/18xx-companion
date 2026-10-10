@@ -9,7 +9,8 @@ type Draft = {
   name: string;
   bankTotal: string;
   startingCash: Record<string, string>;
-  companies: Record<string, { name: string; shortName: string; aliases: string; color: string }>;
+  /** altName: a major's second identity (FR-005a); null for companies without one. */
+  companies: Record<string, { name: string; shortName: string; aliases: string; color: string; altName: string | null }>;
   privates: Record<string, { name: string; cost: string; income: string }>;
   trains: Record<string, { cost: string; count: string }>;
 };
@@ -20,7 +21,16 @@ function draftOf(game: GameDefinition, name: string): Draft {
     bankTotal: game.bank === "unlimited" ? "" : String(game.bank.total),
     startingCash: Object.fromEntries(Object.entries(game.startingCash).map(([k, v]) => [k, String(v)])),
     companies: Object.fromEntries(
-      game.companies.map((c) => [c.id, { name: c.name, shortName: c.shortName, aliases: c.aliases.join(", "), color: c.color }]),
+      game.companies.map((c) => [
+        c.id,
+        {
+          name: c.name,
+          shortName: c.shortName,
+          aliases: c.aliases.join(", "),
+          color: c.color,
+          altName: c.tier === "major" ? (c.altName ?? "") : null,
+        },
+      ]),
     ),
     privates: Object.fromEntries(game.privates.map((p) => [p.id, { name: p.name, cost: String(p.cost), income: String(p.income) }])),
     trains: Object.fromEntries(
@@ -43,6 +53,7 @@ function editOf(base: GameDefinition, d: Draft): CustomGameEdit {
           name: c.name.trim(),
           shortName: c.shortName.trim(),
           color: c.color,
+          ...(c.altName !== null && c.altName.trim() !== "" ? { altName: c.altName.trim() } : {}),
           aliases: c.aliases
             .split(",")
             .map((a) => a.trim())
@@ -184,6 +195,14 @@ export function CustomGame() {
                     value={c.name}
                     onChange={(e) => setDraft({ ...draft, companies: { ...draft.companies, [id]: { ...c, name: e.target.value } } })}
                   />
+                  {c.altName !== null ? (
+                    <input
+                      aria-label={`Segunda identidad de ${id}`}
+                      placeholder="Segunda identidad"
+                      value={c.altName}
+                      onChange={(e) => setDraft({ ...draft, companies: { ...draft.companies, [id]: { ...c, altName: e.target.value } } })}
+                    />
+                  ) : null}
                   <input
                     aria-label={`Alias de ${id}`}
                     placeholder="Alias"

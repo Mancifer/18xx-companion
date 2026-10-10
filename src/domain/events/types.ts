@@ -15,11 +15,16 @@ export type MarketMoveReason =
   | "loan"
   | "par"
   | "manual"
-  | "receivership";
+  | "receivership"
+  /** Same cell, bottom of its stack (RotLA: paid out, but below the price). */
+  | "restack"
+  | "merge"
+  | "bonus";
 
 export type CompanyStatus = "unstarted" | "parred" | "floated" | "receivership" | "bankrupt" | "closed";
 
-export type Round = "PRIVATES" | "SR" | "CR" | "OR";
+/** MR = Merger Round (RotLA). */
+export type Round = "PRIVATES" | "SR" | "CR" | "OR" | "MR";
 
 export type PrimitiveEvent =
   /** amount > 0, integer */

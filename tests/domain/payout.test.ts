@@ -5,7 +5,10 @@ import type { PrimitiveEvent } from "../../src/domain/events/types";
 import type { GameDefinition } from "../../src/domain/games/schema";
 import { computePayout } from "../../src/domain/mechanics/payout";
 import { miniGame, miniPlayers } from "../helpers/miniGame";
-import { netMoney } from "../helpers/flows";
+import { eventsOf, netMoney } from "../helpers/flows";
+import { rotlaSession, seedCompany as seedRotla } from "../helpers/rotla";
+import { floorToTrack, priceOf } from "../../src/domain/mechanics/market";
+import { operatingOrder } from "../../src/domain/mechanics/operatingOrder";
 
 /** contracts/actions.md "Payout": perShare, routing by holder type, half and parts. */
 
@@ -157,5 +160,59 @@ describe("revenue parts (FR-030)", () => {
     const result = computePayout(game, s, "AA", [{ part: "local", amount: 60 }], null);
     expect(netMoney(result.transfers)).toEqual({ bank: -60, "company:AA": 60 });
     expect(result.dividend).toBe(0);
+  });
+});
+
+describe("RotLA payouts (US5, SC-002)", () => {
+  const minorAt70 = () =>
+    seedRotla(rotlaSession(), "TUN", { price: 70, holders: { "player:p1": 2, "player:p2": 2, "company:TUN": 1 } });
+  const payout = (amount: number, mode: "full" | "withhold" = "full", company = "TUN") => ({
+    type: "runAndPayout",
+    company,
+    parts: [{ part: "revenue", amount }],
+    mode,
+  });
+
+  it("Diagram 8: 310 at 70 pays 62 per share, the treasury share pays the minor, up 2 to 90", () => {
+    const s = minorAt70().do(payout(310));
+    expect(netMoney(s.lastEvents)).toEqual({ bank: -310, "player:p1": 124, "player:p2": 124, "company:TUN": 62 });
+    expect(priceOf(s.game, s.state, "TUN")).toBe(90);
+  });
+
+  it("60 at 100 for a major: 6 per share, a restack, and it is now last among the 100s", () => {
+    const s = rotlaSession();
+    seedRotla(s, "CON", { price: 100, holders: { "player:p1": 4, "player:p2": 3, "player:p3": 3 } });
+    seedRotla(s, "UNI", { price: 100, holders: { "player:p2": 10 } });
+    expect(operatingOrder(s.game, s.state)).toEqual(["CON", "UNI"]);
+    s.do(payout(60, "full", "CON"));
+    expect(netMoney(s.lastEvents)).toEqual({ bank: -60, "player:p1": 24, "player:p2": 18, "player:p3": 18 });
+    expect(eventsOf(s.lastEvents, "marketMove")).toEqual([
+      { t: "marketMove", company: "CON", to: floorToTrack(s.game, 100), reason: "restack" },
+    ]);
+    expect(priceOf(s.game, s.state, "CON")).toBe(100);
+    expect(operatingOrder(s.game, s.state)).toEqual(["UNI", "CON"]);
+  });
+
+  it("withhold 200 at 100: +200 to the company, down 1 to 90", () => {
+    const s = seedRotla(rotlaSession(), "CON", { price: 100, holders: { "player:p1": 10 } }).do(payout(200, "withhold", "CON"));
+    expect(netMoney(s.lastEvents)).toEqual({ bank: -200, "company:CON": 200 });
+    expect(priceOf(s.game, s.state, "CON")).toBe(90);
+  });
+
+  it("a zero run drops 1", () => {
+    const s = minorAt70().do(payout(0));
+    expect(netMoney(s.lastEvents)).toEqual({});
+    expect(priceOf(s.game, s.state, "TUN")).toBe(60);
+  });
+
+  it("pool shares pay no one", () => {
+    const s = seedRotla(rotlaSession(), "EXP", { price: 80, holders: { "player:p1": 2, pool: 3 } }).do(payout(100, "full", "EXP"));
+    expect(netMoney(s.lastEvents)).toEqual({ bank: -40, "player:p1": 40 });
+  });
+
+  it("an uneven total pays ⌊total/5⌋ per share and the rest stays in the bank", () => {
+    const s = seedRotla(rotlaSession(), "EXP", { price: 80, holders: { "player:p1": 3, "player:p2": 2 } }).do(payout(97, "full", "EXP"));
+    // 97 / 5 = 19.4: 19 per share, and the 2 left over never leave the bank.
+    expect(netMoney(s.lastEvents)).toEqual({ bank: -95, "player:p1": 57, "player:p2": 38 });
   });
 });

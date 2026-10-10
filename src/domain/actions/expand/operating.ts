@@ -1,22 +1,27 @@
-import { cashOf } from "../../events/state";
+import { reduceAll } from "../../events/reduce";
+import { cashOf, counterOf, hasOperated, unitsOf, type SessionState } from "../../events/state";
 import type { PrimitiveEvent } from "../../events/types";
-import type { GameDefinition, TrainDef } from "../../games/schema";
+import type { GameDefinition, NamedPayment, TrainDef } from "../../games/schema";
 import { formatMoney } from "../../i18n/format";
 import { hooksOf } from "../../mechanics/custom";
-import { applyMoveRules, OPERATING_STATUSES } from "../../mechanics/market";
+import { moveTarget, OPERATING_STATUSES, priceOf, runMoveEvent } from "../../mechanics/market";
+import { effectiveTraits } from "../../mechanics/traits";
+import { poolWarnings } from "../limits";
 import { computePayout } from "../../mechanics/payout";
 import {
   countedTrains,
+  PERMANENT,
   phaseAfterBuying,
   phaseReached,
   phasesTriggeredBy,
-  trainLimit,
+  RUSTED,
+  trainLimitFor,
   trainNumber,
   trainsHeldBy,
 } from "../../mechanics/phases";
 import { assetKind, trainTypeOf, type AssetId, type CompanyId, type HolderRef } from "../../types";
 import { AVAILABLE, unavailable, warning, type ActionContext, type HandlerMap } from "../context";
-import { companyDef, companyTarget, requireCompany } from "../resolve";
+import { companyDef, companyTarget, requireCompany, resolveCompany } from "../resolve";
 import type { ActionOf, Warning } from "../schemas";
 import { payWarnings } from "./manual";
 
@@ -53,19 +58,52 @@ function trainToBuy(ctx: ActionContext, a: BuyTrain): AssetId | undefined {
   return trainsHeldBy(ctx.state, trainSource(a), a.trainType)[0];
 }
 
-/** The price: explicit, else the trade-in cost, else the variant's list cost. */
-export function trainPrice(game: GameDefinition, a: Pick<BuyTrain, "trainType" | "variant" | "from" | "price" | "tradeIn">): number {
+type PricedPurchase = Pick<BuyTrain, "trainType" | "variant" | "from" | "price" | "tradeIn">;
+
+/** The train types the phases started by this purchase rust. */
+function rustedBy(game: GameDefinition, state: SessionState, trainType: string): Set<string> {
+  const passed = phasesTriggeredBy(game, state, trainType);
+  return new Set(game.trains.filter((t) => passed.some((p) => p.id === t.rustsOnPhase)).map((t) => t.type));
+}
+
+/**
+ * Why a listed trade-in type cannot be traded in for this purchase, or undefined: its price is
+ * for another variant (RotLA ∞), or this purchase rusts it first (`rustsFirst`, research R11).
+ * Without state, the rust is not checked.
+ */
+export function tradeInProblem(game: GameDefinition, state: SessionState | undefined, a: PricedPurchase): string | undefined {
+  const rule = trainDef(game, a.trainType)?.tradeIn;
+  if (a.tradeIn === null || !rule?.fromTypes.includes(a.tradeIn)) return undefined;
+  const variant = a.variant ?? trainDef(game, a.trainType)?.variants[0]?.name;
+  if (rule.variant !== undefined && variant !== rule.variant) return `El precio de entrega solo vale para el ${rule.variant}.`;
+  if (rule.rustsFirst && state && rustedBy(game, state, a.trainType).has(a.tradeIn)) {
+    return `El ${a.tradeIn} se oxida con esta compra: no se puede entregar.`;
+  }
+  return undefined;
+}
+
+/** The price: explicit, else the trade-in cost (when the trade-in is valid), else the variant's list cost. */
+export function trainPrice(game: GameDefinition, a: PricedPurchase, state?: SessionState): number {
   if (a.price !== null) return a.price;
   const def = trainDef(game, a.trainType);
   if (!def) return 0;
-  if (a.tradeIn !== null && a.from === "bank" && def.tradeIn?.fromTypes.includes(a.tradeIn)) return def.tradeIn.cost;
+  const listed = a.tradeIn !== null && def.tradeIn?.fromTypes.includes(a.tradeIn);
+  if (listed && a.from === "bank" && def.tradeIn && !tradeInProblem(game, state, a)) return def.tradeIn.cost;
   const variant = def.variants.find((v) => v.name === a.variant) ?? def.variants[0];
   return variant?.cost ?? 0;
 }
 
+/** A train a company should not part with: a `special` type or a `permanent:` one (Canyon). */
+function keptTrainWarning(game: GameDefinition, state: SessionState, holder: HolderRef, asset: AssetId | undefined): Warning[] {
+  if (!asset) return [];
+  const special = trainDef(game, trainTypeOf(asset))?.special === true;
+  if (!special && counterOf(state, holder, `${PERMANENT}${asset}`) === 0) return [];
+  return [warning("keptTrain", "Este tren no se vende ni se entrega.")];
+}
+
 function shortfallHook(ctx: ActionContext, company: CompanyId, a: BuyTrain) {
   if (a.from === "company") return undefined;
-  const shortfall = trainPrice(ctx.game, a) - cashOf(ctx.state, treasury(company));
+  const shortfall = trainPrice(ctx.game, a, ctx.state) - cashOf(ctx.state, treasury(company));
   if (shortfall <= 0) return undefined;
   for (const hook of hooksOf(ctx.game, "trainShortfall")) {
     const result = hook(ctx, company, shortfall);
@@ -80,7 +118,7 @@ function buyTrainWarnings(ctx: ActionContext, a: BuyTrain): Warning[] {
   const def = trainDef(game, a.trainType);
   if (!def) return [];
   const warnings: Warning[] = [];
-  const price = trainPrice(game, a);
+  const price = trainPrice(game, a, state);
 
   const hook = shortfallHook(ctx, company, a);
   if (hook) warnings.push(...hook.warnings);
@@ -99,12 +137,12 @@ function buyTrainWarnings(ctx: ActionContext, a: BuyTrain): Warning[] {
   }
 
   // The limit after the purchase: in the phase it starts, without the trains that rust there.
-  const passed = phasesTriggeredBy(game, state, a.trainType);
-  const rusting = new Set(game.trains.filter((t) => passed.some((p) => p.id === t.rustsOnPhase)).map((t) => t.type));
+  const rusting = rustedBy(game, state, a.trainType);
+  const problem = tradeInProblem(game, state, a);
   let count = countedTrains(game, state, company).filter((asset) => !rusting.has(trainTypeOf(asset))).length;
-  if (a.tradeIn !== null && (trainDef(game, a.tradeIn)?.countsForLimit ?? true)) count -= 1;
+  if (a.tradeIn !== null && !problem && (trainDef(game, a.tradeIn)?.countsForLimit ?? true)) count -= 1;
   if (def.countsForLimit) count += 1;
-  const limit = trainLimit(game, phaseAfterBuying(game, state, a.trainType));
+  const limit = trainLimitFor(game, state, company, phaseAfterBuying(game, state, a.trainType));
   if (count > limit) {
     warnings.push(warning("trainLimit", `Con este tren tendría ${count}; el límite es ${limit}.`));
   }
@@ -112,11 +150,43 @@ function buyTrainWarnings(ctx: ActionContext, a: BuyTrain): Warning[] {
   if (a.tradeIn !== null) {
     if (!def.tradeIn?.fromTypes.includes(a.tradeIn)) {
       warnings.push(warning("tradeIn", `Un ${def.type} no se compra entregando un ${a.tradeIn}.`));
+    } else if (problem) {
+      warnings.push(warning("tradeIn", problem));
     } else if (trainsHeldBy(state, treasury(company), a.tradeIn).length === 0) {
       warnings.push(warning("tradeIn", `La compañía no tiene un ${a.tradeIn} para entregar.`));
+    } else {
+      warnings.push(...keptTrainWarning(game, state, treasury(company), tradedTrain(ctx, company, a)));
     }
   }
+  if (a.from === "company") warnings.push(...keptTrainWarning(game, state, trainSource(a), trainToBuy(ctx, a)));
+  // Manufacturing (L p.10): it starts with its own train and buys no leadoff train.
+  if (effectiveTraits(game, state, company).noLeadoffTrain && !hasOperated(state, company)) {
+    warnings.push(warning("leadoffTrain", "Esta compañía no compra el tren de salida: ya tiene el suyo."));
+  }
   return warnings;
+}
+
+/** The train traded in, when the trade-in is valid (a train rusted by this purchase is not). */
+function tradedTrain(ctx: ActionContext, company: CompanyId, a: BuyTrain): AssetId | undefined {
+  if (a.tradeIn === null || tradeInProblem(ctx.game, ctx.state, a)) return undefined;
+  return trainsHeldBy(ctx.state, treasury(company), a.tradeIn)[0];
+}
+
+/** The purchase itself: payment, the train, and the traded-in train (to `removed` or the discard). */
+export function purchaseEvents(ctx: ActionContext, company: CompanyId, a: BuyTrain): PrimitiveEvent[] {
+  const asset = trainToBuy(ctx, a);
+  if (!asset) return [];
+  const payee: HolderRef = a.from === "company" ? `company:${a.seller ?? ""}` : "bank";
+  const events: PrimitiveEvent[] = [
+    { t: "moneyTransfer", from: treasury(company), to: payee, amount: trainPrice(ctx.game, a, ctx.state) },
+    { t: "assetTransfer", asset, from: trainSource(a), to: treasury(company) },
+  ];
+  const traded = tradedTrain(ctx, company, a);
+  if (traded) {
+    const to = trainDef(ctx.game, a.trainType)?.tradeIn?.to === "removed" ? "removed" : discardDestination(ctx.game);
+    events.push({ t: "assetTransfer", asset: traded, from: treasury(company), to });
+  }
+  return events;
 }
 
 function priceRange(game: GameDefinition, privateId: string): [number, number] | undefined {
@@ -183,8 +253,8 @@ export const operatingHandlers: HandlerMap = {
       const forced = forcedWithholdReason(ctx, company) !== undefined;
       const result = computePayout(ctx.game, ctx.state, company, a.parts, a.mode, { forceWithhold: forced });
       const events: PrimitiveEvent[] = [...result.transfers];
-      const target = applyMoveRules(ctx.game, ctx.state, company, result.moveKind, { dividend: result.dividend });
-      if (target) events.push({ t: "marketMove", company, to: target, reason: result.moveKind });
+      const move = runMoveEvent(ctx.game, ctx.state, company, result.moveKind, { dividend: result.dividend });
+      if (move) events.push(move);
       events.push({ t: "counterChange", subject: treasury(company), key: "runs", delta: 1 });
       return events;
     },
@@ -210,16 +280,7 @@ export const operatingHandlers: HandlerMap = {
       const company = requireCompany(ctx, a.company);
       const asset = trainToBuy(ctx, a);
       if (!asset) return [];
-      const price = trainPrice(ctx.game, a);
-      const events: PrimitiveEvent[] = [...(shortfallHook(ctx, company, a)?.events ?? [])];
-      const payee: HolderRef = a.from === "company" ? `company:${a.seller ?? ""}` : "bank";
-      events.push({ t: "moneyTransfer", from: treasury(company), to: payee, amount: price });
-      events.push({ t: "assetTransfer", asset, from: trainSource(a), to: treasury(company) });
-      if (a.tradeIn !== null) {
-        const traded = trainsHeldBy(ctx.state, treasury(company), a.tradeIn)[0];
-        if (traded) events.push({ t: "assetTransfer", asset: traded, from: treasury(company), to: discardDestination(ctx.game) });
-      }
-      return events;
+      return [...(shortfallHook(ctx, company, a)?.events ?? []), ...purchaseEvents(ctx, company, a)];
     },
   },
 
@@ -290,7 +351,15 @@ export const operatingHandlers: HandlerMap = {
     expand: (ctx, a) => {
       const asset = discardedTrain(ctx, a);
       if (!asset) return [];
-      return [{ t: "assetTransfer", asset, from: treasury(a.company), to: discardDestination(ctx.game) }];
+      const holder = treasury(a.company);
+      // A rusted train kept for one last run (Resourceful) leaves the game (research R10).
+      if (counterOf(ctx.state, holder, `${RUSTED}${asset}`) > 0) {
+        return [
+          { t: "assetTransfer", asset, from: holder, to: "removed" },
+          { t: "counterChange", subject: holder, key: `${RUSTED}${asset}`, delta: -1 },
+        ];
+      }
+      return [{ t: "assetTransfer", asset, from: holder, to: discardDestination(ctx.game) }];
     },
   },
 
@@ -309,6 +378,133 @@ export const operatingHandlers: HandlerMap = {
     },
   },
 };
+
+/** Where issued shares come from (research R9): the IPO (21Moon) or the company's treasury (RotLA). */
+function issueSource(game: GameDefinition, company: CompanyId): HolderRef {
+  return game.market.moves.issue?.from === "treasury" ? treasury(company) : `ipo:${company}`;
+}
+
+/** RotLA: more than one issue or redemption by a company in one OR (read from this OR's events). */
+function treasuryTradeWarnings(ctx: ActionContext, company: CompanyId): Warning[] {
+  if (!ctx.game.market.moves.redeem) return [];
+  if ((ctx.state.turn.treasuryTradesThisOR?.[company] ?? 0) === 0) return [];
+  return [warning("treasuryTradeTwice", "Esta compañía ya emitió o recompró una acción en esta ronda de operaciones.")];
+}
+
+/** Issue and redeem (research R9): core actions, offered when the market defines their move. */
+export const treasuryHandlers: HandlerMap = {
+  issueShares: {
+    offered: (game) => game.market.moves.issue !== undefined,
+    available: (ctx, a) => {
+      if (!a) return AVAILABLE;
+      if (priceOf(ctx.game, ctx.state, a.company) === undefined) return unavailable("La compañía no está abierta");
+      const source = issueSource(ctx.game, a.company);
+      const left = unitsOf(ctx.state, source, a.company);
+      const where = source.startsWith("ipo:") ? "la IPO" : "la tesorería";
+      if (left < a.count) return unavailable(left === 0 ? `No quedan acciones en ${where}` : `Solo quedan ${left} en ${where}`);
+      return AVAILABLE;
+    },
+    validate: (ctx, a) => {
+      const source = issueSource(ctx.game, a.company);
+      const after = reduceAll(ctx.state, [{ t: "shareTransfer", company: a.company, from: source, to: "pool", units: a.count }]);
+      return [...poolWarnings(ctx, after, a.company), ...treasuryTradeWarnings(ctx, a.company)];
+    },
+    /** 21Moon §10.1.2, RotLA B p.13: source → pool, the bank pays the price, down n once (if floated, when required). */
+    expand: (ctx, a) => {
+      const price = priceOf(ctx.game, ctx.state, a.company) ?? 0;
+      const events: PrimitiveEvent[] = [
+        { t: "shareTransfer", company: a.company, from: issueSource(ctx.game, a.company), to: "pool", units: a.count },
+        { t: "moneyTransfer", from: "bank", to: treasury(a.company), amount: price * a.count },
+      ];
+      const rule = ctx.game.market.moves.issue;
+      const floated = ctx.state.companies[a.company]?.status === "floated";
+      if (rule && (!rule.onlyIfFloated || floated)) {
+        const target = moveTarget(ctx.game, ctx.state.companies[a.company]?.position, "down", rule.n);
+        if (target) events.push({ t: "marketMove", company: a.company, to: target, reason: "issue" });
+      }
+      return events;
+    },
+  },
+
+  /** RotLA B p.13: pool → treasury at the current price, paid to the bank; up n only when n > 0. */
+  redeemShare: {
+    offered: (game) => game.market.moves.redeem !== undefined,
+    available: (ctx, a) => {
+      const target = companyTarget(ctx, a?.company);
+      if (!target.ok || !a) return target;
+      const company = requireCompany(ctx, a.company);
+      if (priceOf(ctx.game, ctx.state, company) === undefined) return unavailable("La compañía no está abierta");
+      const left = unitsOf(ctx.state, "pool", company);
+      const count = a.count ?? 1;
+      if (left < count) return unavailable(left === 0 ? "No hay acciones de la compañía en el pool" : `Solo hay ${left} en el pool`);
+      return AVAILABLE;
+    },
+    validate: (ctx, a) => {
+      const company = requireCompany(ctx, a.company);
+      const cost = (priceOf(ctx.game, ctx.state, company) ?? 0) * (a.count ?? 1);
+      return [...payWarnings(ctx, treasury(company), cost), ...treasuryTradeWarnings(ctx, company)];
+    },
+    expand: (ctx, a) => {
+      const company = requireCompany(ctx, a.company);
+      const count = a.count ?? 1;
+      const price = priceOf(ctx.game, ctx.state, company) ?? 0;
+      const events: PrimitiveEvent[] = [
+        { t: "shareTransfer", company, from: "pool", to: treasury(company), units: count },
+        { t: "moneyTransfer", from: treasury(company), to: "bank", amount: price * count },
+      ];
+      const n = ctx.game.market.moves.redeem?.n ?? 0;
+      if (n > 0) {
+        const target = moveTarget(ctx.game, ctx.state.companies[company]?.position, "up", n);
+        if (target) events.push({ t: "marketMove", company, to: target, reason: "manual" });
+      }
+      return events;
+    },
+  },
+
+  /** A company ability's money (research R3): the trait's cost first, then its payment, one group. */
+  namedPayment: {
+    offered: (game) => game.companies.some((c) => (c.traits?.payments?.length ?? 0) > 0),
+    available: (ctx, a) => {
+      const target = companyTarget(ctx, a?.company);
+      if (!target.ok || !a) return target;
+      if (!namedPaymentOf(ctx, a)) return unavailable("La compañía no tiene esa habilidad");
+      return AVAILABLE;
+    },
+    validate: (ctx, a) => {
+      const payment = namedPaymentOf(ctx, a);
+      const company = requireCompany(ctx, a.company);
+      if (!payment) return [];
+      const amount = a.amount ?? payment.amount;
+      const warnings: Warning[] = [];
+      if (amount <= 0) warnings.push(warning("paymentAmount", `Falta el importe de ${payment.labelEs}.`));
+      const out = (payment.cost ?? 0) + (payment.direction === "companyPays" ? amount : 0);
+      if (out > 0) warnings.push(...payWarnings(ctx, treasury(company), out));
+      return warnings;
+    },
+    expand: (ctx, a) => {
+      const payment = namedPaymentOf(ctx, a);
+      const company = requireCompany(ctx, a.company);
+      if (!payment) return [];
+      const amount = a.amount ?? payment.amount;
+      const events: PrimitiveEvent[] = [];
+      if (payment.cost) events.push({ t: "moneyTransfer", from: treasury(company), to: "bank", amount: payment.cost });
+      if (amount > 0) {
+        events.push(
+          payment.direction === "bankPays"
+            ? { t: "moneyTransfer", from: "bank", to: treasury(company), amount }
+            : { t: "moneyTransfer", from: treasury(company), to: "bank", amount },
+        );
+      }
+      return events;
+    },
+  },
+};
+
+export function namedPaymentOf(ctx: ActionContext, a: Pick<ActionOf<"namedPayment">, "company" | "payment">): NamedPayment | undefined {
+  const company = resolveCompany(ctx, a.company);
+  if (!company) return undefined;
+  return effectiveTraits(ctx.game, ctx.state, company).payments?.find((p) => p.id === a.payment);
+}
 
 function discardedTrain(ctx: ActionContext, a: ActionOf<"discardTrain">): AssetId | undefined {
   const holder = treasury(a.company);

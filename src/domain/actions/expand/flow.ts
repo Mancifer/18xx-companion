@@ -3,7 +3,9 @@ import type { PrimitiveEvent } from "../../events/types";
 import { nextToOperate, operatingOrder } from "../../mechanics/operatingOrder";
 import { phaseIndex } from "../../mechanics/phases";
 import { roundEndEvents } from "../../mechanics/roundEnd";
-import { slotIndex, startOREvents } from "../../mechanics/schedule";
+import { endTriggers } from "../../mechanics/endTriggers";
+import { exportEvents, exportPreview, slotIndex, startOREvents } from "../../mechanics/schedule";
+import { exportInfoEs } from "../../i18n/es";
 import { AVAILABLE, unavailable, warning, type ActionContext, type ActionHandler, type HandlerMap } from "../context";
 import type { Warning } from "../schemas";
 import { operatingHandlers, zeroRunAction } from "./operating";
@@ -44,13 +46,28 @@ function nextCompanyEvents(ctx: ActionContext): { events: PrimitiveEvent[]; setC
 }
 
 export const flowHandlers: HandlerMap = {
-  /** The end step of the round being left (feature 003), then the next SR. */
+  /**
+   * The end step of the round being left (feature 003), the export when the game has one (RotLA
+   * B p.19: before every SR but the first), then the next SR.
+   */
   startSR: {
+    validate: (ctx) => {
+      const warnings: Warning[] = [];
+      if (endTriggers(ctx.game, ctx.state).some((t) => t.type === "cyclesComplete")) {
+        warnings.push(warning("gameOver", "La partida terminó."));
+      }
+      const preview = ctx.state.turn.srNumber >= 1 ? exportPreview(ctx.game, reduceAll(ctx.state, roundEndEvents(ctx.game, ctx.state))) : undefined;
+      if (preview) warnings.push(warning("export", exportInfoEs(preview), "info"));
+      return warnings;
+    },
     expand: (ctx) => {
       const srNumber = ctx.state.turn.srNumber + 1;
       const scheduleIndex = slotIndex(ctx.game, `SR${srNumber}`);
+      const end = roundEndEvents(ctx.game, ctx.state);
+      const exported = ctx.state.turn.srNumber >= 1 ? exportEvents(ctx.game, reduceAll(ctx.state, end)) : [];
       return [
-        ...roundEndEvents(ctx.game, ctx.state),
+        ...end,
+        ...exported,
         { t: "turnAdvance", round: "SR", srNumber, ...(scheduleIndex !== undefined ? { scheduleIndex } : {}), company: null },
       ];
     },

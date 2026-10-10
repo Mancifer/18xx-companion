@@ -1,5 +1,5 @@
 import { hooksOf } from "../../mechanics/custom";
-import { companyBankruptcyEvents, playerBankruptcyEvents } from "../../mechanics/custom/corporateBankruptcy";
+import { companyBankruptcyEvents, playerBankruptcyFor } from "../../mechanics/custom/corporateBankruptcy";
 import { AVAILABLE, unavailable, type HandlerMap } from "../context";
 
 /**
@@ -29,7 +29,7 @@ export const statusHandlers: HandlerMap = {
     },
     expand: (ctx, a) =>
       a.player !== null
-        ? playerBankruptcyEvents(ctx.game, ctx.state, a.player)
+        ? playerBankruptcyFor(ctx.game, ctx.state, a.player)
         : companyBankruptcyEvents(ctx.game, ctx.state, a.company ?? ""),
   },
 

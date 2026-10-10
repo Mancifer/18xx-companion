@@ -1,0 +1,2678 @@
+{
+  "format": "18xx-companion/session",
+  "version": 1,
+  "exportedAt": "2026-10-09T20:00:00.000Z",
+  "appVersion": "0.1.0",
+  "session": {
+    "id": "fixture-rotla-lm",
+    "name": "eval rotla-lm",
+    "createdAt": "2026-10-09T20:00:00.000Z",
+    "updatedAt": "2026-10-09T20:00:00.000Z",
+    "game": {
+      "id": "rotla",
+      "name": "Railways of the Lost Atlas",
+      "version": "1.0.0",
+      "currency": {
+        "symbol": "$"
+      },
+      "playerCount": {
+        "min": 2,
+        "max": 5
+      },
+      "options": [
+        {
+          "id": "mode",
+          "label": "Modo",
+          "default": "long",
+          "choices": [
+            {
+              "value": "long",
+              "label": "Largo",
+              "recommendedPlayers": {
+                "min": 3,
+                "max": 5
+              }
+            },
+            {
+              "value": "short",
+              "label": "Corto",
+              "recommendedPlayers": {
+                "min": 2,
+                "max": 4
+              },
+              "removeCompanies": [
+                "ADP",
+                "BRG",
+                "OVN",
+                "SPC"
+              ],
+              "patch": {
+                "roundSchedule": {
+                  "sequence": [
+                    "SR1",
+                    "OR1.1",
+                    "OR1.2",
+                    "MR1",
+                    "SR2",
+                    "OR2.1",
+                    "OR2.2",
+                    "MR2",
+                    "SR3",
+                    "OR3.1",
+                    "OR3.2",
+                    "MR3",
+                    "SR4",
+                    "OR4.1",
+                    "OR4.2",
+                    "MR4"
+                  ]
+                },
+                "trains": [
+                  {
+                    "type": "2",
+                    "variants": [
+                      {
+                        "name": "2",
+                        "cost": 100
+                      }
+                    ],
+                    "count": 6,
+                    "rustsOnPhase": "green4",
+                    "permanent": false,
+                    "countsForLimit": true
+                  },
+                  {
+                    "type": "3",
+                    "variants": [
+                      {
+                        "name": "3",
+                        "cost": 200
+                      }
+                    ],
+                    "count": 5,
+                    "countByPlayers": {
+                      "2": 4,
+                      "3": 4
+                    },
+                    "rustsOnPhase": "purple6",
+                    "permanent": false,
+                    "countsForLimit": true
+                  },
+                  {
+                    "type": "4",
+                    "variants": [
+                      {
+                        "name": "4",
+                        "cost": 300
+                      }
+                    ],
+                    "count": 3,
+                    "rustsOnPhase": "grey",
+                    "permanent": false,
+                    "countsForLimit": true
+                  },
+                  {
+                    "type": "5",
+                    "variants": [
+                      {
+                        "name": "5",
+                        "cost": 450
+                      }
+                    ],
+                    "count": 2,
+                    "permanent": true,
+                    "countsForLimit": true
+                  },
+                  {
+                    "type": "6",
+                    "variants": [
+                      {
+                        "name": "6",
+                        "cost": 550
+                      }
+                    ],
+                    "count": 2,
+                    "countByPlayers": {
+                      "2": 1,
+                      "3": 1
+                    },
+                    "permanent": true,
+                    "countsForLimit": true
+                  },
+                  {
+                    "type": "7",
+                    "displayName": "7/∞",
+                    "variants": [
+                      {
+                        "name": "7",
+                        "cost": 750
+                      },
+                      {
+                        "name": "∞",
+                        "cost": 1000
+                      }
+                    ],
+                    "count": "unlimited",
+                    "permanent": true,
+                    "countsForLimit": true,
+                    "tradeIn": {
+                      "fromTypes": [
+                        "2",
+                        "3",
+                        "4",
+                        "5",
+                        "6",
+                        "7"
+                      ],
+                      "cost": 800,
+                      "variant": "∞",
+                      "to": "removed",
+                      "rustsFirst": true
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "value": "micro2",
+              "label": "Micro 2 jugadores",
+              "recommendedPlayers": {
+                "min": 2,
+                "max": 2
+              },
+              "patch": {
+                "roundSchedule": {
+                  "sequence": [
+                    "SR1",
+                    "OR1.1",
+                    "OR1.2",
+                    "MR1",
+                    "SR2",
+                    "OR2.1",
+                    "OR2.2",
+                    "MR2",
+                    "SR3",
+                    "OR3.1",
+                    "OR3.2",
+                    "MR3",
+                    "SR4",
+                    "OR4.1",
+                    "OR4.2",
+                    "MR4"
+                  ]
+                },
+                "trains": [
+                  {
+                    "type": "2",
+                    "variants": [
+                      {
+                        "name": "2",
+                        "cost": 100
+                      }
+                    ],
+                    "count": 3,
+                    "rustsOnPhase": "green4",
+                    "permanent": false,
+                    "countsForLimit": true
+                  },
+                  {
+                    "type": "3",
+                    "variants": [
+                      {
+                        "name": "3",
+                        "cost": 200
+                      }
+                    ],
+                    "count": 3,
+                    "permanent": false,
+                    "countsForLimit": true
+                  },
+                  {
+                    "type": "4",
+                    "variants": [
+                      {
+                        "name": "4",
+                        "cost": 300
+                      }
+                    ],
+                    "count": 3,
+                    "permanent": false,
+                    "countsForLimit": true
+                  }
+                ],
+                "phases": [
+                  {
+                    "id": "yellow",
+                    "color": "Amarilla",
+                    "triggeredBy": null,
+                    "orsPerSet": 2,
+                    "trainLimit": 2,
+                    "trainLimitByTier": {
+                      "minor": 2
+                    },
+                    "launchPriceRange": [
+                      60,
+                      90
+                    ],
+                    "effects": []
+                  },
+                  {
+                    "id": "green",
+                    "color": "Verde",
+                    "triggeredBy": "3",
+                    "orsPerSet": 2,
+                    "trainLimit": 4,
+                    "trainLimitByTier": {
+                      "minor": 2,
+                      "major": 4
+                    },
+                    "launchPriceRange": [
+                      60,
+                      110
+                    ],
+                    "effects": []
+                  },
+                  {
+                    "id": "green4",
+                    "color": "Verde",
+                    "triggeredBy": "4",
+                    "orsPerSet": 2,
+                    "trainLimit": 3,
+                    "trainLimitByTier": {
+                      "minor": 2,
+                      "major": 3
+                    },
+                    "launchPriceRange": [
+                      60,
+                      110
+                    ],
+                    "effects": []
+                  }
+                ],
+                "trainExport": null,
+                "startingCash": {
+                  "2": 225,
+                  "3": 225,
+                  "4": 225,
+                  "5": 225
+                }
+              }
+            },
+            {
+              "value": "micro3",
+              "label": "Micro 3 jugadores",
+              "recommendedPlayers": {
+                "min": 3,
+                "max": 3
+              },
+              "patch": {
+                "roundSchedule": {
+                  "sequence": [
+                    "SR1",
+                    "OR1.1",
+                    "OR1.2",
+                    "MR1",
+                    "SR2",
+                    "OR2.1",
+                    "OR2.2",
+                    "MR2",
+                    "SR3",
+                    "OR3.1",
+                    "OR3.2",
+                    "MR3",
+                    "SR4",
+                    "OR4.1",
+                    "OR4.2",
+                    "MR4"
+                  ]
+                },
+                "trains": [
+                  {
+                    "type": "2",
+                    "variants": [
+                      {
+                        "name": "2",
+                        "cost": 100
+                      }
+                    ],
+                    "count": 5,
+                    "rustsOnPhase": "green4",
+                    "permanent": false,
+                    "countsForLimit": true
+                  },
+                  {
+                    "type": "3",
+                    "variants": [
+                      {
+                        "name": "3",
+                        "cost": 200
+                      }
+                    ],
+                    "count": 4,
+                    "permanent": false,
+                    "countsForLimit": true
+                  },
+                  {
+                    "type": "4",
+                    "variants": [
+                      {
+                        "name": "4",
+                        "cost": 300
+                      }
+                    ],
+                    "count": 4,
+                    "permanent": false,
+                    "countsForLimit": true
+                  }
+                ],
+                "phases": [
+                  {
+                    "id": "yellow",
+                    "color": "Amarilla",
+                    "triggeredBy": null,
+                    "orsPerSet": 2,
+                    "trainLimit": 2,
+                    "trainLimitByTier": {
+                      "minor": 2
+                    },
+                    "launchPriceRange": [
+                      60,
+                      90
+                    ],
+                    "effects": []
+                  },
+                  {
+                    "id": "green",
+                    "color": "Verde",
+                    "triggeredBy": "3",
+                    "orsPerSet": 2,
+                    "trainLimit": 4,
+                    "trainLimitByTier": {
+                      "minor": 2,
+                      "major": 4
+                    },
+                    "launchPriceRange": [
+                      60,
+                      110
+                    ],
+                    "effects": []
+                  },
+                  {
+                    "id": "green4",
+                    "color": "Verde",
+                    "triggeredBy": "4",
+                    "orsPerSet": 2,
+                    "trainLimit": 3,
+                    "trainLimitByTier": {
+                      "minor": 2,
+                      "major": 3
+                    },
+                    "launchPriceRange": [
+                      60,
+                      110
+                    ],
+                    "effects": []
+                  }
+                ],
+                "trainExport": null,
+                "startingCash": {
+                  "2": 225,
+                  "3": 225,
+                  "4": 225,
+                  "5": 225
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "expansion",
+          "label": "Expansión",
+          "default": "off",
+          "choices": [
+            {
+              "value": "off",
+              "label": "No"
+            },
+            {
+              "value": "landmarks",
+              "label": "Landmarks",
+              "addCompanies": [
+                {
+                  "id": "CIR",
+                  "shortName": "CIR",
+                  "name": "Circus",
+                  "aliases": [
+                    "circus",
+                    "circo"
+                  ],
+                  "color": "#9c27b0",
+                  "textColor": "#ffffff",
+                  "shareCount": 5,
+                  "presidencyUnits": 2,
+                  "certificates": [
+                    2,
+                    1,
+                    1,
+                    1
+                  ],
+                  "parOptions": [],
+                  "kind": "public",
+                  "tier": "minor",
+                  "start": "auction"
+                },
+                {
+                  "id": "CPL",
+                  "shortName": "CPL",
+                  "name": "Coupling",
+                  "aliases": [
+                    "coupling",
+                    "enganche"
+                  ],
+                  "color": "#26c6da",
+                  "textColor": "#1b1b1b",
+                  "shareCount": 5,
+                  "presidencyUnits": 2,
+                  "certificates": [
+                    2,
+                    1,
+                    1,
+                    1
+                  ],
+                  "parOptions": [],
+                  "kind": "public",
+                  "tier": "minor",
+                  "start": "auction"
+                },
+                {
+                  "id": "MFG",
+                  "shortName": "MFG",
+                  "name": "Manufacturing",
+                  "aliases": [
+                    "manufacturing",
+                    "manufactura",
+                    "fábrica"
+                  ],
+                  "color": "#c9a227",
+                  "textColor": "#1b1b1b",
+                  "shareCount": 5,
+                  "presidencyUnits": 2,
+                  "certificates": [
+                    2,
+                    1,
+                    1,
+                    1
+                  ],
+                  "parOptions": [],
+                  "kind": "public",
+                  "tier": "minor",
+                  "start": "auction",
+                  "traits": {
+                    "launchFee": 50,
+                    "launchAssets": [
+                      "train:M2:1"
+                    ],
+                    "noLeadoffTrain": true
+                  }
+                },
+                {
+                  "id": "TWC",
+                  "shortName": "TWC",
+                  "name": "Twin Cities",
+                  "aliases": [
+                    "twin cities",
+                    "ciudades gemelas"
+                  ],
+                  "color": "#81d4fa",
+                  "textColor": "#1b1b1b",
+                  "shareCount": 5,
+                  "presidencyUnits": 2,
+                  "certificates": [
+                    2,
+                    1,
+                    1,
+                    1
+                  ],
+                  "parOptions": [],
+                  "kind": "public",
+                  "tier": "minor",
+                  "start": "auction"
+                },
+                {
+                  "id": "AUT",
+                  "shortName": "AUT",
+                  "name": "Authority",
+                  "aliases": [
+                    "authority",
+                    "autoridad"
+                  ],
+                  "color": "#e0e0e0",
+                  "textColor": "#1b1b1b",
+                  "shareCount": 10,
+                  "presidencyUnits": 2,
+                  "certificates": [
+                    2,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1
+                  ],
+                  "parOptions": [],
+                  "kind": "public",
+                  "tier": "major",
+                  "start": "merger",
+                  "altName": "Authority II",
+                  "altAliases": [
+                    "authority dos"
+                  ]
+                },
+                {
+                  "id": "LGE",
+                  "shortName": "LGE",
+                  "name": "League",
+                  "aliases": [
+                    "league",
+                    "liga"
+                  ],
+                  "color": "#424242",
+                  "textColor": "#ffffff",
+                  "shareCount": 10,
+                  "presidencyUnits": 2,
+                  "certificates": [
+                    2,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1
+                  ],
+                  "parOptions": [],
+                  "kind": "public",
+                  "tier": "major",
+                  "start": "merger",
+                  "altName": "League II",
+                  "altAliases": [
+                    "league dos"
+                  ]
+                }
+              ],
+              "addTrains": [
+                {
+                  "type": "M2",
+                  "displayName": "2 (Manufacturing)",
+                  "variants": [
+                    {
+                      "name": "2",
+                      "cost": 0
+                    }
+                  ],
+                  "count": 1,
+                  "special": true,
+                  "permanent": false,
+                  "countsForLimit": true
+                }
+              ],
+              "addCustomRules": [
+                {
+                  "id": "landmarks",
+                  "config": {}
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "stockDrops",
+          "label": "Caída por acción",
+          "default": "perSale",
+          "choices": [
+            {
+              "value": "perSale",
+              "label": "Una por venta"
+            },
+            {
+              "value": "perShare",
+              "label": "Una por acción",
+              "patch": {
+                "market": {
+                  "moves": {
+                    "sell": {
+                      "per": "share"
+                    }
+                  }
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "bankBreak",
+          "label": "Quiebra de banca",
+          "default": "off",
+          "choices": [
+            {
+              "value": "off",
+              "label": "No"
+            },
+            {
+              "value": "on",
+              "label": "Sí",
+              "patch": {
+                "bank": {
+                  "total": 8000
+                },
+                "limits": {
+                  "certificates": {
+                    "3": 16,
+                    "4": 12,
+                    "5": 10
+                  }
+                },
+                "endTriggers": [
+                  {
+                    "type": "cyclesComplete"
+                  },
+                  {
+                    "type": "bankBroken"
+                  },
+                  {
+                    "type": "bankruptcy"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "hostileMergers",
+          "label": "Fusiones hostiles",
+          "default": "off",
+          "choices": [
+            {
+              "value": "off",
+              "label": "No"
+            },
+            {
+              "value": "on",
+              "label": "Sí"
+            }
+          ]
+        },
+        {
+          "id": "headquarters",
+          "label": "Sedes",
+          "default": "off",
+          "choices": [
+            {
+              "value": "off",
+              "label": "No"
+            },
+            {
+              "value": "on",
+              "label": "Sí",
+              "patchCompanies": [
+                {
+                  "tier": "major",
+                  "patch": {
+                    "traits": {
+                      "payments": [
+                        {
+                          "id": "headquarters",
+                          "labelEs": "Sede",
+                          "amount": 0,
+                          "direction": "bankPays"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "minorsInPlay",
+          "label": "Minors en juego",
+          "default": "all",
+          "kind": "companySubset",
+          "from": [
+            "ADP",
+            "AGR",
+            "BRG",
+            "EMN",
+            "EXV",
+            "EXP",
+            "NPT",
+            "OVN",
+            "RES",
+            "SPC",
+            "SUB",
+            "TUN"
+          ],
+          "size": {
+            "long": 12,
+            "short": 8,
+            "micro2": 4,
+            "micro3": 6
+          },
+          "choices": [
+            {
+              "value": "all",
+              "label": "Todas"
+            }
+          ]
+        }
+      ],
+      "bank": "unlimited",
+      "initialTreasuries": [],
+      "startingCash": {
+        "2": 450,
+        "3": 300,
+        "4": 275,
+        "5": 220
+      },
+      "companies": [
+        {
+          "id": "ADP",
+          "shortName": "ADP",
+          "name": "Adaptive",
+          "aliases": [
+            "adaptive",
+            "adaptativa"
+          ],
+          "color": "#b39ddb",
+          "textColor": "#1b1b1b",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction"
+        },
+        {
+          "id": "AGR",
+          "shortName": "AGR",
+          "name": "Agricultural",
+          "aliases": [
+            "agricultural",
+            "agrícola"
+          ],
+          "color": "#2e7d32",
+          "textColor": "#ffffff",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction"
+        },
+        {
+          "id": "BRG",
+          "shortName": "BRG",
+          "name": "Bridging",
+          "aliases": [
+            "bridging",
+            "puentes"
+          ],
+          "color": "#4fc3f7",
+          "textColor": "#1b1b1b",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction"
+        },
+        {
+          "id": "EMN",
+          "shortName": "EMN",
+          "name": "Eastern Mining",
+          "aliases": [
+            "eastern mining",
+            "minera del este"
+          ],
+          "color": "#6d4c41",
+          "textColor": "#ffffff",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction"
+        },
+        {
+          "id": "EXV",
+          "shortName": "EXV",
+          "name": "Expansive",
+          "aliases": [
+            "expansive",
+            "expansiva"
+          ],
+          "color": "#ec407a",
+          "textColor": "#ffffff",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction",
+          "traits": {
+            "payments": [
+              {
+                "id": "expansiveToken",
+                "labelEs": "Ficha extra",
+                "amount": 40,
+                "direction": "companyPays"
+              }
+            ]
+          }
+        },
+        {
+          "id": "EXP",
+          "shortName": "EXP",
+          "name": "Express",
+          "aliases": [
+            "express",
+            "expreso"
+          ],
+          "color": "#c62828",
+          "textColor": "#ffffff",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction"
+        },
+        {
+          "id": "NPT",
+          "shortName": "NPT",
+          "name": "Northern Port",
+          "aliases": [
+            "northern port",
+            "puerto del norte"
+          ],
+          "color": "#1565c0",
+          "textColor": "#ffffff",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction"
+        },
+        {
+          "id": "OVN",
+          "shortName": "OVN",
+          "name": "Overnight",
+          "aliases": [
+            "overnight",
+            "nocturno"
+          ],
+          "color": "#212121",
+          "textColor": "#ffffff",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction"
+        },
+        {
+          "id": "RES",
+          "shortName": "RES",
+          "name": "Resourceful",
+          "aliases": [
+            "resourceful",
+            "recursos"
+          ],
+          "color": "#c19a6b",
+          "textColor": "#1b1b1b",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction",
+          "traits": {
+            "keepsRustedTrains": true
+          }
+        },
+        {
+          "id": "SPC",
+          "shortName": "SPC",
+          "name": "Spacious",
+          "aliases": [
+            "spacious",
+            "espacioso"
+          ],
+          "color": "#9ccc65",
+          "textColor": "#1b1b1b",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction",
+          "traits": {
+            "trainLimitBonus": 1
+          }
+        },
+        {
+          "id": "SUB",
+          "shortName": "SUB",
+          "name": "Suburban",
+          "aliases": [
+            "suburban",
+            "suburbano"
+          ],
+          "color": "#f8bbd0",
+          "textColor": "#1b1b1b",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction"
+        },
+        {
+          "id": "TUN",
+          "shortName": "TUN",
+          "name": "Tunneling",
+          "aliases": [
+            "tunneling",
+            "túnel"
+          ],
+          "color": "#757575",
+          "textColor": "#ffffff",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction",
+          "traits": {
+            "payments": [
+              {
+                "id": "tunneling",
+                "labelEs": "Montaña",
+                "amount": 60,
+                "direction": "bankPays",
+                "cost": 40
+              }
+            ]
+          }
+        },
+        {
+          "id": "CON",
+          "shortName": "CON",
+          "name": "Consortium",
+          "aliases": [
+            "consortium",
+            "consorcio"
+          ],
+          "color": "#e53935",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "major",
+          "start": "merger",
+          "altName": "Conglomerate",
+          "altAliases": [
+            "conglomerate",
+            "conglomerado"
+          ]
+        },
+        {
+          "id": "UNI",
+          "shortName": "UNI",
+          "name": "Union",
+          "aliases": [
+            "union",
+            "unión"
+          ],
+          "color": "#ef6c00",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "major",
+          "start": "merger",
+          "altName": "Unlimited",
+          "altAliases": [
+            "unlimited",
+            "ilimitada"
+          ]
+        },
+        {
+          "id": "SYS",
+          "shortName": "SYS",
+          "name": "System",
+          "aliases": [
+            "system",
+            "sistema"
+          ],
+          "color": "#fdd835",
+          "textColor": "#1b1b1b",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "major",
+          "start": "merger",
+          "altName": "Syndicate",
+          "altAliases": [
+            "syndicate",
+            "sindicato"
+          ]
+        },
+        {
+          "id": "INT",
+          "shortName": "INT",
+          "name": "International",
+          "aliases": [
+            "international",
+            "internacional"
+          ],
+          "color": "#00bcd4",
+          "textColor": "#1b1b1b",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "major",
+          "start": "merger",
+          "altName": "International II",
+          "altAliases": [
+            "international dos"
+          ]
+        },
+        {
+          "id": "FED",
+          "shortName": "FED",
+          "name": "Federation",
+          "aliases": [
+            "federation",
+            "federación"
+          ],
+          "color": "#43a047",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "major",
+          "start": "merger",
+          "altName": "Federation II",
+          "altAliases": [
+            "federation dos"
+          ]
+        },
+        {
+          "id": "EXM",
+          "shortName": "EXM",
+          "name": "Experiment",
+          "aliases": [
+            "experiment",
+            "experimento"
+          ],
+          "color": "#7b1fa2",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "major",
+          "start": "merger",
+          "altName": "Experiment II",
+          "altAliases": [
+            "experiment dos"
+          ]
+        },
+        {
+          "id": "CIR",
+          "shortName": "CIR",
+          "name": "Circus",
+          "aliases": [
+            "circus",
+            "circo"
+          ],
+          "color": "#9c27b0",
+          "textColor": "#ffffff",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction"
+        },
+        {
+          "id": "CPL",
+          "shortName": "CPL",
+          "name": "Coupling",
+          "aliases": [
+            "coupling",
+            "enganche"
+          ],
+          "color": "#26c6da",
+          "textColor": "#1b1b1b",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction"
+        },
+        {
+          "id": "MFG",
+          "shortName": "MFG",
+          "name": "Manufacturing",
+          "aliases": [
+            "manufacturing",
+            "manufactura",
+            "fábrica"
+          ],
+          "color": "#c9a227",
+          "textColor": "#1b1b1b",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction",
+          "traits": {
+            "launchFee": 50,
+            "launchAssets": [
+              "train:M2:1"
+            ],
+            "noLeadoffTrain": true
+          }
+        },
+        {
+          "id": "TWC",
+          "shortName": "TWC",
+          "name": "Twin Cities",
+          "aliases": [
+            "twin cities",
+            "ciudades gemelas"
+          ],
+          "color": "#81d4fa",
+          "textColor": "#1b1b1b",
+          "shareCount": 5,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "minor",
+          "start": "auction"
+        },
+        {
+          "id": "AUT",
+          "shortName": "AUT",
+          "name": "Authority",
+          "aliases": [
+            "authority",
+            "autoridad"
+          ],
+          "color": "#e0e0e0",
+          "textColor": "#1b1b1b",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "major",
+          "start": "merger",
+          "altName": "Authority II",
+          "altAliases": [
+            "authority dos"
+          ]
+        },
+        {
+          "id": "LGE",
+          "shortName": "LGE",
+          "name": "League",
+          "aliases": [
+            "league",
+            "liga"
+          ],
+          "color": "#424242",
+          "textColor": "#ffffff",
+          "shareCount": 10,
+          "presidencyUnits": 2,
+          "certificates": [
+            2,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            1
+          ],
+          "parOptions": [],
+          "kind": "public",
+          "tier": "major",
+          "start": "merger",
+          "altName": "League II",
+          "altAliases": [
+            "league dos"
+          ]
+        }
+      ],
+      "privates": [],
+      "privateTrading": "none",
+      "capitalization": {
+        "type": "incremental"
+      },
+      "ipoPrice": "market",
+      "floatPercent": 20,
+      "floatCounts": "soldFromIpo",
+      "unownedDividends": {
+        "ipo": "none",
+        "pool": "none",
+        "treasury": "company"
+      },
+      "revenueParts": [
+        {
+          "id": "revenue",
+          "label": "Ingresos",
+          "to": "choice"
+        }
+      ],
+      "payoutModes": [
+        "full",
+        "withhold"
+      ],
+      "rounding": {
+        "perShare": "floor",
+        "halfRetain": "floorToCompany",
+        "unit": 10
+      },
+      "auction": {
+        "minBid": 120,
+        "step": 5
+      },
+      "market": {
+        "shape": "1d",
+        "cells": [
+          [
+            {
+              "price": 500
+            }
+          ],
+          [
+            {
+              "price": 450
+            }
+          ],
+          [
+            {
+              "price": 400
+            }
+          ],
+          [
+            {
+              "price": 360
+            }
+          ],
+          [
+            {
+              "price": 330
+            }
+          ],
+          [
+            {
+              "price": 300
+            }
+          ],
+          [
+            {
+              "price": 270
+            }
+          ],
+          [
+            {
+              "price": 245
+            }
+          ],
+          [
+            {
+              "price": 220
+            }
+          ],
+          [
+            {
+              "price": 200
+            }
+          ],
+          [
+            {
+              "price": 180
+            }
+          ],
+          [
+            {
+              "price": 165
+            }
+          ],
+          [
+            {
+              "price": 150
+            }
+          ],
+          [
+            {
+              "price": 135
+            }
+          ],
+          [
+            {
+              "price": 120
+            }
+          ],
+          [
+            {
+              "price": 110
+            }
+          ],
+          [
+            {
+              "price": 100
+            }
+          ],
+          [
+            {
+              "price": 90
+            }
+          ],
+          [
+            {
+              "price": 80
+            }
+          ],
+          [
+            {
+              "price": 70
+            }
+          ],
+          [
+            {
+              "price": 60
+            }
+          ],
+          [
+            {
+              "price": 50
+            }
+          ],
+          [
+            {
+              "price": 40
+            }
+          ],
+          [
+            {
+              "price": 30
+            }
+          ],
+          [
+            {
+              "price": 20
+            }
+          ],
+          [
+            {
+              "price": 10
+            }
+          ],
+          [
+            {
+              "price": 0,
+              "tags": [
+                "closed"
+              ]
+            }
+          ]
+        ],
+        "edges": {
+          "right": "none",
+          "left": "none"
+        },
+        "moves": {
+          "payout": [
+            {
+              "when": {
+                "dividendAtLeast": {
+                  "priceTimes": 2
+                }
+              },
+              "dir": "up",
+              "n": 2
+            },
+            {
+              "when": {
+                "dividendAtLeast": {
+                  "priceTimes": 1
+                }
+              },
+              "dir": "up",
+              "n": 1
+            },
+            {
+              "when": {
+                "dividendEquals": 0
+              },
+              "dir": "down",
+              "n": 1
+            },
+            {
+              "dir": "up",
+              "n": 1,
+              "effect": "stackBottom"
+            }
+          ],
+          "withhold": [
+            {
+              "dir": "down",
+              "n": 1
+            }
+          ],
+          "sell": {
+            "per": "sale",
+            "n": 1,
+            "onlyIfOperated": false,
+            "warnUnlessOperated": true
+          },
+          "soldOut": {
+            "heldBy": "players",
+            "at": "endSR"
+          },
+          "issue": {
+            "from": "treasury",
+            "onlyIfFloated": false,
+            "n": 1
+          },
+          "redeem": {
+            "n": 0
+          }
+        }
+      },
+      "trains": [
+        {
+          "type": "2",
+          "variants": [
+            {
+              "name": "2",
+              "cost": 100
+            }
+          ],
+          "count": 7,
+          "rustsOnPhase": "green4",
+          "permanent": false,
+          "countsForLimit": true
+        },
+        {
+          "type": "3",
+          "variants": [
+            {
+              "name": "3",
+              "cost": 200
+            }
+          ],
+          "count": 6,
+          "countByPlayers": {
+            "2": 5,
+            "3": 5
+          },
+          "rustsOnPhase": "purple6",
+          "permanent": false,
+          "countsForLimit": true
+        },
+        {
+          "type": "4",
+          "variants": [
+            {
+              "name": "4",
+              "cost": 300
+            }
+          ],
+          "count": 4,
+          "rustsOnPhase": "grey",
+          "permanent": false,
+          "countsForLimit": true
+        },
+        {
+          "type": "5",
+          "variants": [
+            {
+              "name": "5",
+              "cost": 450
+            }
+          ],
+          "count": 3,
+          "permanent": true,
+          "countsForLimit": true
+        },
+        {
+          "type": "6",
+          "variants": [
+            {
+              "name": "6",
+              "cost": 550
+            }
+          ],
+          "count": 3,
+          "countByPlayers": {
+            "2": 2,
+            "3": 2
+          },
+          "permanent": true,
+          "countsForLimit": true
+        },
+        {
+          "type": "7",
+          "displayName": "7/∞",
+          "variants": [
+            {
+              "name": "7",
+              "cost": 750
+            },
+            {
+              "name": "∞",
+              "cost": 1000
+            }
+          ],
+          "count": "unlimited",
+          "permanent": true,
+          "countsForLimit": true,
+          "tradeIn": {
+            "fromTypes": [
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7"
+            ],
+            "cost": 800,
+            "variant": "∞",
+            "to": "removed",
+            "rustsFirst": true
+          }
+        },
+        {
+          "type": "M2",
+          "displayName": "2 (Manufacturing)",
+          "variants": [
+            {
+              "name": "2",
+              "cost": 0
+            }
+          ],
+          "count": 1,
+          "special": true,
+          "permanent": false,
+          "countsForLimit": true
+        }
+      ],
+      "trainLimitScope": "company",
+      "discardedTrainsTo": "pool",
+      "trainExport": {
+        "allOfType": [
+          "2"
+        ]
+      },
+      "phases": [
+        {
+          "id": "yellow",
+          "color": "Amarilla",
+          "triggeredBy": null,
+          "orsPerSet": 2,
+          "trainLimit": 2,
+          "trainLimitByTier": {
+            "minor": 2
+          },
+          "launchPriceRange": [
+            60,
+            90
+          ],
+          "effects": []
+        },
+        {
+          "id": "green",
+          "color": "Verde",
+          "triggeredBy": "3",
+          "orsPerSet": 2,
+          "trainLimit": 4,
+          "trainLimitByTier": {
+            "minor": 2,
+            "major": 4
+          },
+          "launchPriceRange": [
+            60,
+            110
+          ],
+          "effects": []
+        },
+        {
+          "id": "green4",
+          "color": "Verde",
+          "triggeredBy": "4",
+          "orsPerSet": 2,
+          "trainLimit": 3,
+          "trainLimitByTier": {
+            "minor": 2,
+            "major": 3
+          },
+          "launchPriceRange": [
+            60,
+            110
+          ],
+          "effects": []
+        },
+        {
+          "id": "purple",
+          "color": "Morada",
+          "triggeredBy": "5",
+          "orsPerSet": 2,
+          "trainLimit": 2,
+          "trainLimitByTier": {
+            "minor": 1,
+            "major": 2
+          },
+          "launchPriceRange": [
+            60,
+            135
+          ],
+          "effects": []
+        },
+        {
+          "id": "purple6",
+          "color": "Morada",
+          "triggeredBy": "6",
+          "orsPerSet": 2,
+          "trainLimit": 2,
+          "trainLimitByTier": {
+            "minor": 1,
+            "major": 2
+          },
+          "launchPriceRange": [
+            60,
+            135
+          ],
+          "effects": []
+        },
+        {
+          "id": "grey",
+          "color": "Gris",
+          "triggeredBy": "7",
+          "orsPerSet": 2,
+          "trainLimit": 2,
+          "trainLimitByTier": {
+            "minor": 1,
+            "major": 2
+          },
+          "launchPriceRange": [
+            60,
+            135
+          ],
+          "effects": []
+        }
+      ],
+      "roundSchedule": {
+        "type": "fixed",
+        "sequence": [
+          "SR1",
+          "OR1.1",
+          "OR1.2",
+          "MR1",
+          "SR2",
+          "OR2.1",
+          "OR2.2",
+          "MR2",
+          "SR3",
+          "OR3.1",
+          "OR3.2",
+          "MR3",
+          "SR4",
+          "OR4.1",
+          "OR4.2",
+          "MR4",
+          "SR5",
+          "OR5.1",
+          "OR5.2",
+          "MR5",
+          "SR6",
+          "OR6.1",
+          "OR6.2",
+          "MR6"
+        ],
+        "conditional": [
+          {
+            "slotPrefix": "MR",
+            "phaseReached": "green"
+          }
+        ],
+        "events": []
+      },
+      "srOrder": "priorityDeal",
+      "orOrder": {
+        "by": "priceDesc",
+        "ties": [
+          "stackTop"
+        ],
+        "dynamic": true
+      },
+      "limits": {
+        "certificates": {},
+        "perCompanyPercent": 60,
+        "pool": {
+          "maxPercent": 50
+        },
+        "maxSharesPerBuy": 1
+      },
+      "endTriggers": [
+        {
+          "type": "cyclesComplete"
+        }
+      ],
+      "customRules": [
+        {
+          "id": "auctionLaunch",
+          "config": {}
+        },
+        {
+          "id": "mergers",
+          "config": {
+            "round": "MR"
+          }
+        },
+        {
+          "id": "corporateBankruptcy",
+          "config": {
+            "trigger": "closedCell",
+            "presidentPays": true,
+            "companyTrainsTo": "pool",
+            "companyStatus": "closed",
+            "playerMode": "liquidatePresided"
+          }
+        },
+        {
+          "id": "landmarks",
+          "config": {}
+        }
+      ],
+      "chipPreset": [
+        {
+          "value": 500,
+          "color": "#6a1b9a",
+          "label": "500"
+        },
+        {
+          "value": 100,
+          "color": "#212121",
+          "label": "100"
+        },
+        {
+          "value": 50,
+          "color": "#ef6c00",
+          "label": "50"
+        },
+        {
+          "value": 20,
+          "color": "#2e7d32",
+          "label": "20"
+        },
+        {
+          "value": 10,
+          "color": "#1565c0",
+          "label": "10"
+        },
+        {
+          "value": 5,
+          "color": "#c62828",
+          "label": "5"
+        }
+      ],
+      "verification": {
+        "bank": "verified",
+        "startingCash": "verified",
+        "companies": "unverified",
+        "currency": "verified",
+        "capitalization": "verified",
+        "ipoPrice": "verified",
+        "unownedDividends": "verified",
+        "revenueParts": "verified",
+        "payoutModes": "verified",
+        "rounding": "verified",
+        "market": "verified",
+        "trains": "verified",
+        "phases": "verified",
+        "roundSchedule": "verified",
+        "orOrder": "verified",
+        "limits": "verified",
+        "auction": "verified",
+        "trainExport": "verified",
+        "customRules": "verified"
+      }
+    },
+    "options": {
+      "mode": "long",
+      "expansion": "landmarks",
+      "stockDrops": "perSale",
+      "bankBreak": "off",
+      "hostileMergers": "off",
+      "headquarters": "off",
+      "minorsInPlay": "all"
+    },
+    "players": [
+      {
+        "id": "p1",
+        "name": "Ana",
+        "aliases": [],
+        "color": "#e53935",
+        "seat": 1
+      },
+      {
+        "id": "p2",
+        "name": "Bruno",
+        "aliases": [],
+        "color": "#1e88e5",
+        "seat": 2
+      },
+      {
+        "id": "p3",
+        "name": "Carla",
+        "aliases": [],
+        "color": "#43a047",
+        "seat": 3
+      }
+    ],
+    "walletMode": "appTruth",
+    "chipSet": {
+      "chips": [
+        {
+          "value": 500,
+          "color": "#6a1b9a",
+          "label": "500"
+        },
+        {
+          "value": 100,
+          "color": "#212121",
+          "label": "100"
+        },
+        {
+          "value": 50,
+          "color": "#ef6c00",
+          "label": "50"
+        },
+        {
+          "value": 20,
+          "color": "#2e7d32",
+          "label": "20"
+        },
+        {
+          "value": 10,
+          "color": "#1565c0",
+          "label": "10"
+        },
+        {
+          "value": 5,
+          "color": "#c62828",
+          "label": "5"
+        }
+      ]
+    }
+  },
+  "entries": [
+    {
+      "kind": "group",
+      "seq": 1,
+      "id": "g1",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "createSession",
+        "players": [
+          {
+            "id": "p1",
+            "name": "Ana",
+            "aliases": [],
+            "color": "#e53935",
+            "seat": 1
+          },
+          {
+            "id": "p2",
+            "name": "Bruno",
+            "aliases": [],
+            "color": "#1e88e5",
+            "seat": 2
+          },
+          {
+            "id": "p3",
+            "name": "Carla",
+            "aliases": [],
+            "color": "#43a047",
+            "seat": 3
+          }
+        ],
+        "walletMode": "appTruth"
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p1",
+          "amount": 300
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p2",
+          "amount": 300
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p3",
+          "amount": 300
+        },
+        {
+          "t": "turnAdvance",
+          "round": "SR",
+          "srNumber": 1,
+          "scheduleIndex": 0,
+          "phase": "yellow"
+        }
+      ],
+      "touches": [
+        "money:bank",
+        "money:player:p1",
+        "money:player:p2",
+        "money:player:p3",
+        "turn"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 2,
+      "id": "g2",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "launchCompany",
+        "player": "p1",
+        "company": "TUN",
+        "bid": 140,
+        "price": null
+      },
+      "events": [
+        {
+          "t": "companyStatus",
+          "company": "TUN",
+          "status": "floated",
+          "parPrice": 70
+        },
+        {
+          "t": "marketMove",
+          "company": "TUN",
+          "to": {
+            "row": 19,
+            "col": 0
+          },
+          "reason": "par"
+        },
+        {
+          "t": "shareTransfer",
+          "company": "TUN",
+          "from": "ipo:TUN",
+          "to": "player:p1",
+          "units": 2,
+          "presidency": true
+        },
+        {
+          "t": "shareTransfer",
+          "company": "TUN",
+          "from": "ipo:TUN",
+          "to": "company:TUN",
+          "units": 3
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p1",
+          "to": "company:TUN",
+          "amount": 140
+        }
+      ],
+      "touches": [
+        "market:TUN",
+        "money:company:TUN",
+        "money:player:p1",
+        "shares:TUN",
+        "status:TUN"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 3,
+      "id": "g3",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "launchCompany",
+        "player": "p2",
+        "company": "EXP",
+        "bid": 200,
+        "price": null
+      },
+      "events": [
+        {
+          "t": "companyStatus",
+          "company": "EXP",
+          "status": "floated",
+          "parPrice": 90
+        },
+        {
+          "t": "marketMove",
+          "company": "EXP",
+          "to": {
+            "row": 17,
+            "col": 0
+          },
+          "reason": "par"
+        },
+        {
+          "t": "shareTransfer",
+          "company": "EXP",
+          "from": "ipo:EXP",
+          "to": "player:p2",
+          "units": 2,
+          "presidency": true
+        },
+        {
+          "t": "shareTransfer",
+          "company": "EXP",
+          "from": "ipo:EXP",
+          "to": "company:EXP",
+          "units": 3
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p2",
+          "to": "company:EXP",
+          "amount": 200
+        }
+      ],
+      "touches": [
+        "market:EXP",
+        "money:company:EXP",
+        "money:player:p2",
+        "shares:EXP",
+        "status:EXP"
+      ],
+      "warnings": [
+        {
+          "code": "launchPriceClamped",
+          "messageEs": "La mitad de la puja ($100) queda fuera del rango de la fase: se usa $90.",
+          "severity": "info"
+        }
+      ]
+    },
+    {
+      "kind": "group",
+      "seq": 4,
+      "id": "g4",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "launchCompany",
+        "player": "p3",
+        "company": "MFG",
+        "bid": 140,
+        "price": null
+      },
+      "events": [
+        {
+          "t": "companyStatus",
+          "company": "MFG",
+          "status": "floated",
+          "parPrice": 70
+        },
+        {
+          "t": "marketMove",
+          "company": "MFG",
+          "to": {
+            "row": 19,
+            "col": 0
+          },
+          "reason": "par"
+        },
+        {
+          "t": "shareTransfer",
+          "company": "MFG",
+          "from": "ipo:MFG",
+          "to": "player:p3",
+          "units": 2,
+          "presidency": true
+        },
+        {
+          "t": "shareTransfer",
+          "company": "MFG",
+          "from": "ipo:MFG",
+          "to": "company:MFG",
+          "units": 3
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "player:p3",
+          "to": "company:MFG",
+          "amount": 140
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "company:MFG",
+          "to": "bank",
+          "amount": 50
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "train:M2:1",
+          "from": "removed",
+          "to": "company:MFG"
+        }
+      ],
+      "touches": [
+        "asset:train:M2:1",
+        "market:MFG",
+        "money:bank",
+        "money:company:MFG",
+        "money:player:p3",
+        "shares:MFG",
+        "status:MFG"
+      ],
+      "warnings": [
+        {
+          "code": "noLeadoffTrain",
+          "messageEs": "Esta compañía no compra el tren de salida.",
+          "severity": "info"
+        }
+      ]
+    },
+    {
+      "kind": "group",
+      "seq": 5,
+      "id": "g5",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "startOR"
+      },
+      "events": [
+        {
+          "t": "turnAdvance",
+          "roundEnd": "SR"
+        },
+        {
+          "t": "turnAdvance",
+          "round": "OR",
+          "orSet": 1,
+          "orIndex": 1,
+          "orsInSet": 2,
+          "scheduleIndex": 1,
+          "operatingOrder": [
+            "EXP",
+            "TUN",
+            "MFG"
+          ],
+          "company": "EXP"
+        }
+      ],
+      "touches": [
+        "turn"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 6,
+      "id": "g6",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "transferMoney",
+        "from": "bank",
+        "to": "company:EXP",
+        "amount": 600
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "company:EXP",
+          "amount": 600
+        }
+      ],
+      "touches": [
+        "money:bank",
+        "money:company:EXP"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 7,
+      "id": "g7",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyTrain",
+        "company": "EXP",
+        "trainType": "4",
+        "variant": null,
+        "from": "bank",
+        "seller": null,
+        "price": null,
+        "tradeIn": null
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "company:EXP",
+          "to": "bank",
+          "amount": 300
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "train:4:1",
+          "from": "bank",
+          "to": "company:EXP"
+        },
+        {
+          "t": "turnAdvance",
+          "phase": "green4"
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "train:2:1",
+          "from": "bank",
+          "to": "removed"
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "train:2:2",
+          "from": "bank",
+          "to": "removed"
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "train:2:3",
+          "from": "bank",
+          "to": "removed"
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "train:2:4",
+          "from": "bank",
+          "to": "removed"
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "train:2:5",
+          "from": "bank",
+          "to": "removed"
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "train:2:6",
+          "from": "bank",
+          "to": "removed"
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "train:2:7",
+          "from": "bank",
+          "to": "removed"
+        }
+      ],
+      "touches": [
+        "asset:train:2:1",
+        "asset:train:2:2",
+        "asset:train:2:3",
+        "asset:train:2:4",
+        "asset:train:2:5",
+        "asset:train:2:6",
+        "asset:train:2:7",
+        "asset:train:4:1",
+        "money:bank",
+        "money:company:EXP",
+        "turn"
+      ],
+      "warnings": [
+        {
+          "code": "trainOrder",
+          "messageEs": "Aún quedan trenes 2 en el banco.",
+          "severity": "warn"
+        }
+      ]
+    },
+    {
+      "kind": "group",
+      "seq": 8,
+      "id": "g8",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "buyTrain",
+        "company": "EXP",
+        "trainType": "5",
+        "variant": null,
+        "from": "bank",
+        "seller": null,
+        "price": null,
+        "tradeIn": null
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "company:EXP",
+          "to": "bank",
+          "amount": 450
+        },
+        {
+          "t": "assetTransfer",
+          "asset": "train:5:1",
+          "from": "bank",
+          "to": "company:EXP"
+        },
+        {
+          "t": "turnAdvance",
+          "phase": "purple"
+        }
+      ],
+      "touches": [
+        "asset:train:5:1",
+        "money:bank",
+        "money:company:EXP",
+        "turn"
+      ],
+      "warnings": [
+        {
+          "code": "trainOrder",
+          "messageEs": "Aún quedan trenes 3 en el banco.",
+          "severity": "warn"
+        },
+        {
+          "code": "trainLimit",
+          "messageEs": "Con este tren tendría 2; el límite es 1.",
+          "severity": "warn"
+        }
+      ]
+    },
+    {
+      "kind": "group",
+      "seq": 9,
+      "id": "g9",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "runAndPayout",
+        "company": "EXP",
+        "parts": [
+          {
+            "part": "revenue",
+            "amount": 100
+          }
+        ],
+        "mode": "full"
+      },
+      "events": [
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "player:p2",
+          "amount": 40
+        },
+        {
+          "t": "moneyTransfer",
+          "from": "bank",
+          "to": "company:EXP",
+          "amount": 60
+        },
+        {
+          "t": "marketMove",
+          "company": "EXP",
+          "to": {
+            "row": 16,
+            "col": 0
+          },
+          "reason": "payout"
+        },
+        {
+          "t": "counterChange",
+          "subject": "company:EXP",
+          "key": "runs",
+          "delta": 1
+        }
+      ],
+      "touches": [
+        "counter:company:EXP",
+        "market:EXP",
+        "money:bank",
+        "money:company:EXP",
+        "money:player:p2"
+      ],
+      "warnings": []
+    },
+    {
+      "kind": "group",
+      "seq": 10,
+      "id": "g10",
+      "at": "2026-10-09T20:00:00.000Z",
+      "source": "system",
+      "action": {
+        "type": "nextCompany"
+      },
+      "events": [
+        {
+          "t": "turnAdvance",
+          "operatingOrder": [
+            "EXP",
+            "TUN",
+            "MFG"
+          ],
+          "company": "TUN"
+        }
+      ],
+      "touches": [
+        "turn"
+      ],
+      "warnings": []
+    }
+  ],
+  "stateHash": "1f2b2c7c3b404992965b47fc1505c46c60a99a412cbc85dae497bd2beaa3d5a8"
+}

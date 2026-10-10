@@ -1,5 +1,5 @@
 import type { SessionState } from "../events/state";
-import { certificateCount, presidencyHolder, unitsOf } from "../events/state";
+import { certificateCount, hasOperated, isPlayerBankrupt, presidencyHolder, unitsOf } from "../events/state";
 import type { GameDefinition } from "../games/schema";
 import { cellAt } from "../mechanics/market";
 import { parseHolder, type CompanyId, type HolderRef } from "../types";
@@ -62,4 +62,26 @@ export function poolWarnings(ctx: ActionContext, after: SessionState, company: C
     return [warning("poolLimit", `El pool tendría el ${(units * 100) / shareCount}%; el máximo es ${maxPercent}%.`)];
   }
   return [];
+}
+
+/** RotLA B p.11: one share per purchase (limits.maxSharesPerBuy). */
+export function sharesPerBuyWarnings(ctx: ActionContext, count: number): Warning[] {
+  const max = ctx.game.limits.maxSharesPerBuy;
+  if (max === undefined || count <= max) return [];
+  return [warning("maxSharesPerBuy", `Se compra ${max === 1 ? "una acción" : `hasta ${max} acciones`} cada vez.`)];
+}
+
+/** RotLA B p.10: a player sells a company only after it has operated (sell.warnUnlessOperated). */
+export function unoperatedSaleWarnings(ctx: ActionContext, seller: HolderRef, company: CompanyId): Warning[] {
+  if (!ctx.game.market.moves.sell.warnUnlessOperated || parseHolder(seller).kind !== "player") return [];
+  if (hasOperated(ctx.state, company)) return [];
+  return [warning("notOperated", "Esta compañía aún no ha operado: no se vende hasta que opere.")];
+}
+
+/** A player out of the game after a bankruptcy (RotLA B p.17) is named in an action: warn only. */
+export function eliminatedWarnings(ctx: ActionContext, holder: HolderRef): Warning[] {
+  const h = parseHolder(holder);
+  if (h.kind !== "player" || !isPlayerBankrupt(ctx.state, h.id)) return [];
+  const name = ctx.players.find((p) => p.id === h.id)?.name ?? h.id;
+  return [warning("eliminatedPlayer", `${name} ya no está en la partida (quiebra).`)];
 }

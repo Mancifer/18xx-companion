@@ -4,7 +4,7 @@ import { enabledMechanics, allMechanics } from "../../mechanics/custom";
 import { compoundHandlers } from "./compound";
 import { flowHandlers } from "./flow";
 import { manualHandlers } from "./manual";
-import { operatingHandlers } from "./operating";
+import { operatingHandlers, treasuryHandlers } from "./operating";
 import { setupHandlers } from "./setup";
 import { statusHandlers } from "./status";
 import { stockHandlers } from "./stock";
@@ -14,6 +14,7 @@ export const coreHandlers: HandlerMap = {
   ...setupHandlers,
   ...manualHandlers,
   ...operatingHandlers,
+  ...treasuryHandlers,
   ...statusHandlers,
   ...stockHandlers,
   ...flowHandlers,

@@ -3,6 +3,7 @@ import { getBuiltInGame } from "../../src/domain/games";
 import { operatingOrder } from "../../src/domain/mechanics/operatingOrder";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { seedCompany } from "../helpers/seed";
+import { rotlaSession, seedCompany as seedRotla } from "../helpers/rotla";
 
 /** FR-051: operating order from orOrder. */
 
@@ -54,5 +55,26 @@ describe("operatingOrder", () => {
     s.apply({ t: "marketMove", company: "CPR", to: { row: 0, col: 9 }, reason: "manual" }); // 142
     s.do({ type: "nextCompany" });
     expect(s.state.turn.currentCompany).toBe("CPR");
+  });
+});
+
+describe("RotLA: a restack during the OR (stackTop, dynamic)", () => {
+  it("changes the remaining order, and companies that already operated are not offered again", () => {
+    const s = rotlaSession();
+    for (const id of ["CON", "UNI", "SYS"]) seedRotla(s, id, { price: 100, holders: { "player:p1": 10 } });
+    s.do({ type: "startOR" });
+    expect(s.state.turn.operatingOrder).toEqual(["CON", "UNI", "SYS"]);
+    expect(s.state.turn.currentCompany).toBe("CON");
+    // UNI pays below its price out of turn: it drops to the bottom of the 100s.
+    s.do({ type: "runAndPayout", company: "UNI", parts: [{ part: "revenue", amount: 60 }], mode: "full" });
+    expect(operatingOrder(s.game, s.state)).toEqual(["CON", "SYS", "UNI"]);
+    s.do({ type: "runAndPayout", company: "CON", parts: [{ part: "revenue", amount: 60 }], mode: "full" });
+    s.do({ type: "nextCompany" });
+    expect(s.state.turn.currentCompany).toBe("SYS");
+    s.do({ type: "runAndPayout", company: null, parts: [{ part: "revenue", amount: 60 }], mode: "full" });
+    s.do({ type: "nextCompany" });
+    // Everyone has operated: the next OR of the set starts, from CON again.
+    expect(s.state.turn.orIndex).toBe(2);
+    expect(s.state.turn.operatingOrder).toEqual(["UNI", "CON", "SYS"]);
   });
 });

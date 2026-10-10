@@ -36,7 +36,15 @@ export function reduce(state: SessionState, event: PrimitiveEvent): SessionState
           soldThisSR = { ...soldThisSR, [seller.id]: [...already, event.company] };
         }
       }
-      return { ...state, holdings, presidency, soldThisSR };
+      // An issue or redemption: a company's own shares between its treasury and the pool, in an OR.
+      let turn = state.turn;
+      const own = `company:${event.company}`;
+      const trade = (event.from === own && event.to === "pool") || (event.from === "pool" && event.to === own);
+      if (turn.round === "OR" && trade) {
+        const trades = turn.treasuryTradesThisOR ?? {};
+        turn = { ...turn, treasuryTradesThisOR: { ...trades, [event.company]: (trades[event.company] ?? 0) + 1 } };
+      }
+      return { ...state, holdings, presidency, soldThisSR, turn };
     }
 
     case "marketMove": {
@@ -44,7 +52,8 @@ export function reduce(state: SessionState, event: PrimitiveEvent): SessionState
       if (!current) return state;
       // Only an end step produces these moves, so they also mark the round as ended (research R2).
       const ended = event.reason === "soldOut" || event.reason === "poolPenalty" ? withRoundEnded(state) : state;
-      if (cellEquals(current.position, event.to)) {
+      // "restack" re-enters the same cell, so the company goes to the bottom of its stack (R2).
+      if (cellEquals(current.position, event.to) && event.reason !== "restack") {
         return withCompany(ended, event.company, { ...current, position: event.to });
       }
       let maxStack = -1;
@@ -140,7 +149,10 @@ function advanceTurn(state: SessionState, e: Extract<PrimitiveEvent, { t: "turnA
 
   // Derived per-round sets (data-model §5).
   const orChanged = turn.round !== prev.round || turn.orSet !== prev.orSet || turn.orIndex !== prev.orIndex;
-  if (orChanged) turn = { ...turn, operatedThisOR: [], loansThisOR: {} };
+  if (orChanged) {
+    const { treasuryTradesThisOR: _trades, ...rest } = turn;
+    turn = { ...rest, operatedThisOR: [], loansThisOR: {} };
+  }
   const srChanged = turn.round !== prev.round || turn.srNumber !== prev.srNumber;
   const soldThisSR = srChanged ? {} : state.soldThisSR;
   if (srChanged || orChanged) {

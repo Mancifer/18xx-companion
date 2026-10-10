@@ -17,6 +17,11 @@ export const AVAILABLE: AvailabilityResult = { ok: true };
 export const unavailable = (reasonEs: string): AvailabilityResult => ({ ok: false, reasonEs });
 
 export interface ActionHandler<T extends ActionType> {
+  /**
+   * Whether this game offers the action at all, from its definition only (a core action gated by
+   * data). Absent means always. Voice tools of actions a game does not offer are not sent.
+   */
+  readonly offered?: (game: GameDefinition) => boolean;
   /** Whether the action is offered at all (game and state). With a payload, also checks it. */
   readonly available?: (ctx: ActionContext, action?: ActionOf<T>) => AvailabilityResult;
   /** Likely rule breaks. Warnings never block (FR-025). */

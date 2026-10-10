@@ -4,7 +4,9 @@ import { applyOptions, getBuiltInGame } from "../../src/domain/games";
 import type { GameDefinition } from "../../src/domain/games/schema";
 import type { AssetId, CellRef } from "../../src/domain/types";
 import { TestSession, makePlayers } from "../helpers/dispatch";
-import { eventsOf } from "../helpers/flows";
+import { eventsOf, netMoney } from "../helpers/flows";
+import { rotlaSession, seedCompany as seedRotla } from "../helpers/rotla";
+import { overLimitCompanies, trainLimitFor, trainStack } from "../../src/domain/mechanics/phases";
 
 const g1830 = getBuiltInGame("1830");
 const g1848 = getBuiltInGame("1848");
@@ -245,5 +247,141 @@ describe("forced purchases", () => {
     expect(s.state.counters["company:PRR"]?.["debt"]).toBe(100);
     expect(s.state.companies["PRR"]!.status).toBe("receivership");
     expect(s.violations()).toEqual([]);
+  });
+});
+
+describe("RotLA trains, phases and limits (US6)", () => {
+  /** A 3-player RotLA game with rich companies: minors EXP, TUN and the major CON. */
+  function rotla(options: Record<string, string> = {}) {
+    const s = rotlaSession({ options });
+    seedRotla(s, "EXP", { price: 80, holders: { "player:p1": 5 }, treasury: 5000 });
+    seedRotla(s, "TUN", { price: 70, holders: { "player:p2": 5 }, treasury: 5000 });
+    seedRotla(s, "CON", { price: 100, holders: { "player:p3": 10 }, treasury: 5000 });
+    return s;
+  }
+  const limits = (s: TestSession) => ({
+    minor: trainLimitFor(s.game, s.state, "EXP"),
+    major: trainLimitFor(s.game, s.state, "CON"),
+  });
+
+  it("the first 3, 4, 5, 6 and 7 start green, green4, purple, purple6 and grey with their limits", () => {
+    const s = rotla();
+    expect(s.state.turn.phase).toBe("yellow");
+    expect(limits(s)).toEqual({ minor: 2, major: 2 });
+    const steps = [
+      ["3", "green", { minor: 2, major: 4 }],
+      ["4", "green4", { minor: 2, major: 3 }],
+      ["5", "purple", { minor: 1, major: 2 }],
+      ["6", "purple6", { minor: 1, major: 2 }],
+      ["7", "grey", { minor: 1, major: 2 }],
+    ] as const;
+    for (const [type, phase, limit] of steps) {
+      s.do(buy("CON", type));
+      expect(s.state.turn.phase).toBe(phase);
+      expect(limits(s)).toEqual(limit);
+    }
+  });
+
+  it("2s rust at the first 4, 3s at the first 6, 4s at the first 7", () => {
+    const s = rotla();
+    s.do(buy("EXP", "2")).do(buy("TUN", "3"));
+    s.do(buy("CON", "4"));
+    expect(holder(s, "train:2:1")).toBe("removed");
+    expect(holder(s, "train:3:1")).toBe("company:TUN");
+    s.do(buy("CON", "5")).do(buy("CON", "6"));
+    expect(holder(s, "train:3:1")).toBe("removed");
+    expect(holder(s, "train:4:1")).toBe("company:CON");
+    s.do(buy("CON", "7", { variant: "7" }));
+    expect(holder(s, "train:4:1")).toBe("removed");
+  });
+
+  it("trainLimitFor adds the Spacious bonus, and overLimitCompanies lists who is over", () => {
+    const s = rotla();
+    seedRotla(s, "SPC", { price: 60, holders: { "player:p1": 5 }, treasury: 5000 });
+    expect(trainLimitFor(s.game, s.state, "SPC")).toBe(3);
+    s.do(buy("EXP", "2")).do(buy("EXP", "2")).do(buy("SPC", "2")).do(buy("SPC", "2")).do(buy("SPC", "2"));
+    expect(overLimitCompanies(s.game, s.state)).toEqual([]);
+    s.do(buy("CON", "3")).do(buy("CON", "3")).do(buy("CON", "3")).do(buy("CON", "4"));
+    // The 4 rusts the 2s; CON holds 3+3+3+4 against a limit of 3 in green4.
+    expect(overLimitCompanies(s.game, s.state)).toEqual([{ company: "CON", count: 4, limit: 3 }]);
+  });
+
+  it("buyTrain warns against the tier-aware limit", () => {
+    const s = rotla();
+    s.do(buy("EXP", "2")).do(buy("EXP", "2"));
+    const third = s.tryDo(buy("EXP", "2"));
+    expect(third.kind === "ok" && third.warnings.map((w) => w.code)).toContain("trainLimit");
+  });
+
+  it("7/∞: the 7 costs 750 and the ∞ 1000", () => {
+    const s = rotla();
+    s.do(buy("CON", "7", { variant: "7" }));
+    expect(netMoney(s.lastEvents)["company:CON"]).toBe(-750);
+    s.do(buy("CON", "7", { variant: "∞" }));
+    expect(netMoney(s.lastEvents)["company:CON"]).toBe(-1000);
+  });
+
+  it("∞ trading in a non-rusted 5 costs 800, and the 5 leaves the game", () => {
+    const s = rotla();
+    s.do(buy("CON", "5"));
+    s.do(buy("CON", "7", { variant: "∞", tradeIn: "5" }));
+    expect(netMoney(s.lastEvents)["company:CON"]).toBe(-800);
+    expect(holder(s, "train:5:1")).toBe("removed");
+    expect(s.lastWarnings.map((w) => w.code)).not.toContain("tradeIn");
+  });
+
+  it("the trade-in price does not apply to the 7 variant", () => {
+    const s = rotla();
+    s.do(buy("CON", "5"));
+    const result = s.tryDo(buy("CON", "7", { variant: "7", tradeIn: "5" }));
+    expect(result.kind === "ok" && result.warnings.map((w) => w.code)).toContain("tradeIn");
+    s.do(buy("CON", "7", { variant: "7", tradeIn: "5" }));
+    expect(netMoney(s.lastEvents)["company:CON"]).toBe(-750);
+    expect(holder(s, "train:5:1")).toBe("company:CON");
+  });
+
+  it("rust comes first: the first 7/∞ as ∞ trading in a 4 rusts the 4s and charges 1000", () => {
+    const s = rotla();
+    s.do(buy("CON", "4")).do(buy("EXP", "4"));
+    const result = s.tryDo(buy("CON", "7", { variant: "∞", tradeIn: "4" }));
+    expect(result.kind).toBe("ok");
+    if (result.kind !== "ok") return;
+    expect(result.warnings.find((w) => w.code === "tradeIn")?.messageEs).toBe("El 4 se oxida con esta compra: no se puede entregar.");
+    s.do(buy("CON", "7", { variant: "∞", tradeIn: "4" }));
+    expect(netMoney(s.lastEvents)["company:CON"]).toBe(-1000);
+    expect(holder(s, "train:4:1")).toBe("removed");
+    expect(holder(s, "train:4:2")).toBe("removed");
+    // Only the rust moved the 4s: no trade-in transfer.
+    expect(eventsOf(s.lastEvents, "assetTransfer").filter((e) => e.asset === "train:4:1")).toHaveLength(1);
+  });
+
+  it("the same first ∞ trading in a 5 costs 800", () => {
+    const s = rotla();
+    s.do(buy("CON", "4")).do(buy("CON", "5"));
+    s.do(buy("CON", "7", { variant: "∞", tradeIn: "5" }));
+    expect(netMoney(s.lastEvents)["company:CON"]).toBe(-800);
+    expect(holder(s, "train:5:1")).toBe("removed");
+  });
+
+  it("selling or trading in a special or permanent train warns", () => {
+    const s = rotla();
+    s.do(buy("TUN", "2"));
+    s.apply({ t: "counterChange", subject: "company:TUN", key: "permanent:train:2:1", delta: 1 });
+    const sale = s.tryDo(buy("EXP", "2", { from: "company", seller: "TUN", price: 50 }));
+    expect(sale.kind === "ok" && sale.warnings.map((w) => w.code)).toContain("keptTrain");
+  });
+
+  it("trainStack lists the bank's trains top first, 7/∞ as ∞", () => {
+    const s = rotla();
+    expect(trainStack(s.game, s.state)).toEqual([
+      { type: "2", displayName: "2", left: 7 },
+      { type: "3", displayName: "3", left: 5 },
+      { type: "4", displayName: "4", left: 4 },
+      { type: "5", displayName: "5", left: 3 },
+      { type: "6", displayName: "6", left: 2 },
+      { type: "7", displayName: "7/∞", left: "∞" },
+    ]);
+    for (let i = 0; i < 7; i++) s.apply({ t: "assetTransfer", asset: `train:2:${i + 1}`, from: "bank", to: "removed" });
+    expect(trainStack(s.game, s.state)[0]).toEqual({ type: "3", displayName: "3", left: 5 });
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { reduce, reduceAll } from "../../src/domain/events/reduce";
-import { initialState, cashOf, unitsOf, presidencyHolder } from "../../src/domain/events/state";
+import { initialState, cashOf, unitsOf, presidencyHolder, trainAssetIds } from "../../src/domain/events/state";
 import type { PrimitiveEvent } from "../../src/domain/events/types";
 import { PrimitiveEventSchema } from "../../src/domain/events/schema";
 import { miniGame, miniPlayers } from "../helpers/miniGame";
@@ -277,5 +277,74 @@ describe("round end marker (feature 003, data-model §1–§2)", () => {
   it("a companyStatus without capitalPending false does not set it", () => {
     const s = reduce(base(), { t: "companyStatus", company: "AA", status: "floated", capitalPending: true });
     expect(s.turn.roundEnded).toBeUndefined();
+  });
+});
+
+describe("feature 004: MR round and restack/merge/bonus reasons", () => {
+  it("the import schema accepts round MR and the new move reasons", () => {
+    expect(PrimitiveEventSchema.safeParse({ t: "turnAdvance", round: "MR" }).success).toBe(true);
+    for (const reason of ["restack", "merge", "bonus"]) {
+      expect(PrimitiveEventSchema.safeParse({ t: "marketMove", company: "AA", to: { row: 0, col: 0 }, reason }).success).toBe(true);
+    }
+  });
+
+  const twoInCell = () =>
+    reduceAll(base(), [
+      { t: "marketMove", company: "AA", to: { row: 0, col: 0 }, reason: "par" },
+      { t: "marketMove", company: "BB", to: { row: 0, col: 0 }, reason: "par" },
+    ]);
+
+  it("restack to the current cell puts the company at the bottom of that cell's stack", () => {
+    const s = twoInCell();
+    expect(s.companies["AA"]!.stackOrder).toBeLessThan(s.companies["BB"]!.stackOrder);
+    const after = reduce(s, { t: "marketMove", company: "AA", to: { row: 0, col: 0 }, reason: "restack" });
+    expect(after.companies["AA"]!.stackOrder).toBe(s.companies["BB"]!.stackOrder + 1);
+  });
+
+  it("a same-cell move with another reason keeps the stack order", () => {
+    const s = twoInCell();
+    const after = reduce(s, { t: "marketMove", company: "AA", to: { row: 0, col: 0 }, reason: "manual" });
+    expect(after.companies["AA"]!.stackOrder).toBe(s.companies["AA"]!.stackOrder);
+  });
+
+  it("changing the round to MR clears operatedThisOR, soldThisSR and roundEnded", () => {
+    let s = reduceAll(base(), [
+      { t: "turnAdvance", round: "OR", orSet: 1, orIndex: 2 },
+      { t: "counterChange", subject: "company:AA", key: "runs", delta: 1 },
+    ]);
+    s = { ...s, turn: { ...s.turn, roundEnded: true }, soldThisSR: { p1: ["AA"] } };
+    expect(s.turn.operatedThisOR).toEqual(["AA"]);
+    const mr = reduce(s, { t: "turnAdvance", round: "MR" });
+    expect(mr.turn.round).toBe("MR");
+    expect(mr.turn.operatedThisOR).toEqual([]);
+    expect(mr.turn.roundEnded).toBeUndefined();
+    expect(mr.soldThisSR).toEqual({});
+  });
+});
+
+describe("feature 004: train counts by player count and special trains (state)", () => {
+  const game = {
+    ...miniGame,
+    trains: [
+      { ...miniGame.trains[0]!, countByPlayers: { "3": 3 } },
+      ...miniGame.trains.slice(1),
+      { type: "M2", variants: [{ name: "2", cost: 0 }], count: 1, permanent: true, countsForLimit: true, special: true },
+      { type: "9", variants: [{ name: "9", cost: 900 }], count: "unlimited" as const, permanent: true, countsForLimit: true },
+    ],
+  };
+  const three = [...miniPlayers, { id: "p3", name: "Carla", aliases: [], color: "#43a047", seat: 3 }];
+
+  it("countByPlayers overrides count for the session's player count", () => {
+    expect(trainAssetIds(game, miniPlayers.length).inBank.filter((a) => a.startsWith("train:2:"))).toHaveLength(2);
+    expect(trainAssetIds(game, 3).inBank.filter((a) => a.startsWith("train:2:"))).toHaveLength(3);
+    const s = initialState(game, three);
+    expect(s.assets["train:2:3"]).toBe("bank");
+    expect(initialState(game, miniPlayers).assets["train:2:3"]).toBeUndefined();
+  });
+
+  it("special trains start held by removed; unlimited types have no assets", () => {
+    const s = initialState(game, miniPlayers);
+    expect(s.assets["train:M2:1"]).toBe("removed");
+    expect(Object.keys(s.assets).some((a) => a.startsWith("train:9:"))).toBe(false);
   });
 });

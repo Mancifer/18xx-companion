@@ -1,10 +1,13 @@
 import type { GameDefinition } from "../../games/schema";
+import { auctionLaunch } from "./auctionLaunch";
 import { bankDebt } from "./bankDebt";
 import { corporateBankruptcy } from "./corporateBankruptcy";
 import { corporateRound } from "./corporateRound";
 import { forcedWithhold } from "./forcedWithhold";
 import { loans } from "./loans";
 import { manualFloatCondition } from "./manualFloatCondition";
+import { landmarks } from "./landmarks";
+import { mergers } from "./mergers";
 import { MECHANIC_IDS, type Mechanic, type MechanicHooks, type MechanicId } from "./mechanic";
 import { nationalBank } from "./nationalBank";
 import { nationalTakeover } from "./nationalTakeover";
@@ -16,17 +19,23 @@ export { MECHANIC_IDS, type HookResult, type Mechanic, type MechanicHooks, type 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyMechanic = Mechanic<any>;
 
-const registry: Readonly<Record<MechanicId, AnyMechanic>> = {
-  loans,
-  nationalBank,
-  nationalTakeover,
-  bankDebt,
-  forcedWithhold,
-  corporateBankruptcy,
-  manualFloatCondition,
-  privateGrants,
-  corporateRound,
-};
+// Built on first use: a mechanic module imported first (a test, a sheet) must be defined by then.
+let built: Readonly<Record<MechanicId, AnyMechanic>> | undefined;
+const registry = (): Readonly<Record<MechanicId, AnyMechanic>> =>
+  (built ??= {
+    loans,
+    nationalBank,
+    nationalTakeover,
+    bankDebt,
+    forcedWithhold,
+    corporateBankruptcy,
+    manualFloatCondition,
+    privateGrants,
+    corporateRound,
+    auctionLaunch,
+    mergers,
+    landmarks,
+  });
 
 export function isMechanicId(id: string): id is MechanicId {
   return (MECHANIC_IDS as readonly string[]).includes(id);
@@ -35,11 +44,12 @@ export function isMechanicId(id: string): id is MechanicId {
 /** Throws on an unknown id (contracts/game-definition.md rule 1). */
 export function getMechanic(id: string): AnyMechanic {
   if (!isMechanicId(id)) throw new Error(`Unknown mechanic "${id}"`);
-  return registry[id];
+  return registry()[id];
 }
 
 export function allMechanics(): readonly AnyMechanic[] {
-  return MECHANIC_IDS.map((id) => registry[id]);
+  const all = registry();
+  return MECHANIC_IDS.map((id) => all[id]);
 }
 
 export function isEnabled(game: GameDefinition, id: MechanicId): boolean {

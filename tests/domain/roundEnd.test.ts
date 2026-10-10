@@ -7,6 +7,8 @@ import { endOfRoundMoves, roundEndEvents } from "../../src/domain/mechanics/roun
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { eventsOf } from "../helpers/flows";
 import { seedCompany } from "../helpers/seed";
+import { rotlaSession, seedCompany as seedRotla } from "../helpers/rotla";
+import { priceOf } from "../../src/domain/mechanics/market";
 
 /** Feature 003: the end step of the current round (data-model §3). */
 
@@ -115,5 +117,42 @@ describe("at most once per round (US2, FR-006)", () => {
     s.do({ type: "buyShare", buyer: "player:p3", company: "PRR", source: "ipo", count: 1 });
     s.do({ type: "startOR" });
     expect(soldOutMoves(all(s))).toEqual([]);
+  });
+});
+
+describe("RotLA: sold out to players at the end of the SR (US4)", () => {
+  const rotlaSoldOut = (events: readonly PrimitiveEvent[]) =>
+    eventsOf(events, "marketMove").filter((e) => e.reason === "soldOut");
+
+  function srWith(holders: Record<string, number>) {
+    const s = rotlaSession().do({ type: "startSR" });
+    seedRotla(s, "TUN", { price: 80, holders, treasury: 100 });
+    return s;
+  }
+
+  it("a minor held 100% by players moves up 1, once, inside the startOR group", () => {
+    const s = srWith({ "player:p1": 3, "player:p2": 2 });
+    s.do({ type: "startOR" });
+    expect(rotlaSoldOut(s.lastEvents)).toHaveLength(1);
+    expect(priceOf(s.game, s.state, "TUN")).toBe(90);
+    s.do({ type: "nextCompany" });
+    expect(rotlaSoldOut(s.lastEvents)).toEqual([]);
+  });
+
+  it("a share in the minor's treasury or in the pool keeps it in place", () => {
+    for (const holders of [
+      { "player:p1": 2, "player:p2": 2, "company:TUN": 1 },
+      { "player:p1": 2, "player:p2": 2, pool: 1 },
+    ]) {
+      const s = srWith(holders).do({ type: "startOR" });
+      expect(rotlaSoldOut(s.lastEvents)).toEqual([]);
+      expect(priceOf(s.game, s.state, "TUN")).toBe(80);
+    }
+  });
+
+  it("a second startOR does not move it again", () => {
+    const s = srWith({ "player:p1": 3, "player:p2": 2 }).do({ type: "startOR" }).do({ type: "startOR" });
+    expect(rotlaSoldOut(s.lastEvents)).toEqual([]);
+    expect(rotlaSoldOut(s.groups.flatMap((g) => g.events))).toHaveLength(1);
   });
 });

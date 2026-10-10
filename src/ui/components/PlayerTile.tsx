@@ -1,5 +1,5 @@
 import { useSession } from "../../app/useSession";
-import { cashOf, certificateCount, counterOf, presidencyHolder, unitsOf } from "../../domain/events/state";
+import { cashOf, certificateCount, counterOf, isPlayerBankrupt, presidencyHolder, unitsOf } from "../../domain/events/state";
 import { formatMoney } from "../../domain/i18n/format";
 import type { Player } from "../../domain/types";
 import { CompanyBadge } from "./CompanyBadge";
@@ -18,6 +18,7 @@ export function PlayerTile({ player, onOpen }: { player: Player; onOpen: () => v
       <span className="player-tile-head">
         <span className="swatch" style={{ background: player.color }} aria-hidden="true" />
         <span className="player-name">{player.name}</span>
+        {isPlayerBankrupt(state, player.id) ? <span className="badge danger">Eliminado</span> : null}
       </span>
       {meta.walletMode === "appTruth" ? (
         <span className={`player-cash money${cash < 0 ? " negative" : ""}`} data-testid={`cash-${player.id}`}>

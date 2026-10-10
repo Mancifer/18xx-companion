@@ -67,3 +67,28 @@ export async function trade(page: Page, company: string, button: string, count =
 export function toast(page: Page) {
   return page.locator(".toast");
 }
+
+/** Starts a RotLA Short game from Home (feature 004). */
+export async function newRotla(page: Page, players: string[]) {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Nueva partida" }).click();
+  await page.getByRole("button", { name: /Railways of the Lost Atlas/ }).click();
+  await page.getByLabel("Modo").selectOption("short");
+  const rows = page.locator(".player-row");
+  while ((await rows.count()) > players.length) await rows.last().getByRole("button", { name: "Quitar" }).click();
+  for (const [i, name] of players.entries()) await page.getByLabel(`Nombre del jugador ${i + 1}`).fill(name);
+  await page.getByRole("button", { name: "Empezar" }).click();
+  await expect(page.getByTestId("round")).toHaveText("Ciclo 1 de 4 · RA");
+}
+
+/** An auction win through the Launch sheet. */
+export async function launch(page: Page, player: string, minor: string, bid: number) {
+  await page.getByRole("button", { name: "Abrir minor" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByRole("button", { name: player, exact: true }).click();
+  await dialog.getByRole("group", { name: "Minor" }).getByRole("button", { name: new RegExp(`^${minor} `) }).click();
+  await dialog.getByRole("button", { name: "Vaciar" }).click();
+  await typeAmount(page, bid);
+  await dialog.getByRole("button", { name: "Abrir", exact: true }).click();
+  await expect(dialog).toBeHidden();
+}

@@ -1,7 +1,15 @@
-import type { SessionState } from "../events/state";
+import { counterOf, type SessionState } from "../events/state";
 import type { PrimitiveEvent } from "../events/types";
 import type { GameDefinition, PhaseDef } from "../games/schema";
 import { assetKind, parseHolder, trainTypeOf, type AssetId, type CompanyId, type HolderRef } from "../types";
+import { effectiveTraits } from "./traits";
+
+/** Counter on a company: this train rusted but stays for one last run (Resourceful, research R10). */
+export const RUSTED = "rusted:";
+/** Counter on a company: this train never rusts and should not be sold (Canyon, research R13). */
+export const PERMANENT = "permanent:";
+
+const OPERATING: ReadonlySet<string> = new Set(["floated", "receivership"]);
 
 /** Phases (FR-035): triggered by the first train of a type; effects are recorded as events. */
 
@@ -49,12 +57,23 @@ export function phaseChangeEvents(game: GameDefinition, state: SessionState, pha
     removed.add(asset);
     events.push({ t: "assetTransfer", asset, from, to: "removed" });
   };
+  // Resourceful (research R10): its rusting trains stay, marked for one last run.
+  const keeps = (holder: HolderRef): boolean => {
+    const h = parseHolder(holder);
+    return h.kind === "company" && effectiveTraits(game, state, h.id).keepsRustedTrains === true;
+  };
   for (const phase of phases) {
     const rusting = new Set(game.trains.filter((t) => t.rustsOnPhase === phase.id).map((t) => t.type));
     const closesAll = phase.effects.some((e) => e.type === "closePrivates");
     for (const [asset, holder] of Object.entries(state.assets)) {
       const kind = assetKind(asset);
-      if (kind === "train" && rusting.has(trainTypeOf(asset))) remove(asset, holder);
+      if (kind === "train" && rusting.has(trainTypeOf(asset))) {
+        if (!keeps(holder)) remove(asset, holder);
+        else if (counterOf(state, holder, `${RUSTED}${asset}`) === 0 && !removed.has(asset)) {
+          removed.add(asset);
+          events.push({ t: "counterChange", subject: holder, key: `${RUSTED}${asset}`, delta: 1 });
+        }
+      }
       if (kind === "private") {
         const def = game.privates.find((p) => `private:${p.id}` === asset);
         const closesHere = def?.closesOn.some((c) => c.type === "phase" && c.phase === phase.id) ?? false;
@@ -72,13 +91,66 @@ export function trainLimit(game: GameDefinition, phase: PhaseDef | undefined): n
   return phase?.trainLimit ?? Number.POSITIVE_INFINITY;
 }
 
-/** Trains a company holds that count toward the limit (the 1848 2E does not). */
+/**
+ * A company's train limit in a phase (default: the current one): the tier's limit when the phase
+ * gives one, else the phase's, plus the effective `trainLimitBonus` (Spacious, research R10).
+ */
+export function trainLimitFor(
+  game: GameDefinition,
+  state: SessionState,
+  company: CompanyId,
+  phase: PhaseDef | undefined = currentPhase(game, state),
+): number {
+  if (game.trainLimitScope !== "company") return trainLimit(game, phase);
+  const tier = game.companies.find((c) => c.id === company)?.tier;
+  const base = (tier !== undefined ? phase?.trainLimitByTier?.[tier] : undefined) ?? trainLimit(game, phase);
+  return base + (effectiveTraits(game, state, company).trainLimitBonus ?? 0);
+}
+
+/** Trains a company holds that count toward the limit (the 1848 2E does not; rusted ones do not). */
 export function countedTrains(game: GameDefinition, state: SessionState, company: CompanyId): AssetId[] {
-  const ref = `company:${company}`;
+  const ref = `company:${company}` as const;
   return Object.entries(state.assets)
     .filter(([asset, holder]) => holder === ref && assetKind(asset) === "train")
     .map(([asset]) => asset)
+    .filter((asset) => counterOf(state, ref, `${RUSTED}${asset}`) === 0)
     .filter((asset) => game.trains.find((t) => t.type === trainTypeOf(asset))?.countsForLimit ?? true);
+}
+
+export interface OverLimit {
+  readonly company: CompanyId;
+  readonly count: number;
+  readonly limit: number;
+}
+
+/** Operating companies holding more trains than their limit (FR-020: the Table banner). */
+export function overLimitCompanies(game: GameDefinition, state: SessionState): OverLimit[] {
+  const result: OverLimit[] = [];
+  for (const c of game.companies) {
+    if (!OPERATING.has(state.companies[c.id]?.status ?? "")) continue;
+    const count = countedTrains(game, state, c.id).length;
+    const limit = trainLimitFor(game, state, c.id);
+    if (count > limit) result.push({ company: c.id, count, limit });
+  }
+  return result;
+}
+
+export interface StackEntry {
+  readonly type: string;
+  readonly displayName: string;
+  readonly left: number | "∞";
+}
+
+/** The bank's train stack, top first (`game.trains` order), without `special` types or empty types. */
+export function trainStack(game: GameDefinition, state: SessionState): StackEntry[] {
+  return game.trains
+    .filter((t) => !t.special)
+    .map((t) => ({
+      type: t.type,
+      displayName: t.displayName ?? t.type,
+      left: t.count === "unlimited" ? ("∞" as const) : trainsHeldBy(state, "bank", t.type).length,
+    }))
+    .filter((e) => e.left !== 0);
 }
 
 /** Trains held by a holder, cheapest-numbered first, optionally of one type. */

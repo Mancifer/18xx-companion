@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getBuiltInGame } from "../../src/domain/games";
+import { applyOptions, getBuiltInGame } from "../../src/domain/games";
 import { buildTools } from "../../src/voice/tools";
 import { makePlayers } from "../helpers/dispatch";
 
@@ -119,5 +119,61 @@ describe("buildTools", () => {
     expect(a).toBe(b);
     const first = buildTools(session("1830"))[0]!;
     expect(Object.keys(first)).toEqual([...Object.keys(first)].sort());
+  });
+});
+
+describe("RotLA tools (US10, T086)", () => {
+  const rotla = { game: getBuiltInGame("rotla"), players: players.slice(0, 3) };
+  const names = (s: { game: ReturnType<typeof getBuiltInGame>; players: typeof players }) => buildTools(s).map((t) => t.name);
+  const rotlaTool = (name: string) => buildTools(rotla).find((t) => t.name === name)!.input_schema as Schema;
+
+  it("offers the new actions, with Spanish examples", () => {
+    const list = names(rotla);
+    for (const n of ["launchCompany", "mergeCompanies", "startMR", "issueShares", "redeemShare", "forcedTrainPurchase", "namedPayment"]) {
+      expect(list).toContain(n);
+    }
+    expect(list).not.toContain("parCompany");
+    expect(list).not.toContain("takeLoan");
+    const launch = buildTools(rotla).find((t) => t.name === "launchCompany")!;
+    expect(launch.description).toContain("«Ana abre Tunneling por 140»");
+  });
+
+  it("merger fields are enums of minors and majors; payments of the game's abilities", () => {
+    const merge = rotlaTool("mergeCompanies");
+    expect(enumOf(props(merge)["a"])).toContain("TUN");
+    expect(enumOf(props(merge)["a"])).not.toContain("CON");
+    expect(enumOf(props(merge)["into"])).toEqual(["CON", "UNI", "SYS", "INT", "FED", "EXM"]);
+    expect(enumOf(props(rotlaTool("namedPayment"))["payment"])).toEqual(["expansiveToken", "tunneling"]);
+  });
+
+  it("1830, 1848 and 21Moon keep exactly their tool lists", () => {
+    const common = ["runAndPayout", "buyTrain", "payCost", "bankPays", "privateIncome", "buyPrivateByCompany"];
+    const tail = ["transferMoney", "adjustMoney", "setMarket", "askClarification", "query", "notUnderstood", "undo", "amendLast", "confirmProposal"];
+    expect(names(session("1830"))).toEqual([
+      ...common,
+      ...["parCompany", "buyShare", "sellShares", "buyPrivate", "exchangePrivate", "stockBatch", "startSR", "endSR", "startOR", "nextCompany"],
+      ...tail,
+    ]);
+    expect(names(session("1848"))).toEqual([
+      ...common,
+      ...["takeLoan", "nationalPayout", "parCompany", "buyShare", "sellShares", "buyPrivate", "exchangePrivate", "stockBatch"],
+      ...["startSR", "endSR", "startOR", "nextCompany"],
+      ...tail,
+    ]);
+    expect(names(session("21moon"))).toEqual([
+      ...common,
+      ...["parCompany", "buyShare", "sellShares", "swapCertificates", "issueShares", "buyPrivate", "exchangePrivate", "stockBatch"],
+      ...["startSR", "endSR", "startCR", "endCR", "startOR", "nextCompany"],
+      ...tail,
+    ]);
+  });
+
+  it("Landmarks tools come only with the expansion", () => {
+    const landmarkTools = ["rockFormation", "cliffSale", "canyonTrain"];
+    for (const n of landmarkTools) expect(names(rotla)).not.toContain(n);
+    const withExpansion = { game: applyOptions(getBuiltInGame("rotla"), { expansion: "landmarks" }), players: players.slice(0, 3) };
+    for (const n of landmarkTools) expect(names(withExpansion)).toContain(n);
+    const cliff = buildTools(withExpansion).find((t) => t.name === "cliffSale")!.input_schema as Schema;
+    expect(enumOf(props(cliff)["train"])).toEqual(["2", "3", "4", "5", "6", "7", "M2"]);
   });
 });

@@ -12,6 +12,7 @@ export function ConfirmSheet({
   body,
   confirmLabel,
   action,
+  next,
   onClose,
 }: {
   title: ReactNode;
@@ -19,8 +20,25 @@ export function ConfirmSheet({
   confirmLabel: string;
   action: unknown;
   onClose: () => void;
+  /** A next step offered once the action is recorded (a player's bankruptcy: "Terminar partida"). */
+  next?: { readonly label: string; readonly onClick: () => void };
 }) {
   const { dispatch } = useDispatch();
+  const [done, setDone] = useState(false);
+  if (done && next) {
+    return (
+      <Sheet title={title} onClose={onClose}>
+        <p>Registrado.</p>
+        <div className="row">
+          <button onClick={onClose}>Seguir jugando</button>
+          <span className="spacer" />
+          <button className="primary" onClick={next.onClick}>
+            {next.label}
+          </button>
+        </div>
+      </Sheet>
+    );
+  }
   return (
     <Sheet title={title} onClose={onClose}>
       <p>{body}</p>
@@ -31,7 +49,9 @@ export function ConfirmSheet({
           className="primary danger"
           onClick={() =>
             void dispatch(action).then((r) => {
-              if (r.ok) onClose();
+              if (!r.ok) return;
+              if (next) setDone(true);
+              else onClose();
             })
           }
         >

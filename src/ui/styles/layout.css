@@ -275,3 +275,16 @@ h3 {
   color: var(--bg);
   border-color: var(--bg);
 }
+
+/* Checklists (New Session minors in play): 48 px rows. */
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 48px;
+}
+
+.check-row input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+}

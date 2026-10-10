@@ -54,6 +54,15 @@ describe("custom games (FR-007, contracts/game-definition.md rule 4)", () => {
     }
   });
 
+  it("edits both names of a RotLA major (FR-005a)", () => {
+    const custom = createCustomGame(getBuiltInGame("rotla"), "RotLA casera");
+    const result = editCustomGame(custom, { companies: { INT: { name: "Internacional", altName: "Intercontinental" } } });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.definition.companies.find((c) => c.id === "INT")).toMatchObject({ name: "Internacional", altName: "Intercontinental" });
+    expect(getBuiltInGame("rotla").companies.find((c) => c.id === "INT")?.altName).toBe("International II");
+  });
+
   it("rejects an edit that fails validation (starting cash × max players > bank)", () => {
     const custom = createCustomGame(getBuiltInGame("1830"), "Variante");
     expect(editCustomGame(custom, { bank: { total: 1000 } }).ok).toBe(false);

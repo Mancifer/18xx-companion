@@ -5,6 +5,7 @@ import { formatMoney } from "../../domain/i18n/format";
 import { floatPending } from "../../domain/mechanics/capitalization";
 import { floatConditionConfig } from "../../domain/mechanics/custom/manualFloatCondition";
 import { priceOf } from "../../domain/mechanics/market";
+import { displayName } from "../../domain/mechanics/traits";
 import { trainTypeOf, type CompanyId } from "../../domain/types";
 import { CompanyBadge } from "./CompanyBadge";
 
@@ -23,6 +24,7 @@ export function CompanyCard({
   const record = state.companies[companyId];
   if (!def || !record) return null;
   const price = priceOf(meta.game, state, companyId);
+  const name = displayName(meta.game, state, companyId);
   const president = presidentOf(state, companyId);
   const presidentName = meta.players.find((p) => p.id === president)?.name;
   const trains = assetsHeldBy(state, `company:${companyId}`, "train").map(trainTypeOf);
@@ -40,7 +42,8 @@ export function CompanyCard({
       aria-current={current ? "true" : undefined}
     >
       <span className="company-card-head">
-        <CompanyBadge company={def} size="lg" />
+        <CompanyBadge company={def} size="lg" name={name} />
+        {name !== def.name ? <span className="company-alt-name">{name}</span> : null}
         <span className="company-status muted">{status}</span>
       </span>
       <span className="company-figures">

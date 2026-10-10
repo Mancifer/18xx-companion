@@ -47,6 +47,9 @@ export const floatTrigger: Trigger = (ctx) => {
   const events: PrimitiveEvent[] = [];
   for (const [company, record] of Object.entries(ctx.state.companies)) {
     if (record.status !== "parred") continue;
+    // Auction and merger companies become floated explicitly (feature 004).
+    const start = ctx.game.companies.find((c) => c.id === company)?.start;
+    if (start === "auction" || start === "merger") continue;
     if (floatPending(ctx, company) === undefined) events.push(...floatEvents(ctx.game, ctx.state, company));
   }
   return events;

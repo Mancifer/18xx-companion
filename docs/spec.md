@@ -30,8 +30,10 @@ the table. When the app and the table disagree, the table wins: every value can 
 
 ### 2.1 MVP (v1)
 
-- Game selection from built-in definitions: **1830**, **1848**, **21Moon**, plus a **custom
-  game** option (a copy of a built-in game with edited values).
+- Game selection from built-in definitions: **1830**, **1848**, **21Moon**, **Railways of the
+  Lost Atlas** (base game in Long, Short and Micro modes, its variants, and the small Landmarks
+  effects; feature 004), plus a **custom game** option (a copy of a built-in game with edited
+  values).
 - Local session on one device: players, companies, bank, chips.
 - Player grid: each player's cash, in the style of Commander life-counter apps.
 - Company grid: treasury, share price, president, shares in IPO/pool, trains (optional).
@@ -50,7 +52,8 @@ the table. When the app and the table disagree, the table wins: every value can 
 
 ### 2.2 Later iterations (designed for, not built)
 
-- Mergers, conversions, and company closures (18CZ, Railways of the Lost Atlas).
+- Conversions and other company transformations (18CZ). RotLA mergers are built (§5.3); the
+  RotLA Events deck, the Metropolitan and Direct-to-Major are not.
 - Multi-device game rooms with private wallets.
 - More games and voice languages.
 - Loans for the 1817 family, beyond what 1848 needs in v1 (see §5.2).
@@ -122,7 +125,8 @@ never change state directly. They emit **actions**, which pass validation and be
 - **Certificate holdings**: map of holder → company → percent (or share units). The president's
   certificate is tracked separately.
 - **Market**: game-defined grid (1D or 2D), with company tokens at positions.
-- **Turn state**: round type (`PRIVATES | SR | CR | OR`; CR is the 21Moon corporate round),
+- **Turn state**: round type (`PRIVATES | SR | CR | OR | MR`; CR is the 21Moon corporate round, MR the RotLA
+  Merger Round),
   OR set number and index (e.g. OR 2.1), operating order, current company, phase, and a derived
   "round ended" flag: set once the current SR or CR has had its end step applied, cleared when
   the round changes.
@@ -165,13 +169,20 @@ rulebook for each game before implementation.
 are built as named, reusable mechanics (via `customRules`) that other games can enable later,
 not as one-off 1848 logic.
 
-### 5.3 Designing ahead for mergers (not implemented in v1)
+### 5.3 Mergers (built)
 
-These choices keep mergers possible later without a rewrite:
-- Share count per company is a mutable property that changes through events.
-- Companies can be `closed`, and their remaining assets transferred by explicit events.
-- Every transfer of money or shares between any two holders is a single event type, so merges
-  can be built from existing transfers.
+Railways of the Lost Atlas merges two minors into a major in its Merger Round (feature 004,
+mechanic `mergers`). As designed, a merger is built only from existing primitives, in one group
+that one undo reverts exactly:
+- Every holder's minor units go to `removed`, and the same number of major units leave the
+  major's IPO (a minor's own treasury shares become the major's). Share units stay conserved.
+- Treasuries and trains move by transfers; the price is set by a `marketMove` (reason `merge`),
+  at the bottom of its stack; the major floats and the minors close by `companyStatus`.
+- Counters record what formed the major (`mergedFrom:<id>`, so it keeps the minors' abilities)
+  and which identity it took (`identity`).
+
+Companies can still be `closed` with their remaining assets moved by explicit events, and share
+counts stay a per-company property, for future conversions.
 
 ## 6. Events & Actions
 
@@ -204,11 +215,17 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 | Stock | `buyShare(buyer, company, source, count?)` | shares + money (+ float and capitalization, presidency changes). The buyer is a player, or a company in a corporate round |
 | Stock | `sellShares(seller, company, count)` | shares + money + market move (per share or per sale, as the game says) |
 | Stock | `swapCertificates(player, company, give, take)` | 21Moon: certificates swapped with the company treasury, no money |
-| Stock | `issueShares(company, count)` | 21Moon corporate round: IPO → pool, the bank pays the company, price down 1 |
+| Stock | `issueShares(company, count)` | Core, offered when the market defines `issue`: IPO (21Moon corporate round) or treasury (RotLA, in the OR) → pool, the bank pays the company, price down |
+| Stock | `redeemShare(company, count?)` | RotLA: pool → treasury, the company pays the bank the current price (no price move) |
+| Stock | `launchCompany(player, company, bid, price?)` | RotLA auction win: the whole bid to the treasury, president's certificate to the player, the other shares to the treasury, price ⌊bid/2⌋ floored to the track and capped by the phase, at the bottom of its stack (`auctionLaunch`) |
+| Mergers | `startMR()` / `mergeCompanies(a, b, into, identity?)` | RotLA Merger Round (when due) and a two-minor merger into a major (§5.3) |
+| Operating | `forcedTrainPurchase(company, trainType, variant?, from, sales)` | RotLA: the president's share sales at pre-sale prices, the shortfall, the purchase, then one drop per company sold (`corporateBankruptcy` with `presidentPays`) |
+| Operating | `namedPayment(company, payment, amount?)` | A company ability's money from its traits (Tunneling's mountain, Expansive's token, headquarters), one group |
+| Operating | `rockFormation(company)` / `cliffSale(company, train)` / `canyonTrain(company)` | RotLA Landmarks postcards: up 2; half the printed cost and the train to the pool; a rusted 2 back for good (`landmarks`) |
 | Stock | `buyPrivate(player, private, price, par?)` / `exchangePrivate(private, source)` | money and private; grants (CA, BO, P5, P6) and exchanges (MH, 21Moon P6) |
 | Stock | `stockBatch(items, assumedPrices)` | one group, applied in the stated order at the stated prices |
 | Loans | `takeLoan(company, n)` | only if the game defines loans. Repayment and interest are definition fields for future games; v1 builds no repay action |
-| Flow | `nextCompany / startSR / startOR / endSR / startCR / endCR` | turn events; `nextCompany` for a company with no run this OR first records a zero run (the game's withhold move, warning "no corrió"). `startSR / startCR / startOR` first apply, in the same group, the end step of the round being left, at most once per round: at the end of the SR, the capital of companies floated during the SR and the sold-out moves; at the end of the CR, the sold-out and pool-penalty moves. Leaving an OR or the private auction applies nothing. `endSR / endCR` are voice only, apply the same step, and are unavailable once it was applied or outside their round |
+| Flow | `nextCompany / startSR / startOR / endSR / startCR / endCR` | turn events; `nextCompany` for a company with no run this OR first records a zero run (the game's withhold move, warning "no corrió"). `startSR / startCR / startOR` first apply, in the same group, the end step of the round being left, at most once per round: at the end of the SR, the capital of companies floated during the SR and the sold-out moves; at the end of the CR, the sold-out and pool-penalty moves. Leaving an OR, an MR or the private auction applies nothing. In games with a train export (RotLA), `startSR` then exports the top of the train stack (with its phase change and rust) before the new SR. `endSR / endCR` are voice only, apply the same step, and are unavailable once it was applied or outside their round |
 | Manual | `adjust(holder, amount)` / `setPrice(company, position)` | overrides, recorded as events |
 
 ### 6.1 Stock round entry modes

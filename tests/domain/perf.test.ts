@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { SessionStore } from "../../src/app/SessionStore";
 import { getBuiltInGame } from "../../src/domain/games";
+import type { GameDefinition } from "../../src/domain/games/schema";
+import type { Player } from "../../src/domain/types";
 import { touchesOf, type GroupEntry, type LogEntry } from "../../src/domain/ledger/entries";
 import { replay } from "../../src/domain/ledger/replay";
 import { replayFromSnapshot, snapshotsFor } from "../../src/domain/ledger/snapshots";
@@ -35,9 +37,9 @@ function timeIt(fn: () => void, runs = 7): number {
   return median(times);
 }
 
-/** A 1,500-group 1830 log from a seeded random walk, ending with a company about to run. */
-function longGame(): { log: LogEntry[]; payout: unknown } {
-  const s = TestSession.start(game, players);
+/** A 1,500-group log from a seeded random walk, ending with a company about to run. */
+function longGame(g: GameDefinition = game, ps: readonly Player[] = players): { log: LogEntry[]; payout: unknown } {
+  const s = TestSession.start(g, ps);
   const log: LogEntry[] = [];
   const rand = rng(42);
   const push = (action: { type: string }) => {
@@ -55,14 +57,15 @@ function longGame(): { log: LogEntry[]; payout: unknown } {
     };
     log.push(group);
   };
-  push({ type: "createSession", players, walletMode: "appTruth" } as never);
+  push({ type: "createSession", players: ps, walletMode: "appTruth" } as never);
   while (log.length < GROUPS) {
     const next = [...candidates(s, rand), ...FLOW].find((a) => s.tryDo(a).kind === "ok");
     if (!next) throw new Error(`walk stalled at ${log.length}`);
     push(next);
   }
   const payout = { type: "runAndPayout", company: null, parts: [{ part: "revenue", amount: 240 }], mode: "full" };
-  while (s.tryDo(payout).kind !== "ok") {
+  // Bounded: a walk where every company has closed (RotLA) never reaches a payout.
+  for (let extra = 0; extra < 500 && s.tryDo(payout).kind !== "ok"; extra++) {
     const next = [...candidates(s, rand), ...FLOW].find((a) => a.type !== "runAndPayout" && s.tryDo(a).kind === "ok");
     if (!next) throw new Error("no way to reach a payout");
     push(next);
@@ -108,5 +111,18 @@ describe("performance (T163)", () => {
     } finally {
       db.close();
     }
+  });
+});
+
+describe("performance with RotLA mergers (T100)", () => {
+  const rotla = getBuiltInGame("rotla");
+  const rotlaPlayers = players.slice(0, 4);
+  const { log } = longGame(rotla, rotlaPlayers);
+
+  it(`replays a ${GROUPS}-group RotLA log with mergers in under 50 ms`, () => {
+    const merges = log.filter((e) => e.kind === "group" && e.action.type === "mergeCompanies").length;
+    expect(merges).toBeGreaterThan(0);
+    const ms = timeIt(() => replay(rotla, rotlaPlayers, log));
+    expect(ms).toBeLessThan(50);
   });
 });

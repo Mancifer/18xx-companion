@@ -257,10 +257,54 @@ export const stockBatchAction = z
   })
   .refine((a) => a.assumedPrices.length === a.items.length, "one assumed price (or null) per item");
 
+/** auctionLaunch (RotLA): the auction winner launches a company; price null = half the bid. */
+export const launchCompanyAction = z.object({
+  type: z.literal("launchCompany"),
+  player: playerId,
+  company: companyId,
+  bid: money,
+  price: money.nullable(),
+});
+
 export const startSRAction = z.object({ type: z.literal("startSR") });
 export const endSRAction = z.object({ type: z.literal("endSR") });
 export const confirmFloatConditionAction = z.object({ type: z.literal("confirmFloatCondition"), company: companyId });
 export const issueSharesAction = z.object({ type: z.literal("issueShares"), company: companyId, count: units });
+/** A company buys its own shares back from the pool (RotLA); count null = 1. */
+export const redeemShareAction = z.object({ type: z.literal("redeemShare"), company: currentCompanyId, count: units.nullable() });
+/**
+ * corporateBankruptcy with presidentPays (RotLA B p.17): the president sells shares to fund a train
+ * the company must buy; each sold company drops once, after all the sales.
+ */
+export const forcedTrainPurchaseAction = z.object({
+  type: z.literal("forcedTrainPurchase"),
+  company: currentCompanyId,
+  trainType: z.string().min(1),
+  variant: z.string().min(1).nullable(),
+  from: z.enum(["bank", "pool"]),
+  sales: z.array(z.object({ company: companyId, count: units })),
+});
+/** mergers (RotLA B p.18): two minors become a major in the Merger Round; identity null = primary. */
+export const mergeCompaniesAction = z.object({
+  type: z.literal("mergeCompanies"),
+  a: companyId,
+  b: companyId,
+  into: companyId,
+  identity: z.enum(["primary", "alt"]).nullable(),
+});
+export const startMRAction = z.object({ type: z.literal("startMR") });
+/** landmarks (RotLA Landmarks L p.10–11): the postcards' money effects. */
+export const rockFormationAction = z.object({ type: z.literal("rockFormation"), company: currentCompanyId });
+/** train: a type ("5") or a train asset id ("train:5:1"). */
+export const cliffSaleAction = z.object({ type: z.literal("cliffSale"), company: currentCompanyId, train: z.string().min(1) });
+export const canyonTrainAction = z.object({ type: z.literal("canyonTrain"), company: currentCompanyId });
+/** A company ability's money (traits.payments: Tunneling, Expansive, Sede); amount null = the trait's. */
+export const namedPaymentAction = z.object({
+  type: z.literal("namedPayment"),
+  company: currentCompanyId,
+  payment: z.string().min(1),
+  amount: money.nullable(),
+});
 export const startCRAction = z.object({ type: z.literal("startCR") });
 export const endCRAction = z.object({ type: z.literal("endCR") });
 
@@ -277,7 +321,7 @@ export const setPhaseAction = z.object({ type: z.literal("setPhase"), phase: z.s
 /** A manual turn override: null fields stay as they are. */
 export const setTurnAction = z.object({
   type: z.literal("setTurn"),
-  round: z.enum(["PRIVATES", "SR", "CR", "OR"]).nullable(),
+  round: z.enum(["PRIVATES", "SR", "CR", "OR", "MR"]).nullable(),
   srNumber: z.number().int().nonnegative().nullable(),
   orSet: z.number().int().nonnegative().nullable(),
   orIndex: z.number().int().nonnegative().nullable(),
@@ -324,10 +368,19 @@ export const ActionSchema = z.discriminatedUnion("type", [
   buyPrivateAction,
   exchangePrivateAction,
   stockBatchAction,
+  launchCompanyAction,
   startSRAction,
   endSRAction,
   confirmFloatConditionAction,
   issueSharesAction,
+  redeemShareAction,
+  namedPaymentAction,
+  forcedTrainPurchaseAction,
+  mergeCompaniesAction,
+  startMRAction,
+  rockFormationAction,
+  cliffSaleAction,
+  canyonTrainAction,
   startCRAction,
   endCRAction,
   nextCompanyAction,

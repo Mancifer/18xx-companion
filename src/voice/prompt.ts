@@ -30,6 +30,9 @@ export function systemPromptEs({ game, players }: VoiceSession): string {
   }
   const mechanics = enabledMechanics(game).map((m) => m.id);
   if (mechanics.length > 0) lines.push(`Reglas especiales activas: ${mechanics.join(", ")}.`);
+  if (mechanics.includes("auctionLaunch")) {
+    lines.push("«abre X por N» = launchCompany en juegos con lanzamiento por subasta (no parCompany): N es la puja.");
+  }
   if (game.loans) lines.push(`Préstamos de ${formatMoney(game.loans.amount, game)}, sin interés y sin devolución.`);
   lines.push(`Trenes: ${game.trains.map((t) => t.variants.map((v) => `${v.name} ${formatMoney(v.cost, game)}`).join(" / ")).join("; ")}.`);
   lines.push(`Privadas: ${game.privates.map((p) => `${p.id} = ${p.name}${p.aliases.length ? ` (${p.aliases.join(", ")})` : ""}`).join("; ")}.`);
@@ -39,7 +42,8 @@ export function systemPromptEs({ game, players }: VoiceSession): string {
   }
   lines.push("", "Compañías (id = nombre; alias):");
   for (const c of game.companies) {
-    lines.push(`- ${c.id} = ${c.name}${c.aliases.length ? `; ${c.aliases.join(", ")}` : ""}`);
+    const alt = c.altName ? ` (segunda identidad: ${c.altName}${c.altAliases?.length ? `; ${c.altAliases.join(", ")}` : ""} → identity alt)` : "";
+    lines.push(`- ${c.id} = ${c.name}${alt}${c.aliases.length ? `; ${c.aliases.join(", ")}` : ""}`);
   }
   return lines.join("\n");
 }

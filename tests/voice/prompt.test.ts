@@ -6,6 +6,7 @@ import { systemBlocks, systemPromptEs } from "../../src/voice/prompt";
 import { snapshotAndTranscript } from "../../src/voice/snapshot";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { seedCompany } from "../helpers/seed";
+import { rotlaSession } from "../helpers/rotla";
 
 const players = makePlayers(["Ana", "Bruno", "Carla", "Dani"]).map((p) => (p.id === "p1" ? { ...p, aliases: ["la jefa"] } : p));
 const game = getBuiltInGame("1830");
@@ -70,5 +71,41 @@ describe("snapshotAndTranscript (volatile user message)", () => {
 
   it("appends the chosen clarification", () => {
     expect(snapshot("Anabel")).toContain("Anabel");
+  });
+});
+
+describe("RotLA prompt and snapshot (US10, T087)", () => {
+  const rotlaPlayers = players.slice(0, 3);
+
+  it("the prompt explains auction launches only where launchCompany exists, and names second identities", () => {
+    const rotla = systemPromptEs({ game: getBuiltInGame("rotla"), players: rotlaPlayers });
+    expect(rotla).toContain("«abre X por N» = launchCompany en juegos con lanzamiento por subasta");
+    expect(rotla).toContain("CON = Consortium (segunda identidad: Conglomerate");
+    expect(systemPromptEs({ game, players })).not.toContain("launchCompany");
+  });
+
+  it("the snapshot has the cycle and round, each company's tier, and the minors still to launch", () => {
+    const s = rotlaSession();
+    s.do({ type: "launchCompany", player: "p1", company: "TUN", bid: 140, price: null });
+    const text = snapshotAndTranscript({ game: s.game, players: s.players, state: s.state, effective: [], transcript: "x" });
+    expect(text).toContain("Ronda: Ciclo 1 de 6 · RA.");
+    expect(text).toContain("- TUN (minor): floated");
+    expect(text).toMatch(/Minors sin abrir: ADP, AGR, .*EXP/);
+    expect(text).not.toMatch(/Minors sin abrir:.*TUN/);
+    expect(text).toContain("Corporaciones sin abrir: CON (Consortium / Conglomerate)");
+  });
+
+  it("the snapshot shows the Merger Round", () => {
+    const s = rotlaSession();
+    s.apply({ t: "turnAdvance", round: "MR", srNumber: 2 });
+    const text = snapshotAndTranscript({ game: s.game, players: s.players, state: s.state, effective: [], transcript: "x" });
+    expect(text).toContain("Ronda: Ciclo 2 de 6 · RF.");
+  });
+
+  it("1830's snapshot is unchanged in shape (no tiers, no cycles)", () => {
+    const s = TestSession.start(game, players);
+    const text = snapshotAndTranscript({ game, players, state: s.state, effective: [], transcript: "x" });
+    expect(text).not.toContain("Ciclo");
+    expect(text).not.toContain("sin abrir");
   });
 });

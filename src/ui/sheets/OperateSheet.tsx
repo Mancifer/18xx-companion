@@ -2,28 +2,37 @@ import { useState, type Dispatch, type ReactNode, type SetStateAction } from "re
 import { useDispatch, useSession } from "../../app/useSession";
 import { availabilityOf } from "../../domain/actions/availability";
 import type { ActionContext } from "../../domain/actions/context";
-import { forcedWithholdReason, trainPrice, zeroRunAction } from "../../domain/actions/expand/operating";
+import { forcedWithholdReason, tradeInProblem, trainPrice, zeroRunAction } from "../../domain/actions/expand/operating";
 import { handlerFor } from "../../domain/actions/expand";
 import type { ActionType } from "../../domain/actions/schemas";
-import { cashOf, type SessionState } from "../../domain/events/state";
-import type { GameDefinition, PayoutMode, TrainDef } from "../../domain/games/schema";
+import { cashOf, counterOf, presidentOf, unitsOf, type SessionState } from "../../domain/events/state";
+import type { GameDefinition, NamedPayment, PayoutMode, TrainDef } from "../../domain/games/schema";
 import { summaryEs } from "../../domain/i18n/es";
 import { formatMoney } from "../../domain/i18n/format";
+import { CANYON, cliffKeyFor, ROCK } from "../../domain/mechanics/custom/landmarks";
 import { nationalBankConfig, nationalMinDividend } from "../../domain/mechanics/custom/nationalBank";
 import { priceOf } from "../../domain/mechanics/market";
 import { operatingOrder } from "../../domain/mechanics/operatingOrder";
 import { turnActivity } from "../../domain/queries";
-import { trainsHeldBy } from "../../domain/mechanics/phases";
+import { overLimitCompanies, RUSTED, trainsHeldBy, trainStack } from "../../domain/mechanics/phases";
+import { effectiveTraits } from "../../domain/mechanics/traits";
 import { trainTypeOf, type CompanyId } from "../../domain/types";
 import { CompanyBadge } from "../components/CompanyBadge";
 import { Keypad } from "../components/Keypad";
 import { Sheet } from "../components/Sheet";
 
-type View = "run" | "train" | "cost" | "bonus" | "private" | "loan" | "discard" | "supply";
+export type OperateView = "run" | "train" | "cost" | "bonus" | "payment" | "cliff" | "private" | "loan" | "discard" | "supply";
+type View = OperateView;
 type Amounts = Record<string, number | null>;
 
 const MODE_LABEL: Readonly<Record<PayoutMode, string>> = { full: "Pagar", withhold: "Retener", half: "Mitad" };
 const COST_REASONS = ["terreno", "estación", "ficha", "río"];
+
+/** Whether the game offers an action at all (a mechanic it enables, or a core action its data gates). */
+function offers(ctx: ActionContext, type: ActionType): boolean {
+  const handler = handlerFor(ctx, type);
+  return handler !== undefined && (handler.offered?.(ctx.game) ?? true);
+}
 
 /**
  * The touch path for an operating turn (US3, T092): revenue on the keypad, then one tap on an
@@ -34,21 +43,25 @@ const COST_REASONS = ["terreno", "estación", "ficha", "río"];
 export function OperateSheet({
   companyId,
   outOfTurn = false,
+  initialView = "run",
   onClose,
   onDetails,
 }: {
   companyId: CompanyId;
   /** Opened deliberately for a company whose turn it is not (FR-012). */
   outOfTurn?: boolean;
+  /** "discard" opens the train picker directly (the over-limit banner, FR-020). */
+  initialView?: OperateView;
   onClose: () => void;
   onDetails?: () => void;
 }) {
   const { meta, state, effective } = useSession();
   const { dispatch } = useDispatch();
-  const [view, setView] = useState<View>("run");
+  const [view, setView] = useState<View>(initialView);
   // The turn draft (FR-006): typed but unconfirmed revenue, kept across sub-views, never logged.
   const [amounts, setAmounts] = useState<Amounts>({});
   const [editingPart, setEditingPart] = useState(meta.game.revenueParts[0]?.id ?? "revenue");
+  const [paymentId, setPaymentId] = useState<string | null>(null);
   const ctx: ActionContext = { game: meta.game, players: meta.players, state };
   const def = meta.game.companies.find((c) => c.id === companyId);
   if (!def) return null;
@@ -94,8 +107,25 @@ export function OperateSheet({
   if (view === "cost" || view === "bonus") {
     return <AmountView kind={view} company={companyId} title={title} back={back} onClose={onClose} run={step} />;
   }
+  if (view === "payment" && paymentId) {
+    return <PaymentView ctx={ctx} company={companyId} payment={paymentId} title={title} back={back} onClose={onClose} run={step} />;
+  }
   if (view === "private") return <PrivateView ctx={ctx} company={companyId} title={title} back={back} onClose={onClose} run={step} />;
   if (view === "loan") return <LoanView ctx={ctx} company={companyId} title={title} back={back} onClose={onClose} run={step} />;
+  if (view === "cliff") {
+    return (
+      <Sheet title={<>Acantilado · {title}</>} onClose={onClose}>
+        {back}
+        <div className="choice-grid">
+          {trainsHeldBy(state, ref).map((asset) => (
+            <button key={asset} onClick={() => void step({ type: "cliffSale", company: companyId, train: asset })}>
+              Vender el {trainTypeOf(asset)}
+            </button>
+          ))}
+        </div>
+      </Sheet>
+    );
+  }
   if (view === "discard") {
     return (
       <Sheet title={title} onClose={onClose}>
@@ -154,6 +184,8 @@ export function OperateSheet({
       show: meta.game.trains.some((t) => (t.reserve ?? 0) > 0),
     },
   ];
+  const overLimit = overLimitCompanies(meta.game, state).find((o) => o.company === companyId);
+  const rusted = trainsHeldBy(state, ref).filter((asset) => counterOf(state, ref, `${RUSTED}${asset}`) > 0);
 
   return (
     <Sheet title={title} onClose={onClose}>
@@ -162,6 +194,11 @@ export function OperateSheet({
           Fuera de turno: le toca a {meta.game.companies.find((c) => c.id === turn.currentCompany)?.shortName ?? turn.currentCompany}. Lo
           que registres quedará marcado en el historial.
         </p>
+      ) : null}
+      {overLimit ? (
+        <button className="over-limit" onClick={() => setView("discard")}>
+          {def.name}: {overLimit.count} trenes, límite {overLimit.limit}. Elegir cuál va al pool
+        </button>
       ) : null}
       {inTurn ? (
         <div className="turn-summary">
@@ -193,6 +230,24 @@ export function OperateSheet({
           setEditing={setEditingPart}
         />
       )}
+      {rusted.map((asset) => (
+        <div key={asset} className="row rusted-train">
+          <span>{trainTypeOf(asset)} · Oxidado · última carrera</span>
+          <button onClick={() => void step({ type: "discardTrain", company: companyId, train: asset })}>
+            Retirar el {trainTypeOf(asset)}
+          </button>
+        </div>
+      ))}
+      <AbilityChips
+        ctx={ctx}
+        company={companyId}
+        run={step}
+        onAmount={(id) => {
+          setPaymentId(id);
+          setView("payment");
+        }}
+      />
+      <LandmarkChips ctx={ctx} company={companyId} run={step} onCliff={() => setView("cliff")} />
       <div className="choice-grid">
         {more
           .filter((m) => m.show && def.kind !== "national")
@@ -355,6 +410,7 @@ function TrainView({ ctx, company, title, back, onClose, run }: ViewProps) {
   const [seller, setSeller] = useState<CompanyId | null>(null);
   const [price, setPrice] = useState<number | null>(null);
   const [sellerTrain, setSellerTrain] = useState<string | null>(null);
+  const [tradeInFor, setTradeInFor] = useState<string | null>(null);
   const ref = `company:${company}` as const;
   const buy = (train: TrainDef, from: "bank" | "pool", variant: string | null, tradeIn: string | null) => ({
     type: "buyTrain",
@@ -370,31 +426,59 @@ function TrainView({ ctx, company, title, back, onClose, run }: ViewProps) {
     const action = buy(train, from, variant, tradeIn);
     const ok = availabilityOf(ctx, "buyTrain", action as never);
     if (!ok.ok) return null;
-    const cost = trainPrice(ctx.game, action);
+    const cost = formatMoney(trainPrice(ctx.game, action, ctx.state), ctx.game);
     return (
       <button key={`${from}-${train.type}-${variant ?? ""}-${tradeIn ?? ""}`} onClick={() => void run(action)}>
-        {label} · {formatMoney(cost, ctx.game)}
+        {/* An unlimited type with variants (7/∞): "7: $750"; otherwise "3 (5) · $200", as before. */}
+        {train.count === "unlimited" && train.variants.length > 1 && tradeIn === null ? `${label}: ${cost}` : `${label} · ${cost}`}
       </button>
     );
   };
+  /** Types the company could trade in for this train: held, not rusted, and not rusted by this purchase. */
+  const tradeIns = (t: TrainDef, variant: string | null): string[] =>
+    (t.tradeIn?.fromTypes ?? []).filter((from) => {
+      const held = trainsHeldBy(ctx.state, ref, from).filter((a) => counterOf(ctx.state, ref, `${RUSTED}${a}`) === 0);
+      return held.length > 0 && !tradeInProblem(ctx.game, ctx.state, buy(t, "bank", variant, from));
+    });
   const others = ctx.game.companies.filter((c) => c.id !== company && trainsHeldBy(ctx.state, `company:${c.id}`).length > 0);
 
   return (
     <Sheet title={<>Comprar tren · {title}</>} onClose={onClose}>
       {back}
+      <ForcedPurchaseCard ctx={ctx} company={company} run={run} />
       <h3>Del banco</h3>
       <div className="choice-grid">
-        {ctx.game.trains.flatMap((t) => {
-          const left = t.count === "unlimited" ? "∞" : String(trainsHeldBy(ctx.state, "bank", t.type).length);
-          const variants = t.variants.length > 1 ? t.variants.map((v) => v.name) : [null];
-          const buttons = variants.map((v) => option(t, "bank", v, null, `${v ?? t.type} (${left})`));
-          for (const from of t.tradeIn?.fromTypes ?? []) {
-            if (trainsHeldBy(ctx.state, ref, from).length > 0) {
-              buttons.push(option(t, "bank", t.variants.at(-1)?.name ?? null, from, `${t.variants.at(-1)?.name ?? t.type} entregando un ${from}`));
+        {ctx.game.trains
+          .filter((t) => !t.special)
+          .flatMap((t) => {
+            const left = t.count === "unlimited" ? "∞" : String(trainsHeldBy(ctx.state, "bank", t.type).length);
+            const variants = t.variants.length > 1 ? t.variants.map((v) => v.name) : [null];
+            const buttons: ReactNode[] = variants.map((v) =>
+              option(t, "bank", v, null, v === null ? `${t.type} (${left})` : t.count === "unlimited" ? v : `${v} (${left})`),
+            );
+            const tradeVariant = t.tradeIn?.variant ?? t.variants.at(-1)?.name ?? null;
+            const froms = tradeIns(t, tradeVariant);
+            if (t.tradeIn?.variant !== undefined) {
+              // The trade-in price is for one variant (RotLA ∞): one chip opens the trains to hand over.
+              if (froms.length > 0) {
+                buttons.push(
+                  <button key={`trade-${t.type}`} aria-expanded={tradeInFor === t.type} onClick={() => setTradeInFor(t.type)}>
+                    {tradeVariant} entregando…
+                  </button>,
+                );
+              }
+              if (tradeInFor === t.type) {
+                for (const from of froms) buttons.push(option(t, "bank", tradeVariant, from, `${tradeVariant} entregando un ${from}`));
+              }
+            } else {
+              for (const from of t.tradeIn?.fromTypes ?? []) {
+                if (trainsHeldBy(ctx.state, ref, from).length > 0) {
+                  buttons.push(option(t, "bank", tradeVariant, from, `${tradeVariant ?? t.type} entregando un ${from}`));
+                }
+              }
             }
-          }
-          return buttons;
-        })}
+            return buttons;
+          })}
       </div>
       {ctx.game.trains.some((t) => trainsHeldBy(ctx.state, "pool", t.type).length > 0) ? (
         <>
@@ -448,6 +532,67 @@ function TrainView({ ctx, company, title, back, onClose, run }: ViewProps) {
   );
 }
 
+/**
+ * "Compra forzada" (US6-4, contracts/ui.md): a company with no train that cannot pay the top of
+ * the stack. The president puts in the difference, selling shares first if they need to.
+ */
+function ForcedPurchaseCard({ ctx, company, run }: { ctx: ActionContext; company: CompanyId; run: (action: unknown) => Promise<void> }) {
+  const [sales, setSales] = useState<{ company: CompanyId; count: number }[]>([]);
+  const ref = `company:${company}` as const;
+  const president = presidentOf(ctx.state, company);
+  const top = trainStack(ctx.game, ctx.state)[0];
+  const train = top ? ctx.game.trains.find((t) => t.type === top.type) : undefined;
+  if (!offers(ctx, "forcedTrainPurchase") || !president || !train || trainsHeldBy(ctx.state, ref).length > 0) return null;
+  const cost = trainPrice(ctx.game, { trainType: train.type, variant: null, from: "bank", price: null, tradeIn: null }, ctx.state);
+  const cash = cashOf(ctx.state, ref);
+  if (cash >= cost) return null;
+  const money = (n: number) => formatMoney(n, ctx.game);
+  const presidentRef = `player:${president}` as const;
+  const sellable = ctx.game.companies.filter(
+    (c) => unitsOf(ctx.state, presidentRef, c.id) > 0 && priceOf(ctx.game, ctx.state, c.id) !== undefined,
+  );
+  const proceeds = sales.reduce((sum, s) => sum + (priceOf(ctx.game, ctx.state, s.company) ?? 0) * s.count, 0);
+  const shortfall = cost - cash;
+  const missing = shortfall - (cashOf(ctx.state, presidentRef) + proceeds);
+  const setSale = (i: number, sale: { company: CompanyId; count: number }) => setSales((all) => all.map((s, j) => (j === i ? sale : s)));
+  return (
+    <fieldset className="forced-purchase stack" aria-label="Compra forzada">
+      <legend>Compra forzada</legend>
+      <p>
+        El presidente pone {money(shortfall)}
+        {missing > 0 ? <span className="toast-warning"> · le faltan {money(missing)}</span> : null}
+      </p>
+      {sales.map((s, i) => (
+        <div key={i} className="row">
+          <select aria-label="Compañía vendida" value={s.company} onChange={(e) => setSale(i, { ...s, company: e.target.value })}>
+            {sellable.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.shortName}
+              </option>
+            ))}
+          </select>
+          <button aria-label="Menos" onClick={() => setSale(i, { ...s, count: Math.max(1, s.count - 1) })}>
+            −
+          </button>
+          <span className="money stepper-value">{s.count}</span>
+          <button aria-label="Más" onClick={() => setSale(i, { ...s, count: s.count + 1 })}>
+            +
+          </button>
+        </div>
+      ))}
+      {sellable[0] ? (
+        <button onClick={() => setSales((all) => [...all, { company: sellable[0]?.id ?? "", count: 1 }])}>Añadir venta</button>
+      ) : null}
+      <button
+        className="primary"
+        onClick={() => void run({ type: "forcedTrainPurchase", company, trainType: train.type, variant: null, from: "bank", sales })}
+      >
+        Comprar el {top?.displayName ?? train.type} · {money(cost)}
+      </button>
+    </fieldset>
+  );
+}
+
 function AmountView({
   kind,
   company,
@@ -489,6 +634,129 @@ function AmountView({
         }
       >
         {isCost ? "Pagar" : "Cobrar"} {amount !== null ? formatMoney(amount, meta.game) : ""}
+      </button>
+    </Sheet>
+  );
+}
+
+/** "Montaña (−40 / +60)", "Ficha extra (−40)", "Sede (+…)": the label of a company ability's money. */
+function paymentLabel(p: NamedPayment): string {
+  if (p.cost) return `${p.labelEs} (−${p.cost} / +${p.amount})`;
+  if (p.amount === 0) return `${p.labelEs} (${p.direction === "bankPays" ? "+" : "−"}…)`;
+  return `${p.labelEs} (${p.direction === "bankPays" ? "+" : "−"}${p.amount})`;
+}
+
+/**
+ * One-tap chips (contracts/ui.md "Operate sheet additions"): issue and redeem when the game defines
+ * them, and the company's ability payments from its effective traits. A payment whose amount is
+ * entered at use opens the keypad.
+ */
+function AbilityChips({
+  ctx,
+  company,
+  run,
+  onAmount,
+}: {
+  ctx: ActionContext;
+  company: CompanyId;
+  run: (action: unknown) => Promise<void>;
+  onAmount: (payment: string) => void;
+}) {
+  const chips: { key: string; label: string; action: { type: ActionType } & Record<string, unknown> }[] = [];
+  if (offers(ctx, "issueShares")) chips.push({ key: "issue", label: "Emitir", action: { type: "issueShares", company, count: 1 } });
+  if (offers(ctx, "redeemShare")) chips.push({ key: "redeem", label: "Recomprar", action: { type: "redeemShare", company, count: null } });
+  const payments = effectiveTraits(ctx.game, ctx.state, company).payments ?? [];
+  if (chips.length === 0 && payments.length === 0) return null;
+  return (
+    <div className="row ability-chips">
+      {chips.map((c) => {
+        const ok = availabilityOf(ctx, c.action.type, c.action as never);
+        return (
+          <button key={c.key} disabled={!ok.ok} title={ok.ok ? undefined : ok.reasonEs} onClick={() => void run(c.action)}>
+            {c.label}
+            {ok.ok ? null : <span className="muted reason"> · {ok.reasonEs}</span>}
+          </button>
+        );
+      })}
+      {payments.map((p) => (
+        <button
+          key={p.id}
+          onClick={() => (p.amount === 0 ? onAmount(p.id) : void run({ type: "namedPayment", company, payment: p.id, amount: null }))}
+        >
+          {paymentLabel(p)}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Landmarks postcards (US11, contracts/ui.md): one chip each, shown only when the game enables
+ * them. A used one reads "Ya usada" and ignores a tap; a long press (or right click) still
+ * records a repeat, which the app then warns about.
+ */
+function LandmarkChips({
+  ctx,
+  company,
+  run,
+  onCliff,
+}: {
+  ctx: ActionContext;
+  company: CompanyId;
+  run: (action: unknown) => Promise<void>;
+  onCliff: () => void;
+}) {
+  if (!offers(ctx, "rockFormation")) return null;
+  const ref = `company:${company}` as const;
+  const used = (key: string) => counterOf(ctx.state, ref, key) > 0;
+  const chips = [
+    { key: "rock", label: "Formación rocosa (+2)", used: used(ROCK), act: () => void run({ type: "rockFormation", company }) },
+    {
+      key: "cliff",
+      label: "Acantilado",
+      used: used(cliffKeyFor(ctx.state.turn)),
+      act: onCliff,
+    },
+    { key: "canyon", label: "Cañón", used: used(CANYON), act: () => void run({ type: "canyonTrain", company }) },
+  ];
+  return (
+    <div className="row ability-chips">
+      {chips.map((c) => (
+        <button
+          key={c.key}
+          className={c.used ? "used" : undefined}
+          aria-disabled={c.used ? "true" : undefined}
+          onClick={() => {
+            if (!c.used) c.act();
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            c.act();
+          }}
+        >
+          {c.label}
+          {c.used ? " · Ya usada" : ""}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** A named payment whose amount is entered at use (Sede: half the city's printed value). */
+function PaymentView({ ctx, company, payment, title, back, onClose, run }: ViewProps & { payment: string }) {
+  const [amount, setAmount] = useState<number | null>(null);
+  const def = effectiveTraits(ctx.game, ctx.state, company).payments?.find((p) => p.id === payment);
+  const bankPays = def?.direction !== "companyPays";
+  return (
+    <Sheet title={<>{def?.labelEs ?? payment} · {title}</>} onClose={onClose}>
+      {back}
+      <Keypad value={amount} onChange={setAmount} game={ctx.game} />
+      <button
+        className="primary"
+        disabled={amount === null || amount <= 0}
+        onClick={() => void run({ type: "namedPayment", company, payment, amount })}
+      >
+        {bankPays ? "Cobrar" : "Pagar"} {amount !== null ? formatMoney(amount, ctx.game) : ""}
       </button>
     </Sheet>
   );

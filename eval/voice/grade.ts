@@ -78,7 +78,11 @@ export function normalizeAction(action: Json, ctx: ResolveContext): Json {
       if (out["count"] === null) out["count"] = 1;
       break;
     case "takeLoan":
+    case "redeemShare":
       if (out["count"] === null || out["count"] === undefined) out["count"] = 1;
+      break;
+    case "mergeCompanies":
+      if (out["identity"] === null || out["identity"] === undefined) out["identity"] = "primary";
       break;
     case "buyTrain": {
       const type = ctx.game.trains.find((t) => t.type === out["trainType"]);
@@ -95,7 +99,20 @@ export function normalizeAction(action: Json, ctx: ResolveContext): Json {
   return out;
 }
 
-const CURRENT_COMPANY = new Set(["runAndPayout", "buyTrain", "payCost", "bankPays", "buyPrivateByCompany", "takeLoan"]);
+const CURRENT_COMPANY = new Set([
+  "runAndPayout",
+  "buyTrain",
+  "payCost",
+  "bankPays",
+  "buyPrivateByCompany",
+  "takeLoan",
+  "redeemShare",
+  "namedPayment",
+  "forcedTrainPurchase",
+  "rockFormation",
+  "cliffSale",
+  "canyonTrain",
+]);
 
 /** Every key of `expected` matches; arrays match element by element and in length. */
 export function matches(expected: unknown, actual: unknown): boolean {

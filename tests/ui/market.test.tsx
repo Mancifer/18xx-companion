@@ -42,3 +42,25 @@ describe("Market (US7-3, FR-052)", () => {
     expect(tokenButton.getAttribute("aria-pressed")).toBe("false");
   });
 });
+
+describe("RotLA's 1-D track (T102)", () => {
+  it("is one wrapping strip: 27 cells, the 0 labeled Cerrada, stacks top to bottom, the launch range highlighted", async () => {
+    const { user } = await openSeededTable({
+      game: "rotla",
+      players: ["Ana", "Bruno", "Carla"],
+      actions: [
+        { type: "launchCompany", player: "p1", company: "TUN", bid: 160, price: null },
+        { type: "launchCompany", player: "p2", company: "EXP", bid: 165, price: null },
+      ],
+    });
+    await openMenuItem(user, "Mercado");
+    const strip = await screen.findByTestId("market-strip");
+    const cells = within(strip).getAllByRole("button", { name: /^Casilla/ });
+    expect(cells).toHaveLength(27);
+    expect(within(strip).getByRole("button", { name: /^Casilla cerrada/ }).textContent).toContain("Cerrada");
+    const at80 = within(strip).getByRole("button", { name: /^Casilla \$80/ });
+    expect(within(at80).getAllByRole("button", { name: /^Ficha/ }).map((b) => b.getAttribute("aria-label"))).toEqual(["Ficha TUN", "Ficha EXP"]);
+    const inRange = cells.filter((c) => c.classList.contains("launch-range")).map((c) => c.getAttribute("aria-label")?.split(" ")[1]);
+    expect(inRange).toEqual(["$90", "$80", "$70", "$60"]);
+  });
+});

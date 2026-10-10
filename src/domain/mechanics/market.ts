@@ -1,7 +1,9 @@
 import type { SessionState } from "../events/state";
+import type { EventOf } from "../events/types";
 import type { Cell, CellTag, Direction, GameDefinition, MoveRule } from "../games/schema";
 import { cellEquals, type CellRef, type CompanyId } from "../types";
 import type { MoveKind } from "./payout";
+import { currentPhase } from "./phases";
 
 /** The cell at a 2-D position, or undefined off the grid / on a padding gap. */
 export function cellAt(game: GameDefinition, ref: CellRef | undefined): Cell | undefined {
@@ -102,6 +104,48 @@ export function moveTarget(game: GameDefinition, ref: CellRef | undefined, dir: 
   return cellEquals(target, ref) ? undefined : target;
 }
 
+/**
+ * The highest cell whose price is ≤ x, never a `closed` cell (RotLA launch and merger prices).
+ * Below the lowest price, the lowest cell. Equal prices: the first in reading order.
+ */
+export function floorToTrack(game: GameDefinition, x: number): CellRef {
+  let best: { ref: CellRef; price: number } | undefined;
+  let lowest: { ref: CellRef; price: number } | undefined;
+  game.market.cells.forEach((cells, row) => {
+    cells.forEach((cell, col) => {
+      if (!cell || cell.tags?.includes("closed")) return;
+      const ref = { row, col };
+      if (cell.price <= x && (!best || cell.price > best.price)) best = { ref, price: cell.price };
+      if (!lowest || cell.price < lowest.price) lowest = { ref, price: cell.price };
+    });
+  });
+  const found = best ?? lowest;
+  if (!found) throw new Error("The market has no cells");
+  return found.ref;
+}
+
+export interface LaunchPrice {
+  readonly price: number;
+  readonly cell: CellRef;
+  /** Half the bid fell outside the phase's launch range. */
+  readonly clamped: boolean;
+}
+
+/**
+ * An auction launch's starting price (research R4): half the bid, rounded down, clamped to the
+ * current phase's `launchPriceRange`, then floored to a track price. An override is used as given.
+ */
+export function launchPrice(game: GameDefinition, state: SessionState, bid: number, override?: number | null): LaunchPrice {
+  if (override !== undefined && override !== null) {
+    return { price: override, cell: floorToTrack(game, override), clamped: false };
+  }
+  const half = Math.floor(bid / 2);
+  const range = currentPhase(game, state)?.launchPriceRange;
+  const clampedValue = range ? Math.min(range[1], Math.max(range[0], half)) : half;
+  const cell = floorToTrack(game, clampedValue);
+  return { price: cellAt(game, cell)?.price ?? clampedValue, cell, clamped: clampedValue !== half };
+}
+
 function matches(rule: MoveRule, dividend: number, price: number): boolean {
   if (!rule.when) return true;
   const { dividendAtLeast, dividendEquals } = rule.when;
@@ -113,9 +157,24 @@ function matches(rule: MoveRule, dividend: number, price: number): boolean {
 /** Statuses whose price moves in operating rounds (1830 §5.5: unfloated companies never move). */
 export const OPERATING_STATUSES: ReadonlySet<string> = new Set(["floated", "receivership"]);
 
+/** The first rule for the kind whose condition matches, against the pre-move price. */
+function matchingRule(
+  game: GameDefinition,
+  state: SessionState,
+  company: CompanyId,
+  kind: MoveKind,
+  context: { readonly dividend: number },
+): MoveRule | undefined {
+  const record = state.companies[company];
+  if (!record || !OPERATING_STATUSES.has(record.status)) return undefined;
+  const price = priceOf(game, state, company) ?? 0;
+  return (game.market.moves[kind] ?? []).find((r) => matches(r, context.dividend, price));
+}
+
 /**
  * The price move after a run (FR-033): the first rule for the kind whose condition matches, with
- * thresholds compared against the pre-move price. Undefined means no move.
+ * thresholds compared against the pre-move price. Undefined means no move. A `stackBottom` rule
+ * keeps the cell (the company goes to the bottom of its stack, research R2).
  */
 export function applyMoveRules(
   game: GameDefinition,
@@ -124,11 +183,23 @@ export function applyMoveRules(
   kind: MoveKind,
   context: { readonly dividend: number },
 ): CellRef | undefined {
-  const record = state.companies[company];
-  if (!record || !OPERATING_STATUSES.has(record.status)) return undefined;
-  const price = priceOf(game, state, company) ?? 0;
-  const rules = game.market.moves[kind] ?? [];
-  const rule = rules.find((r) => matches(r, context.dividend, price));
+  const rule = matchingRule(game, state, company, kind, context);
   if (!rule) return undefined;
-  return moveTarget(game, record.position, rule.dir, rule.n);
+  const position = state.companies[company]?.position;
+  if (rule.effect === "stackBottom") return position;
+  return moveTarget(game, position, rule.dir, rule.n);
+}
+
+/** The run's market event: a move with the run's reason, or a `restack` for `stackBottom`. */
+export function runMoveEvent(
+  game: GameDefinition,
+  state: SessionState,
+  company: CompanyId,
+  kind: MoveKind,
+  context: { readonly dividend: number },
+): EventOf<"marketMove"> | undefined {
+  const to = applyMoveRules(game, state, company, kind, context);
+  if (!to) return undefined;
+  const restack = matchingRule(game, state, company, kind, context)?.effect === "stackBottom";
+  return { t: "marketMove", company, to, reason: restack ? "restack" : kind };
 }

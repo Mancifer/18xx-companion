@@ -35,6 +35,15 @@ export const ACTION_TOOLS: readonly ActionType[] = [
   "sellShares",
   "swapCertificates",
   "issueShares",
+  "redeemShare",
+  "launchCompany",
+  "mergeCompanies",
+  "startMR",
+  "forcedTrainPurchase",
+  "namedPayment",
+  "rockFormation",
+  "cliffSale",
+  "canyonTrain",
   "buyPrivate",
   "exchangePrivate",
   "stockBatch",
@@ -67,7 +76,22 @@ const DESCRIPTIONS: Readonly<Record<string, string>> = {
     "Comprar acciones de la IPO, del pool o de la tesorería. count null = 1. «Bruno compra una B&O del pool» · «Carla compra dos de la IPO de la PRR».",
   sellShares: "Vender acciones al pool. «Carla vende dos Erie» · «Ana vende una NYC».",
   swapCertificates: "El presidente cambia un certificado con la tesorería, sin dinero. «Ana cambia una VH por una SSF de la tesorería».",
-  issueShares: "La compañía emite acciones al pool (ronda corporativa). «la VH emite una» · «emite dos».",
+  issueShares:
+    "La compañía emite acciones al pool y cobra su precio (en la ronda corporativa, o al operar si el juego lo permite). «la VH emite una» · «emite dos» · «emite una acción».",
+  redeemShare: "La compañía recompra una acción suya del pool al precio actual. company null = la que opera. «recompra una acción» · «la Express recompra una».",
+  launchCompany:
+    "Quien gana la subasta abre una minor: la puja entera va a su tesorería; price null = la mitad de la puja (la app la ajusta). «Ana abre Tunneling por 140» · «Bruno lanza Express en 165».",
+  mergeCompanies:
+    "Ronda de fusiones: dos minors se fusionan en una corporación sin abrir. identity alt = su segunda identidad (si nombran ese nombre). «Express y Tunneling se fusionan en Union» · «… en Conglomerate» (Consortium, alt).",
+  startMR: "Empieza la ronda de fusiones (tras la segunda ronda de operaciones, desde la fase verde). «ronda de fusiones».",
+  forcedTrainPurchase:
+    "Compra forzada: la compañía no tiene tren ni dinero; el presidente pone la diferencia, vendiendo acciones si hace falta (sales). «compra forzada de un 4, Ana vende dos de Express».",
+  namedPayment:
+    "Dinero de una habilidad de la compañía (Tunneling: montaña; Expansive: ficha extra; Sede). amount null = el de la habilidad. «bonificación de túnel» · «ficha extra de Expansive» · «sede, 40».",
+  rockFormation: "Formación rocosa (Landmarks): la acción de la compañía sube dos casillas, antes del pago. company null = la que opera. «formación rocosa».",
+  cliffSale:
+    "Acantilado (Landmarks): la compañía vende un tren al banco por la mitad de su precio impreso; el tren va al pool. train = tipo. «vende el 5 en el acantilado».",
+  canyonTrain: "Cañón (Landmarks): la compañía recibe un 2 oxidado que ya no se oxida. company null = la que opera. «tren del cañón».",
   buyPrivate: "Un jugador compra una privada al precio pagado. «Ana compra la Camden por 160».",
   exchangePrivate: "Canjear una privada por una acción, cerrándola. «Dani canjea la Mohawk por una NYC».",
   stockBatch:
@@ -119,6 +143,9 @@ interface Enums {
   readonly privates: string[];
   readonly parts: string[];
   readonly phases: string[];
+  readonly minors: string[];
+  readonly majors: string[];
+  readonly payments: string[];
 }
 
 function enumsFor({ game, players }: VoiceSession): Enums {
@@ -138,6 +165,9 @@ function enumsFor({ game, players }: VoiceSession): Enums {
     privates: game.privates.map((p) => p.id),
     parts: game.revenueParts.map((p) => p.id),
     phases: game.phases.map((p) => p.id),
+    minors: game.companies.filter((c) => c.tier === "minor").map((c) => c.id),
+    majors: game.companies.filter((c) => c.tier === "major").map((c) => c.id),
+    payments: [...new Set(game.companies.flatMap((c) => c.traits?.payments?.map((p) => p.id) ?? []))],
   };
 }
 
@@ -162,6 +192,8 @@ function enumForKey(tool: string, key: string, e: Enums): string[] | undefined {
       return e.moneyHolders.filter((h) => h !== "bank");
     case "subject":
       return e.subjects;
+    case "train":
+      return tool === "cliffSale" ? e.trains : undefined;
     case "trainType":
     case "tradeIn":
       return e.trains;
@@ -173,6 +205,14 @@ function enumForKey(tool: string, key: string, e: Enums): string[] | undefined {
       return e.parts;
     case "phase":
       return e.phases;
+    // mergeCompanies: two minors into a major.
+    case "a":
+    case "b":
+      return e.minors;
+    case "into":
+      return e.majors;
+    case "payment":
+      return e.payments;
     default:
       return undefined;
   }
@@ -268,7 +308,10 @@ function metaSchema(name: (typeof META_TOOLS)[number], e: Enums): Json {
 export function buildTools(session: VoiceSession): Anthropic.Tool[] {
   const e = enumsFor(session);
   const probe = { game: session.game, players: session.players, state: initialState(session.game, session.players) };
-  const actions = ACTION_TOOLS.filter((type) => handlerFor(probe, type) !== undefined);
+  const actions = ACTION_TOOLS.filter((type) => {
+    const handler = handlerFor(probe, type);
+    return handler !== undefined && (handler.offered?.(session.game) ?? true);
+  });
   const tools = [
     ...actions.map((name) => ({ name, schema: inputSchema(name) })),
     ...META_TOOLS.map((name) => ({ name, schema: metaSchema(name, e) })),

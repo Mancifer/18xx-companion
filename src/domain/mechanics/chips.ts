@@ -1,4 +1,4 @@
-import type { ChipSet } from "../types";
+import type { Chip, ChipSet } from "../types";
 
 /** data-model §12. null = no exact change with the chips available. */
 export type ChipBreakdown = { readonly chips: readonly { readonly value: number; readonly count: number }[]; readonly total: number } | null;
@@ -111,6 +111,17 @@ export function breakdown(set: ChipSet, amount: number): ChipBreakdown {
 export function change(set: ChipSet, chipValue: number, amount: number): ChipBreakdown {
   if (chipValue <= amount) return null;
   return breakdown(set, chipValue - amount);
+}
+
+/**
+ * What a chip shows: its label, or its value. A label made only of digits must match the value
+ * (it is what is printed on the chip), so one that differs is a stale echo of an old value and
+ * the value is shown instead (bug chip-denomination-stale-label).
+ */
+export function chipLabel(chip: Pick<Chip, "value" | "label">): string {
+  const { label, value } = chip;
+  if (!label || (/^\d+$/.test(label) && label !== String(value))) return String(value);
+  return label;
 }
 
 /** "sorted by value descending; values unique and > 0" (data-model §12). */

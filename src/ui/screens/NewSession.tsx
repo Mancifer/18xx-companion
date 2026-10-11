@@ -4,6 +4,7 @@ import { ALL_COMPANIES, applyOptions, builtInGames, hasUnverified, optionWarning
 import type { GameDefinition, OptionDef } from "../../domain/games/schema";
 import { trainCount } from "../../domain/events/state";
 import { formatMoney } from "../../domain/i18n/format";
+import { chipLabel } from "../../domain/mechanics/chips";
 import type { ChipSet, Player, WalletMode } from "../../domain/types";
 import { ChipSetEditor, sortChips } from "../components/ChipSetEditor";
 import { CompanyBadge } from "../components/CompanyBadge";
@@ -315,7 +316,7 @@ export function NewSession() {
             <ChipSetEditor value={chipSet ?? { chips: game.chipPreset }} onChange={setChipSet} />
           ) : (
             <button onClick={() => setEditChips(true)}>
-              {(chipSet ?? { chips: game?.chipPreset ?? [] }).chips.map((c) => c.label ?? c.value).join(" · ") || "Sin fichas"} ·
+              {(chipSet ?? { chips: game?.chipPreset ?? [] }).chips.map(chipLabel).join(" · ") || "Sin fichas"} ·
               Editar
             </button>
           )}

@@ -1,7 +1,8 @@
 import { screen, within } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { openSeededTable } from "./helpers";
+import { getBuiltInGame } from "../../src/domain/games";
+import { openMenuItem, openSeededTable } from "./helpers";
 
 type User = ReturnType<typeof userEvent.setup>;
 
@@ -44,5 +45,44 @@ describe("chips in the toast (US6, FR-081)", () => {
     const change = toast.querySelector<HTMLElement>(".chip-change")!;
     expect(within(change).getByText("cambio:")).toBeTruthy();
     expect(within(change).getAllByLabelText(/×/).map((el) => el.getAttribute("aria-label"))).toEqual(["1 × 20"]);
+  });
+});
+
+describe("chip labels after editing a value (bug chip-denomination-stale-label)", () => {
+  /** In "Fichas": drop the 1 chip and turn the 5 chip into a 1, optionally labelling it first. */
+  async function makeFiveAOne(user: User, label?: string) {
+    await openMenuItem(user, "Fichas");
+    const sheet = await screen.findByRole("dialog");
+    await user.click(within(sheet).getByRole("button", { name: "Quitar la ficha 1" }));
+    if (label) await user.type(within(sheet).getAllByLabelText("Etiqueta")[5]!, label);
+    const value = within(sheet).getByLabelText("Valor de la ficha 6");
+    await user.clear(value);
+    await user.type(value, "1");
+    await user.click(within(sheet).getByRole("button", { name: "Guardar" }));
+  }
+
+  async function collect3(user: User) {
+    await user.click(await playerAction(user, "Ana", "Cobrar del banco", 3, /^Cobrar/));
+    const toast = (await screen.findByText(/El banco paga \$3 a Ana/)).closest(".toast") as HTMLElement;
+    return within(toast).getAllByLabelText(/×/).map((el) => [el.getAttribute("aria-label"), el.textContent]);
+  }
+
+  it("a $3 payment shows 3×1, not the old 3×5", async () => {
+    const { user } = await openSeededTable();
+    await makeFiveAOne(user);
+    expect(await collect3(user)).toEqual([["3 × 1", "3×1"]]);
+  });
+
+  it("a custom label survives a value change", async () => {
+    const { user } = await openSeededTable();
+    await makeFiveAOne(user, "Oro");
+    expect(await collect3(user)).toEqual([["3 × Oro", "3×Oro"]]);
+  });
+
+  it("a session saved with a stale numeric label shows the value", async () => {
+    const base = getBuiltInGame("1830");
+    const game = { ...base, chipPreset: [{ value: 10, color: "#1565c0" }, { value: 1, color: "#c62828", label: "5" }] };
+    const { user } = await openSeededTable({ game });
+    expect(await collect3(user)).toEqual([["3 × 1", "3×1"]]);
   });
 });

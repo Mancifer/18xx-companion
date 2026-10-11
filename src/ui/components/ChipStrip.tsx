@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { GameDefinition } from "../../domain/games/schema";
 import { formatMoney } from "../../domain/i18n/format";
 import type { MoneyFlow } from "../../domain/ledger/flows";
-import { breakdown, change, type ChipBreakdown } from "../../domain/mechanics/chips";
+import { breakdown, change, chipLabel, type ChipBreakdown } from "../../domain/mechanics/chips";
 import type { ChipSet } from "../../domain/types";
 
 function Discs({ result, set }: { result: ChipBreakdown; set: ChipSet }) {
@@ -12,11 +12,12 @@ function Discs({ result, set }: { result: ChipBreakdown; set: ChipSet }) {
     <span className="chip-discs">
       {result.chips.map((c) => {
         const chip = set.chips.find((x) => x.value === c.value);
+        const text = chip ? chipLabel(chip) : c.value;
         return (
-          <span key={c.value} className="chip" aria-label={`${c.count} × ${chip?.label ?? c.value}`}>
+          <span key={c.value} className="chip" aria-label={`${c.count} × ${text}`}>
             <span className="chip-disc" style={{ background: chip?.color ?? "#888" }} aria-hidden="true" />
             <span className="chip-text">
-              {c.count}×{chip?.label ?? c.value}
+              {c.count}×{text}
             </span>
           </span>
         );
@@ -53,7 +54,7 @@ export function ChipStrip({
           <span className="muted">pagó con</span>
           {larger.slice(-2).map((v) => (
             <button key={v} className="chip-button" aria-pressed={paidWith === v} onClick={() => setPaidWith(paidWith === v ? null : v)}>
-              {set.chips.find((c) => c.value === v)?.label ?? v}
+              {chipLabel(set.chips.find((c) => c.value === v) ?? { value: v })}
             </button>
           ))}
         </span>

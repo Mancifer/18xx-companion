@@ -375,12 +375,12 @@ export const grotla: GameDefinition = {
     },
   ],
   chipPreset: [
-    { value: 500, color: "#6a1b9a", label: "500" },
-    { value: 100, color: "#212121", label: "100" },
-    { value: 50, color: "#ef6c00", label: "50" },
-    { value: 20, color: "#2e7d32", label: "20" },
-    { value: 10, color: "#1565c0", label: "10" },
-    { value: 5, color: "#c62828", label: "5" },
+    { value: 500, color: "#6a1b9a" },
+    { value: 100, color: "#212121" },
+    { value: 50, color: "#ef6c00" },
+    { value: 20, color: "#2e7d32" },
+    { value: 10, color: "#1565c0" },
+    { value: 5, color: "#c62828" },
   ],
   verification: {
     bank: "verified",

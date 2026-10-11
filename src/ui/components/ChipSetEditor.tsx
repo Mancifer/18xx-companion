@@ -27,7 +27,11 @@ export function ChipSetEditor({ value, onChange }: { value: ChipSet; onChange: (
                 inputMode="numeric"
                 aria-label={`Valor de la ficha ${i + 1}`}
                 value={c.value}
-                onChange={(e) => patch(i, { value: Number(e.target.value.replace(/\D/g, "")) || 0 })}
+                onChange={(e) => {
+                  const next = Number(e.target.value.replace(/\D/g, "")) || 0;
+                  // A label that only echoed the old value would go stale; a custom one ("Oro") stays.
+                  patch(i, c.label === String(c.value) ? { value: next, label: undefined } : { value: next });
+                }}
               />
             </label>
             <label>

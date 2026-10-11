@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { breakdown, change, isCanonical, validateChipSet } from "../../src/domain/mechanics/chips";
+import { breakdown, change, chipLabel, isCanonical, validateChipSet } from "../../src/domain/mechanics/chips";
 import type { ChipSet } from "../../src/domain/types";
 
 /** US6, research R11: fewest-chip breakdowns, change, limited counts. */
@@ -81,5 +81,23 @@ describe("chip sets", () => {
     expect(validateChipSet(set(1, 5))).toContain("Las fichas deben ir de mayor a menor valor.");
     expect(validateChipSet(set(10, 10))).toContain("Hay valores de ficha repetidos.");
     expect(validateChipSet(set(10, 0))).toContain("Los valores deben ser mayores que cero.");
+  });
+});
+
+describe("chipLabel (bug chip-denomination-stale-label)", () => {
+  it("shows the value when there is no label", () => {
+    expect(chipLabel({ value: 5 })).toBe("5");
+  });
+
+  it("shows the value when a numeric label is a stale echo of an old value", () => {
+    expect(chipLabel({ value: 1, label: "5" })).toBe("1");
+  });
+
+  it("keeps a numeric label that matches the value", () => {
+    expect(chipLabel({ value: 5, label: "5" })).toBe("5");
+  });
+
+  it("keeps a custom label", () => {
+    expect(chipLabel({ value: 1, label: "Oro" })).toBe("Oro");
   });
 });

@@ -319,19 +319,29 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
   holdings, current round, operating company, available trains and prices, and the last N
   events (for "no, era 260").
 - **Prompt caching**: the system prompt, game definition, and tool list form a stable prefix and
-  get cached. The volatile snapshot goes last.
+  get cached. The volatile snapshot goes last. On Gemini, where implicit caching rarely hits,
+  the adapter can use explicit context caching (`cachedContents`) for `systemInstruction` +
+  `tools` + `toolConfig`: the cache is created in the background on the first command, which goes
+  uncached as before, and later commands point at it with `cachedContent` plus the same snapshot
+  and settings. The cache lives 15 minutes and is extended with a PATCH when less than half is
+  left; any change to the stable part (an alias, a session) gets a new cache. Any cache error falls
+  back to the uncached request, so the result is the same. Explicit caching is turned on per model
+  (`EXPLICIT_CACHE_MODELS`) only after the eval passes with `--cache on`; otherwise implicit
+  caching stays the uncached path's behavior. Nothing about the cache is stored or exported.
 - **Clarification tool**: `askClarification(question, options[])`, rendered as tap buttons.
 - **Queries** ("¿cuánto tiene Ana?") produce a `query` tool call. The app answers from state,
   never from model text.
 - **Model**: configurable in settings, per provider. Defaults are chosen by measuring latency and
   accuracy on an eval set of real Spanish commands (see §11, open item **AI-2**). The eval runs
   against either provider (`npm run eval:voice -- --model <id>`, with `--free` and `--rpm` for
-  Gemini's free tier) and `npm run eval:voice:compare` shows two runs side by side. A provider is
+  Gemini's free tier, and `--cache on|off` for Gemini explicit caching) and `npm run eval:voice:compare` shows two runs side by side. A provider is
   offered only after its eval run is recorded.
 - **Gemini specifics**: tools are sent as `functionDeclarations` with `parametersJsonSchema`,
   function calling mode `ANY`, the lowest thinking level the model allows, and the stable prefix
-  first so implicit caching applies. One request per command, plus at most one retry on 429, 5xx
-  or a network error; 8 s timeout.
+  first so implicit caching applies (or explicit caching, see *Prompt caching*). One request per
+  command, plus at most one retry on 429, 5xx or a network error; with explicit caching, a cache
+  error's uncached resend is that one retry. 8 s timeout. Cache create, extend and delete calls
+  run in the background and never block or fail a command.
 - **Failure modes**: no network or no key for the selected provider means voice is disabled and
   touch still works; another provider's key is never used instead. A refusal, a safety block, a
   malformed call or an invalid tool input produces a "No entendí" message with the transcript

@@ -1,8 +1,10 @@
 import { z } from "zod";
 import type { Action } from "../../src/domain/actions/schemas";
+import type { CacheEvent } from "../../src/voice/interpreter";
 import type { ProviderId } from "../../src/voice/providers";
+import { CACHE_TTL_S } from "../../src/voice/providers/gemini";
 import type { ModelReply, ReplyStop, TokenUsage } from "../../src/voice/reply";
-import { costOf, priceFor } from "./prices";
+import { costOf, priceFor, storageCostUsd, type PricePeriod } from "./prices";
 import { resolveResponse, type ResolveContext } from "../../src/voice/resolve";
 
 /**
@@ -237,6 +239,23 @@ export interface SummaryOptions {
   readonly rateLimitRetries: number;
   /** YYYY-MM-DD; picks the price period. */
   readonly date: string;
+  /** Explicit caching (feature 009): whether it was on, each cache's lifetime and every event. */
+  readonly cache?: { readonly on: boolean; readonly caches: readonly CacheLifetime[]; readonly events: readonly CacheEvent[] };
+}
+
+/** One explicit cache in a run: stored from its create until the TTL after its last use. */
+export interface CacheLifetime {
+  readonly tokens: number;
+  /** Epoch ms, from the created event. */
+  readonly createdAt: number;
+  /** Epoch ms when the last call that could read it ended. */
+  readonly lastUseAt: number;
+}
+
+/** Totals in paid-equivalent dollars: tokens (cache writes included) plus storage. */
+export interface CacheTotals {
+  readonly totalUsd: number;
+  readonly totalPerCaseUsd: number;
 }
 
 /** The same keys for every provider; fields that don't apply hold 0 or null (SC-005). */
@@ -251,7 +270,8 @@ export interface Summary {
   readonly tuning: number | null;
   readonly heldout: number | null;
   readonly byCategory: Readonly<Record<string, number | null>>;
-  readonly latencyMs: { readonly p50: number; readonly p95: number };
+  /** firstP95: over each fixture's first call, the one that runs while its cache is created. */
+  readonly latencyMs: { readonly p50: number; readonly p95: number; readonly firstP95: number | null };
   /** Share of calls, past each fixture's first, that read the cached prefix. */
   readonly cacheReadRate: number | null;
   readonly tokens: TokenUsage;
@@ -260,6 +280,17 @@ export interface Summary {
   readonly paidEquivalentUsd: number | null;
   readonly paidPerCaseUsd: number | null;
   readonly priceNotes: readonly string[];
+  /** Feature 009: whether explicit caching was on. */
+  readonly cache: "on" | "off";
+  /** failures counts failed creates; failed PATCH/DELETE calls are harmless and only logged. */
+  readonly cacheEvents: { readonly created: number; readonly extended: number; readonly deleted: number; readonly fallbacks: number; readonly failures: number };
+  /** Explicit-cache storage; null without a price. */
+  readonly storageUsd: number | null;
+  /** paidEquivalentUsd + storageUsd. */
+  readonly totalUsd: number | null;
+  readonly totalPerCaseUsd: number | null;
+  /** The same totals at the 2027-01-01 prices; null when the model has no such period. */
+  readonly at2027: CacheTotals | null;
   readonly stops: Readonly<Record<ReplyStop, number>>;
   readonly rateLimitRetries: number;
   readonly gates: Readonly<Record<string, boolean>>;
@@ -267,8 +298,14 @@ export interface Summary {
 
 export function summarize(records: readonly RunRecord[], options: SummaryOptions): Summary {
   const { provider, model, freeTier, rateLimitRetries, date } = options;
+  const cacheOn = options.cache?.on ?? false;
+  const events = options.cache?.events ?? [];
+  const caches = options.cache?.caches ?? [];
+  const count = (kind: CacheEvent["kind"]) => events.filter((e) => e.kind === kind).length;
+  const written = events.reduce((n, e) => n + (e.kind === "created" ? e.tokens : 0), 0);
   const byCategory = Object.fromEntries(CATEGORIES.map((cat) => [cat, accuracy(records.filter((r) => r.category === cat))]));
   const latencies = records.filter((r) => r.error === undefined).map((r) => r.latencyMs);
+  const firstLatencies = records.filter((r) => r.error === undefined && r.prefixFirst).map((r) => r.latencyMs);
   const later = records.filter((r) => r.usage && !r.prefixFirst);
   const cacheReadRate = later.length === 0 ? null : later.filter((r) => (r.usage?.cacheRead ?? 0) > 0).length / later.length;
   const sum = (f: (u: TokenUsage) => number) => records.reduce((n, r) => n + (r.usage ? f(r.usage) : 0), 0);
@@ -276,7 +313,8 @@ export function summarize(records: readonly RunRecord[], options: SummaryOptions
     input: sum((u) => u.input),
     output: sum((u) => u.output),
     cacheRead: sum((u) => u.cacheRead),
-    cacheWrite: sum((u) => u.cacheWrite),
+    // Explicit-cache writes are not part of any reply: they come from the created events.
+    cacheWrite: sum((u) => u.cacheWrite) + written,
     thinking: sum((u) => u.thinking),
   };
 
@@ -285,9 +323,18 @@ export function summarize(records: readonly RunRecord[], options: SummaryOptions
   if (!price) priceNotes.push(`sin precio para ${model}: coste desconocido`);
   if (price && price.cacheRead === null && tokens.cacheRead > 0) priceNotes.push("lecturas de caché cobradas al precio de entrada");
   if (price && price.cacheWrite === null && tokens.cacheWrite > 0) priceNotes.push("escrituras de caché cobradas al precio de entrada");
-  const paidEquivalentUsd = price ? records.reduce((n, r) => n + (r.usage ? costOf(r.usage, price) : 0), 0) : null;
+  const tokenCost = (p: PricePeriod) =>
+    records.reduce((n, r) => n + (r.usage ? costOf(r.usage, p) : 0), 0) + (written * (p.cacheWrite ?? p.input)) / 1e6;
+  // Each cache is stored from its create until the TTL runs out after its last use.
+  const storage = (p: PricePeriod) =>
+    caches.reduce((n, c) => n + storageCostUsd(c.tokens, (c.lastUseAt - c.createdAt) / 3.6e6 + CACHE_TTL_S / 3600, p), 0);
+  const paidEquivalentUsd = price ? tokenCost(price) : null;
   const costUsd = freeTier ? 0 : paidEquivalentUsd;
   const perCase = (v: number | null) => (v === null ? null : records.length === 0 ? 0 : v / records.length);
+  const storageUsd = price ? storage(price) : null;
+  const totalUsd = price ? tokenCost(price) + storage(price) : null;
+  const price2027 = priceFor(model, "2027-01-01");
+  const at2027Total = price2027?.from === "2027-01-01" ? tokenCost(price2027) + storage(price2027) : null;
 
   const stops = Object.fromEntries(STOPS.map((s) => [s, records.filter((r) => r.stop === s).length])) as Record<ReplyStop, number>;
   const orSubset = accuracy(records.filter((r) => isOrFixture(r.fixture)));
@@ -300,6 +347,8 @@ export function summarize(records: readonly RunRecord[], options: SummaryOptions
   };
   // Google does not guarantee implicit cache hits, so for Gemini it is reported, not gated (R5).
   if (provider === "anthropic") gates["cache reads > 0"] = (cacheReadRate ?? 0) > 0;
+  // Explicit caching must hit (feature 009 SC-001).
+  if (provider === "gemini" && cacheOn) gates["cache reads ≥ 90%"] = (cacheReadRate ?? 0) >= 0.9;
 
   return {
     provider,
@@ -312,7 +361,7 @@ export function summarize(records: readonly RunRecord[], options: SummaryOptions
     tuning: accuracy(records.filter((r) => !r.heldout)),
     heldout: accuracy(records.filter((r) => r.heldout)),
     byCategory,
-    latencyMs: { p50: percentile(latencies, 50), p95 },
+    latencyMs: { p50: percentile(latencies, 50), p95, firstP95: firstLatencies.length === 0 ? null : percentile(firstLatencies, 95) },
     cacheReadRate,
     tokens,
     costUsd,
@@ -320,6 +369,12 @@ export function summarize(records: readonly RunRecord[], options: SummaryOptions
     paidEquivalentUsd,
     paidPerCaseUsd: perCase(paidEquivalentUsd),
     priceNotes,
+    cache: cacheOn ? "on" : "off",
+    cacheEvents: { created: count("created"), extended: count("extended"), deleted: count("deleted"), fallbacks: count("fallback"), failures: events.filter((e) => e.kind === "failed" && e.op === "create").length },
+    storageUsd,
+    totalUsd,
+    totalPerCaseUsd: perCase(totalUsd),
+    at2027: at2027Total === null ? null : { totalUsd: at2027Total, totalPerCaseUsd: perCase(at2027Total) ?? 0 },
     stops,
     rateLimitRetries,
     gates,

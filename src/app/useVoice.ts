@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import type { Interpreter } from "../voice/interpreter";
+import type { Interpreter, InterpreterOptions } from "../voice/interpreter";
 import { activeCredentials, PROVIDERS, type ProviderId } from "../voice/providers";
 import { browserRecognizer, speechAvailable, type RecognizerFactory } from "../voice/speech";
 import { DEFAULT_SETTINGS, type Settings } from "../persistence/settingsRepo";
@@ -11,13 +11,13 @@ import { VoiceController, type VoicePhase } from "./voiceController";
 /** What the voice layer needs from the outside world; tests swap these (T121). */
 export interface VoiceDeps {
   readonly recognizer: RecognizerFactory;
-  readonly createInterpreter: (provider: ProviderId, apiKey: string, model: string) => Interpreter;
+  readonly createInterpreter: (provider: ProviderId, apiKey: string, model: string, options?: InterpreterOptions) => Interpreter;
   readonly online: () => boolean;
 }
 
 export const defaultVoiceDeps: VoiceDeps = {
   recognizer: browserRecognizer,
-  createInterpreter: (provider, apiKey, model) => PROVIDERS[provider].createInterpreter(apiKey, model),
+  createInterpreter: (provider, apiKey, model, options) => PROVIDERS[provider].createInterpreter(apiKey, model, options),
   online: () => navigator.onLine,
 };
 
@@ -73,8 +73,18 @@ export function useVoice(): { controller: VoiceController; phase: VoicePhase; av
   const apiKey = credentials?.apiKey;
   const model = credentials?.model;
   const lang = settings?.voiceLocale ?? "es-ES";
+  // A key or model change makes a new interpreter, so a prompt cache is never shared (009 FR-004).
+  // In development, cache events (no name, no key) go to the console.
   const interpreter = useMemo(
-    () => (provider && apiKey && model ? deps.createInterpreter(provider, apiKey, model) : undefined),
+    () =>
+      provider && apiKey && model
+        ? deps.createInterpreter(
+            provider,
+            apiKey,
+            model,
+            import.meta.env.DEV ? { onCacheEvent: (e) => console.debug("[voice cache]", e.kind, e) } : undefined,
+          )
+        : undefined,
     [deps, provider, apiKey, model],
   );
   // Read when a command starts: a provider switch applies to the next command, while one in

@@ -3,12 +3,13 @@ import { readFileSync } from "node:fs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { backoffDelay, createPacer, MAX_ATTEMPTS, parseEvalArgs, withBackoff } from "../../eval/voice/cli";
 import { formatComparison } from "../../eval/voice/compare";
-import { costOf, priceFor } from "../../eval/voice/prices";
+import { costOf, priceFor, PRICES, storageCostUsd } from "../../eval/voice/prices";
 import { VoiceProviderError } from "../../src/voice/errors";
 import { geminiReply } from "../../src/voice/providers/gemini";
 import type { TokenUsage } from "../../src/voice/reply";
 import { buildFixture, FIXTURE_SPECS } from "../../eval/voice/fixtureSpecs";
-import { CaseSchema, CATEGORIES, gradeResponse, summarize, type EvalCase, type RunRecord } from "../../eval/voice/grade";
+import { CaseSchema, CATEGORIES, gradeResponse, summarize, type CacheLifetime, type EvalCase, type RunRecord, type Summary } from "../../eval/voice/grade";
+import type { CacheEvent } from "../../src/voice/interpreter";
 import { loadFixture } from "../../eval/voice/load";
 import { anthropicReply } from "../../src/voice/providers/anthropic";
 import type { ModelReply } from "../../src/voice/reply";
@@ -259,7 +260,7 @@ describe("summary metrics (T134)", () => {
     const s = summarize(records, { provider: "anthropic", model: "claude-sonnet-5", freeTier: false, rateLimitRetries: 0, date: "2026-10-10" });
     expect(s).toMatchObject({ cases: 4, runs: 1, overall: 0.75, orSubset: 1, tuning: 1, heldout: 0 });
     expect(s.byCategory).toMatchObject({ payout: 1, stock: 0.5, loans: null });
-    expect(s.latencyMs).toEqual({ p50: 1500, p95: 3000 });
+    expect(s.latencyMs).toEqual({ p50: 1500, p95: 3000, firstP95: 1000 });
     expect(s.cacheReadRate).toBe(1);
     expect(s.gates).toEqual({
       "OR subset >= 90%": true,
@@ -313,7 +314,7 @@ describe("prices (005 T031)", () => {
   });
 
   it("a null cache price charges cache reads at the input price", () => {
-    expect(costOf(usage({ input: 0, output: 0, cacheRead: 1e6 }), { input: 0.3, output: 2.5, cacheRead: null, cacheWrite: null })).toBeCloseTo(0.3, 12);
+    expect(costOf(usage({ input: 0, output: 0, cacheRead: 1e6 }), { input: 0.3, output: 2.5, cacheRead: null, cacheWrite: null, cacheStorage: null })).toBeCloseTo(0.3, 12);
   });
 
   it("Gemini tokens are normalized from a recorded body", () => {
@@ -520,5 +521,178 @@ describe("compare (005 T033)", () => {
     const text = formatComparison(old, gem);
     expect(text).toMatch(/overall\s+90\.0%\s+100\.0%\s+\+10\.0/);
     expect(text).toMatch(/malformed\s+—\s+1/);
+  });
+});
+
+describe("eval --cache (009 T025)", () => {
+  const env = { ANTHROPIC_API_KEY: "sk-ant-x", GEMINI_API_KEY: "AIza-x" };
+
+  it("--cache on|off sets cache; omitted leaves it to EXPLICIT_CACHE_MODELS", () => {
+    expect(parseEvalArgs(["--provider", "gemini", "--cache", "on"], env).cache).toBe(true);
+    expect(parseEvalArgs(["--provider", "gemini", "--cache", "off"], env).cache).toBe(false);
+    expect(parseEvalArgs(["--provider", "gemini"], env).cache).toBeUndefined();
+    expect(parseEvalArgs(["--provider", "anthropic", "--cache", "off"], env).cache).toBe(false);
+  });
+
+  it("other values, and on with Anthropic, are errors naming the flags", () => {
+    expect(() => parseEvalArgs(["--provider", "gemini", "--cache", "maybe"], env)).toThrow(/--cache/);
+    expect(() => parseEvalArgs(["--cache", "on", "--provider", "anthropic"], env)).toThrow(/--cache on.*--provider anthropic/);
+  });
+});
+
+describe("cache prices (009 T026)", () => {
+  it("Gemini Flash storage: $0.50 per 1M tokens per hour, $1.00 from 2027", () => {
+    for (const model of ["gemini-3.6-flash", "gemini-3.8-flash"]) {
+      expect(priceFor(model, "2026-10-11")?.cacheStorage).toBe(0.5);
+      expect(priceFor(model, "2027-01-01")?.cacheStorage).toBe(1.0);
+    }
+    expect(priceFor("gemini-3.5-flash-lite", "2026-10-11")?.cacheStorage).toBe(1.0);
+    expect(priceFor("gemini-3-flash-preview", "2026-10-11")?.cacheStorage).toBe(1.0);
+  });
+
+  it("Claude has no storage price; Gemini writes stay at the input price (cacheWrite null)", () => {
+    for (const [model, periods] of Object.entries(PRICES)) {
+      for (const p of periods) {
+        if (model.startsWith("claude-")) expect(p.cacheStorage).toBeNull();
+        else expect(p.cacheWrite).toBeNull();
+      }
+    }
+  });
+
+  it("storageCostUsd = tokens × hours × cacheStorage / 1e6, 0 without a storage price", () => {
+    expect(storageCostUsd(5000, 1.25, priceFor("gemini-3.6-flash", "2026-10-11")!)).toBeCloseTo((5000 * 1.25 * 0.5) / 1e6, 12);
+    expect(storageCostUsd(5000, 2, priceFor("gemini-3.6-flash", "2027-01-01")!)).toBeCloseTo((5000 * 2 * 1.0) / 1e6, 12);
+    expect(storageCostUsd(5000, 2, priceFor("claude-sonnet-5", "2026-10-11")!)).toBe(0);
+  });
+});
+
+describe("cache summary (009 T027)", () => {
+  const cachedUsage = usage({ input: 312, output: 35, cacheRead: 4909 });
+  const firstUsage = usage({ input: 5221, output: 35, cacheRead: 0 });
+  /** One fixture: an uncached first call, then `hits` cached calls out of `later`. */
+  const runOf = (later: number, hits: number): RunRecord[] => [
+    record({ caseId: "c0", prefixFirst: true, latencyMs: 3000, usage: firstUsage }),
+    ...Array.from({ length: later }, (_, i) => record({ caseId: `c${i + 1}`, latencyMs: 1000 + i, usage: i < hits ? cachedUsage : firstUsage })),
+  ];
+  const created = (tokens: number, at: number): CacheEvent => ({ kind: "created", tokens, expireTime: "2026-10-11T12:15:00Z", at });
+  const events: CacheEvent[] = [
+    created(5000, 0),
+    created(4000, 10),
+    { kind: "fallback", status: 403, at: 11 },
+    { kind: "failed", op: "create", status: 500, reason: "Gemini HTTP 500", at: 12 },
+    { kind: "failed", op: "extend", reason: "Gemini: TypeError", at: 13 },
+    { kind: "extended", expireTime: "2026-10-11T12:30:00Z", at: 14 },
+    { kind: "deleted", at: 15 },
+  ];
+  const caches: CacheLifetime[] = [
+    { tokens: 5000, createdAt: 0, lastUseAt: 3.6e6 },
+    { tokens: 4000, createdAt: 10, lastUseAt: 10 },
+  ];
+  const on = (over: Partial<SummaryOptions> = {}) => opts({ model: "gemini-3.6-flash", date: "2026-10-11", cache: { on: true, caches, events }, ...over });
+
+  it("reports cache on/off, event counts and the real cache write", () => {
+    const s = summarize(runOf(9, 9), on());
+    expect(s.cache).toBe("on");
+    expect(s.cacheEvents).toEqual({ created: 2, extended: 1, deleted: 1, fallbacks: 1, failures: 1 });
+    expect(s.tokens.cacheWrite).toBe(9000);
+    expect(summarize(runOf(9, 9), opts()).cache).toBe("off");
+  });
+
+  it("storage, totals and 2027 totals", () => {
+    const records = runOf(9, 9);
+    const s = summarize(records, on());
+    const price = priceFor("gemini-3.6-flash", "2026-10-11")!;
+    const later = priceFor("gemini-3.6-flash", "2027-01-01")!;
+    const storage = (p: typeof price) => ((5000 * (1 + 0.25) + 4000 * 0.25) * p.cacheStorage!) / 1e6;
+    const tokensCost = (p: typeof price) => records.reduce((n, r) => n + costOf(r.usage!, p), 0) + (9000 * p.input) / 1e6;
+    expect(s.storageUsd).toBeCloseTo(storage(price), 12);
+    expect(s.paidEquivalentUsd).toBeCloseTo(tokensCost(price), 12);
+    expect(s.totalUsd).toBeCloseTo(tokensCost(price) + storage(price), 12);
+    expect(s.totalPerCaseUsd).toBeCloseTo((tokensCost(price) + storage(price)) / 10, 12);
+    expect(s.at2027?.totalUsd).toBeCloseTo(tokensCost(later) + storage(later), 12);
+    expect(s.at2027?.totalPerCaseUsd).toBeCloseTo((tokensCost(later) + storage(later)) / 10, 12);
+  });
+
+  it("at2027 is null for a model without a 2027 period; --free keeps the paid-equivalent figures", () => {
+    expect(summarize(runOf(2, 2), on({ model: "gemini-3.5-flash-lite" })).at2027).toBeNull();
+    const free = summarize(runOf(9, 9), on({ freeTier: true }));
+    expect(free.costUsd).toBe(0);
+    expect(free.totalUsd).toBeGreaterThan(0);
+    expect(free.totalUsd).toBeCloseTo(summarize(runOf(9, 9), on()).totalUsd!, 12);
+  });
+
+  it("Gemini with cache on gates cache reads ≥ 90% (SC-001); cache off has no such gate", () => {
+    expect(summarize(runOf(9, 9), on()).gates["cache reads ≥ 90%"]).toBe(true);
+    expect(summarize(runOf(10, 9), on()).gates["cache reads ≥ 90%"]).toBe(true);
+    expect(summarize(runOf(9, 8), on()).gates["cache reads ≥ 90%"]).toBe(false);
+    expect(summarize(runOf(9, 9), opts({ model: "gemini-3.6-flash" })).gates).not.toHaveProperty("cache reads ≥ 90%");
+    expect(summarize(runOf(9, 9), on({ cache: { on: false, caches: [], events: [] } })).gates).not.toHaveProperty("cache reads ≥ 90%");
+  });
+
+  it("latencyMs.firstP95 is the p95 of each fixture's first call, null without any", () => {
+    const records = [...runOf(3, 3), record({ caseId: "d0", fixture: "1848-or", prefixFirst: true, latencyMs: 4000 })];
+    expect(summarize(records, on()).latencyMs.firstP95).toBe(4000);
+    expect(summarize([record()], opts()).latencyMs.firstP95).toBeNull();
+  });
+
+  it("without the cache option the existing fields keep their values", () => {
+    const records = runOf(9, 9);
+    const s = summarize(records, opts({ model: "gemini-3.6-flash", date: "2026-10-11" }));
+    expect(s.tokens.cacheWrite).toBe(0);
+    expect(s.paidEquivalentUsd).toBeCloseTo(records.reduce((n, r) => n + costOf(r.usage!, priceFor("gemini-3.6-flash", "2026-10-11")!), 0), 12);
+    expect(s.storageUsd).toBe(0);
+    expect(s.totalUsd).toBe(s.paidEquivalentUsd);
+    expect(s.cacheEvents).toEqual({ created: 0, extended: 0, deleted: 0, fallbacks: 0, failures: 0 });
+  });
+});
+
+describe("compare with caching (009 T028)", () => {
+  const base = (over: Partial<Summary> = {}): Summary => ({ ...summarize([record()], opts()), ...over });
+
+  it("cache reads, total per command at both prices, falling back to paid for old files", () => {
+    const a = { model: "gemini-3.6-flash", paidPerCaseUsd: 0.0044, cacheReadRate: 0.05 };
+    const b = base({ cacheReadRate: 0.963, totalPerCaseUsd: 0.00088, at2027: { totalUsd: 0.1466, totalPerCaseUsd: 0.00177 } });
+    const text = formatComparison(a, b);
+    expect(text).toMatch(/cache reads\s+5\.0%\s+96\.3%\s+\+91\.3/);
+    expect(text).toMatch(/total \$ \/ command\s+0\.00440\s+0\.00088\s+-0\.00352/);
+    expect(text).toMatch(/total \$ 2027\s+—\s+0\.00177/);
+    expect(formatComparison({ model: "x" }, { model: "y" })).toMatch(/total \$ \/ command\s+—\s+—/);
+  });
+
+  it("an old file with records gets its 2027 total and first-call p95 from them", () => {
+    const records = [
+      record({ caseId: "a", prefixFirst: true, latencyMs: 2800, usage: usage({ input: 1e6, output: 0, cacheRead: 0 }) }),
+      record({ caseId: "b", latencyMs: 900, usage: usage({ input: 1e6, output: 0, cacheRead: 0 }) }),
+    ];
+    const old = { model: "gemini-3.6-flash", records };
+    const text = formatComparison(old, base({ latencyMs: { p50: 1, p95: 2, firstP95: 2500 } }));
+    expect(text).toMatch(/total \$ 2027\s+1\.50000/);
+    expect(text).toMatch(/first-call p95 ms\s+2800\s+2500\s+-300/);
+    expect(formatComparison({ model: "x" }, { model: "y" })).toMatch(/first-call p95 ms\s+—\s+—/);
+  });
+
+  it("flags a category that dropped by more than one case (SC-003) and p95 more than 10% worse (SC-004)", () => {
+    const pass = (caseId: string, category: RunRecord["category"], ok: boolean) => record({ caseId, category, pass: ok, latencyMs: 1000 });
+    const aRecords = [pass("p1", "payout", true), pass("p2", "payout", true), pass("p3", "payout", true), pass("t1", "trains", true), pass("t2", "trains", true)];
+    const bRecords = [pass("p1", "payout", false), pass("p2", "payout", false), pass("p3", "payout", true), pass("t1", "trains", false), pass("t2", "trains", true)];
+    const a = { ...summarize(aRecords, opts()), latencyMs: { p50: 900, p95: 2000, firstP95: null }, records: aRecords };
+    const b = { ...summarize(bRecords, opts()), latencyMs: { p50: 900, p95: 2300, firstP95: null }, records: bRecords };
+    const text = formatComparison(a, b);
+    expect(text).toContain("SC-003 ✗: payout dropped by 2 cases");
+    expect(text).not.toContain("trains dropped");
+    expect(text).toContain("SC-004 ✗: p95 +15.0%");
+    expect(text).toMatch(/p1\s+✓ → ✗/);
+    expect(text).toMatch(/t1\s+✓ → ✗/);
+    expect(text).not.toMatch(/p3\s+✓ → /);
+
+    const fine = formatComparison(a, { ...a, latencyMs: { p50: 900, p95: 2100, firstP95: null } });
+    expect(fine).toContain("SC-003 ✓");
+    expect(fine).toContain("SC-004 ✓: p95 +5.0%");
+  });
+
+  it("without records, category drops come from rate × cases", () => {
+    const a = { model: "a", cases: 10, byCategory: { payout: 1 } };
+    const b = { model: "b", cases: 10, byCategory: { payout: 0.8 } };
+    expect(formatComparison(a, b)).toContain("SC-003 ✗: payout dropped by 2 cases");
   });
 });

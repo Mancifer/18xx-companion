@@ -1,4 +1,4 @@
-import type { Interpreter } from "../interpreter";
+import type { Interpreter, InterpreterOptions } from "../interpreter";
 import { createInterpreter as createAnthropicInterpreter } from "./anthropic";
 import { createGeminiInterpreter } from "./gemini";
 
@@ -22,7 +22,7 @@ export interface VoiceProvider {
   readonly notesEs: readonly string[];
   /** Used by the eval to infer the provider from a model id. */
   readonly modelPrefix: string;
-  readonly createInterpreter: (apiKey: string, model: string) => Interpreter;
+  readonly createInterpreter: (apiKey: string, model: string, options?: InterpreterOptions) => Interpreter;
 }
 
 export const PROVIDERS: Readonly<Record<ProviderId, VoiceProvider>> = {

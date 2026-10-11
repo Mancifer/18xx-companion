@@ -109,7 +109,7 @@ describe("Gemini request", () => {
     ["gemini-unknown", undefined],
   ])("%s thinking level: %s", async (model, level) => {
     const calls = stubFetch(json(200, raw("payout")));
-    await run(createGeminiInterpreter(KEY, model)(session, "m"));
+    await run(createGeminiInterpreter(KEY, model, { cache: false })(session, "m"));
     const config = (JSON.parse(calls[0]!.init.body as string) as { generationConfig: Record<string, unknown> }).generationConfig;
     expect(config).toEqual(level ? { maxOutputTokens: 1024, thinkingConfig: { thinkingLevel: level } } : { maxOutputTokens: 1024 });
   });

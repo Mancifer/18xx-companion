@@ -1,5 +1,5 @@
 import { VoiceProviderError } from "../errors";
-import type { Interpreter } from "../interpreter";
+import type { CacheEvent, Interpreter, InterpreterOptions } from "../interpreter";
 import { systemPromptEs } from "../prompt";
 import type { ModelReply, ReplyStop, ToolCall } from "../reply";
 import { buildToolSpecs, toGeminiTools, type VoiceSession } from "../tools";
@@ -30,6 +30,21 @@ const THINKING_LEVEL: Readonly<Record<string, "minimal" | "low">> = {
   "gemini-3.5-flash-lite": "minimal",
   "gemini-3-flash-preview": "minimal",
 };
+
+/**
+ * Models that use explicit context caching by default (feature 009, FR-009, research R8). A model
+ * is added only after an eval with `--cache on` passes SC-001–SC-004; `options.cache` overrides.
+ */
+// gemini-3.6-flash: eval/voice/results/2026-10-11-gemini-3.6-flash-cache.json (2026-10-11), browser
+// check passed; SC-002 accepted on session length (research R8).
+export const EXPLICIT_CACHE_MODELS: ReadonlySet<string> = new Set(["gemini-3.6-flash"]);
+/** Cache lifetime in seconds; extended with a PATCH when less than half is left (R4). */
+export const CACHE_TTL_S = 900;
+/** A cache is treated as expired this long before Google's expireTime. */
+const CACHE_EXPIRY_MARGIN_MS = 30_000;
+/** After a transient create failure, no new create for this long (R6). */
+const CREATE_COOLDOWN_MS = 5 * 60_000;
+const CACHE_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/";
 
 type Json = Record<string, unknown>;
 const obj = (v: unknown): Json | undefined => (v && typeof v === "object" && !Array.isArray(v) ? (v as Json) : undefined);
@@ -129,29 +144,85 @@ function retryable(error: VoiceProviderError): boolean {
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
+/** The single retry waits for the server's delay up to 1 s, or 0.5 s when it gives none. */
+function retryWaitMs(error: VoiceProviderError): number {
+  const after = error.retryAfterMs;
+  return after === undefined ? DEFAULT_RETRY_WAIT_MS : Math.min(after, MAX_RETRY_WAIT_MS);
+}
+
+/** In memory only, one per interpreter at a time (feature 009 data-model §2). */
+interface CacheEntry {
+  /** The stable part it holds: its identity (R5). */
+  readonly stable: string;
+  state: "creating" | "ready";
+  /** The create, shared so that nothing starts a second one; it never rejects. */
+  pending?: Promise<void>;
+  /** `cachedContents/…`; never logged, put in an event or exported (FR-007). */
+  name?: string;
+  /** Local expiry: Google's expireTime minus CACHE_EXPIRY_MARGIN_MS. */
+  expiresAt?: number;
+  extending?: boolean;
+}
+
+/** Each Gemini interpreter's cache disposer, kept out of the Interpreter type. */
+const disposers = new WeakMap<Interpreter, () => Promise<void>>();
+
 /**
- * The Gemini interpreter. systemInstruction and tools are serialized once per session object and
- * reused, so the implicit-cache prefix is byte-identical between commands (R5, FR-011).
+ * Deletes the interpreter's cache, if any, after waiting for an in-flight create; never rejects.
+ * For the eval and housekeeping only: the app does not call it, the TTL bounds its cost (R4).
+ * The next command after it goes uncached and starts a new create.
  */
-export function createGeminiInterpreter(apiKey: string, model: string): Interpreter {
+export function dispose(interpreter: Interpreter): Promise<void> {
+  return disposers.get(interpreter)?.() ?? Promise.resolve();
+}
+
+/**
+ * The Gemini interpreter. systemInstruction, tools and toolConfig (the stable part) are serialized
+ * once per session object and reused, so they are byte-identical between commands (R5, FR-011).
+ *
+ * With caching on (`options.cache ?? EXPLICIT_CACHE_MODELS.has(model)`), the stable part is stored
+ * with explicit context caching (feature 009, contracts/gemini-cache.md): the first command goes
+ * uncached while the cache is created in the background; later commands send `cachedContent` plus
+ * the same contents and generationConfig. The 15-minute TTL is extended when less than half is
+ * left, and any cache error falls back to the uncached request. With caching off, requests are
+ * exactly those of before.
+ */
+export function createGeminiInterpreter(apiKey: string, model: string, options: InterpreterOptions = {}): Interpreter {
   const url = `${ENDPOINT}${encodeURIComponent(model)}:generateContent`;
   const level = THINKING_LEVEL[model];
   const tail = JSON.stringify({
     maxOutputTokens: MAX_OUTPUT_TOKENS,
     ...(level ? { thinkingConfig: { thinkingLevel: level } } : {}),
   });
+  const caching = options.cache ?? EXPLICIT_CACHE_MODELS.has(model);
+  const now = options.now ?? Date.now;
+  const emit = (event: CacheEvent) => {
+    try {
+      options.onCacheEvent?.(event);
+    } catch {
+      // An observer never breaks a command.
+    }
+  };
+  const failed = (op: "create" | "extend" | "delete", error: unknown) => {
+    const e = error instanceof VoiceProviderError ? error : undefined;
+    emit({ kind: "failed", op, ...(e?.status !== undefined ? { status: e.status } : {}), reason: e?.message ?? "Gemini: error", at: now() });
+  };
   let lastSession: VoiceSession | undefined;
-  let prefix = "";
+  /** `"systemInstruction":…,"tools":…,"toolConfig":…`, shared by the uncached and create bodies. */
+  let stable = "";
+  let entry: CacheEntry | undefined;
+  /** Create failures per stable part: a time before which no create, or never again (R6). */
+  const blocked = new Map<string, number | "forever">();
 
-  async function attempt(body: string): Promise<unknown> {
+  async function send(method: "POST" | "PATCH" | "DELETE", target: string, body?: string): Promise<unknown> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     let response: Response;
     try {
-      response = await fetch(url, {
-        method: "POST",
+      response = await fetch(target, {
+        method,
         headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
-        body,
+        ...(body !== undefined ? { body } : {}),
         signal: controller.signal,
       });
     } catch (error) {
@@ -176,28 +247,132 @@ export function createGeminiInterpreter(apiKey: string, model: string): Interpre
       parsed = undefined;
     }
     if (!response.ok) throw toVoiceProviderError({ status: response.status, body: parsed, retryAfter: response.headers.get("retry-after") });
+    if (parsed === undefined && method === "DELETE") return {};
     if (parsed === undefined) throw new VoiceProviderError("service", `Gemini HTTP ${response.status}: the body is not JSON`, { status: response.status });
     return parsed;
   }
 
-  return async (session, userMessage) => {
-    if (session !== lastSession || !prefix) {
+  /** Today's request with its single retry. */
+  async function uncached(body: string): Promise<unknown> {
+    try {
+      return await send("POST", url, body);
+    } catch (error) {
+      if (!(error instanceof VoiceProviderError) || !retryable(error)) throw error;
+      await wait(retryWaitMs(error));
+      return await send("POST", url, body);
+    }
+  }
+
+  async function remove(name: string): Promise<void> {
+    try {
+      await send("DELETE", `${CACHE_ENDPOINT}${name}`);
+      emit({ kind: "deleted", at: now() });
+    } catch (error) {
+      failed("delete", error);
+    }
+  }
+
+  async function create(mine: CacheEntry): Promise<void> {
+    let name: string, expireTime: string, tokens: number;
+    try {
+      const raw = obj(await send("POST", `${CACHE_ENDPOINT}cachedContents`, `{"model":${JSON.stringify(`models/${model}`)},${mine.stable},"ttl":"${CACHE_TTL_S}s"}`));
+      name = typeof raw?.["name"] === "string" ? raw["name"] : "";
+      expireTime = typeof raw?.["expireTime"] === "string" ? raw["expireTime"] : "";
+      tokens = num(obj(raw?.["usageMetadata"])?.["totalTokenCount"]);
+      if (!name || !Number.isFinite(Date.parse(expireTime))) throw new VoiceProviderError("service", "Gemini: the cache has no name or expiry");
+    } catch (error) {
+      if (entry === mine) entry = undefined;
+      const e = error instanceof VoiceProviderError ? error : undefined;
+      const never = e?.status === 400 || e?.status === 403 || (e?.kind === "rateLimit" && e.quota === "day");
+      blocked.set(mine.stable, never ? "forever" : now() + CREATE_COOLDOWN_MS);
+      failed("create", error);
+      return;
+    }
+    // Replaced or disposed meanwhile: nobody will use it.
+    if (entry !== mine) return remove(name);
+    Object.assign(mine, { state: "ready", name, expiresAt: Date.parse(expireTime) - CACHE_EXPIRY_MARGIN_MS });
+    emit({ kind: "created", tokens, expireTime, at: now() });
+  }
+
+  function startCreate(part: string): void {
+    const until = blocked.get(part);
+    if (entry?.stable === part || until === "forever" || (until !== undefined && now() < until)) return;
+    const mine: CacheEntry = { stable: part, state: "creating" };
+    entry = mine;
+    mine.pending = create(mine);
+  }
+
+  async function extend(mine: CacheEntry): Promise<void> {
+    if (mine.extending) return;
+    mine.extending = true;
+    try {
+      const raw = obj(await send("PATCH", `${CACHE_ENDPOINT}${mine.name ?? ""}`, `{"ttl":"${CACHE_TTL_S}s"}`));
+      const reported = typeof raw?.["expireTime"] === "string" ? Date.parse(raw["expireTime"]) : NaN;
+      const expires = Number.isFinite(reported) ? reported : now() + CACHE_TTL_S * 1000;
+      mine.expiresAt = expires - CACHE_EXPIRY_MARGIN_MS;
+      emit({ kind: "extended", expireTime: new Date(expires).toISOString(), at: now() });
+    } catch (error) {
+      failed("extend", error);
+    } finally {
+      mine.extending = false;
+    }
+  }
+
+  const interpret: Interpreter = async (session, userMessage) => {
+    if (session !== lastSession || !stable) {
       lastSession = session;
-      prefix =
-        `{"systemInstruction":${JSON.stringify({ parts: [{ text: systemPromptEs(session) }] })}` +
+      stable =
+        `"systemInstruction":${JSON.stringify({ parts: [{ text: systemPromptEs(session) }] })}` +
         `,"tools":${JSON.stringify(toGeminiTools(buildToolSpecs(session)))}` +
         `,"toolConfig":${JSON.stringify({ functionCallingConfig: { mode: TOOL_MODE } })}`;
     }
-    const body = `${prefix},"contents":${JSON.stringify([{ role: "user", parts: [{ text: userMessage }] }])},"generationConfig":${tail}}`;
+    const part = stable;
+    const turn = `"contents":${JSON.stringify([{ role: "user", parts: [{ text: userMessage }] }])},"generationConfig":${tail}}`;
+    const body = `{${part},${turn}`;
+    if (!caching) return geminiReply(await uncached(body), model);
+
+    if (entry && entry.stable !== part) {
+      if (entry.state === "ready" && entry.name) void remove(entry.name);
+      entry = undefined;
+    }
+    const ready = entry?.state === "ready" && now() < (entry.expiresAt ?? 0) ? entry : undefined;
+    if (!ready) {
+      // Expired locally: Google lets it lapse on its own.
+      if (entry?.state === "ready") entry = undefined;
+      startCreate(part);
+      return geminiReply(await uncached(body), model);
+    }
+
     let raw: unknown;
     try {
-      raw = await attempt(body);
+      raw = await send("POST", url, `{"cachedContent":${JSON.stringify(ready.name)},${turn}`);
     } catch (error) {
-      if (!(error instanceof VoiceProviderError) || !retryable(error)) throw error;
-      const after = error.retryAfterMs;
-      await wait(after !== undefined && after <= MAX_RETRY_WAIT_MS ? after : after !== undefined ? MAX_RETRY_WAIT_MS : DEFAULT_RETRY_WAIT_MS);
-      raw = await attempt(body);
+      if (!(error instanceof VoiceProviderError)) throw error;
+      const status = error.status ?? 0;
+      if (status === 400 || status === 403 || status === 404) {
+        // Expired, deleted or refused (a missing cache is a 403, R12). The uncached resend is the
+        // command's one retry, so its own errors surface as today.
+        if (entry === ready) entry = undefined;
+        emit({ kind: "fallback", status, at: now() });
+        try {
+          return geminiReply(await send("POST", url, body), model);
+        } finally {
+          startCreate(part);
+        }
+      }
+      if (!retryable(error)) throw error;
+      await wait(retryWaitMs(error));
+      return geminiReply(await send("POST", url, body), model);
     }
+    if ((ready.expiresAt ?? 0) + CACHE_EXPIRY_MARGIN_MS - now() < (CACHE_TTL_S * 1000) / 2) void extend(ready);
     return geminiReply(raw, model);
   };
+
+  disposers.set(interpret, async () => {
+    const current = entry;
+    entry = undefined;
+    if (current?.state === "creating") await current.pending;
+    else if (current?.name) await remove(current.name);
+  });
+  return interpret;
 }

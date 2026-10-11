@@ -17,6 +17,8 @@ export interface EvalOptions {
   readonly rpm?: number;
   readonly free: boolean;
   readonly apiKey: string;
+  /** --cache on|off (feature 009): passed as options.cache; omitted follows EXPLICIT_CACHE_MODELS. */
+  readonly cache?: boolean;
 }
 
 export const KEY_VARIABLES: Readonly<Record<ProviderId, string>> = {
@@ -40,6 +42,7 @@ export function parseEvalArgs(argv: readonly string[], env: Readonly<Record<stri
       only: { type: "string" },
       rpm: { type: "string" },
       free: { type: "boolean", default: false },
+      cache: { type: "string" },
     },
   });
   if (values.provider !== undefined && !isProviderId(values.provider)) {
@@ -58,12 +61,19 @@ export function parseEvalArgs(argv: readonly string[], env: Readonly<Record<stri
   const rpm = values.rpm === undefined ? DEFAULT_RPM[provider] : Number(values.rpm);
   if (rpm !== undefined && !(rpm > 0)) throw new Error(`--rpm must be a positive number, got ${values.rpm}`);
 
+  if (values.cache !== undefined && values.cache !== "on" && values.cache !== "off") {
+    throw new Error(`--cache must be on or off, got ${values.cache}`);
+  }
+  // Explicit caching exists only in the Gemini adapter; Anthropic caches on its own.
+  if (values.cache === "on" && provider === "anthropic") throw new Error("--cache on works only with Gemini, not with --provider anthropic");
+  const cache = values.cache === undefined ? {} : { cache: values.cache === "on" };
+
   const variable = KEY_VARIABLES[provider];
   const apiKey = env[variable];
   if (!apiKey) throw new Error(`Set ${variable} to run the eval on ${PROVIDERS[provider].label}.`);
 
   const only = values.only?.split(",").map((s) => s.trim()).filter((s) => s !== "");
-  return { provider, model, runs, ...(only ? { only } : {}), ...(rpm !== undefined ? { rpm } : {}), free: values.free, apiKey };
+  return { provider, model, runs, ...(only ? { only } : {}), ...(rpm !== undefined ? { rpm } : {}), free: values.free, apiKey, ...cache };
 }
 
 export const MAX_ATTEMPTS = 6;

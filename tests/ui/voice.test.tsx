@@ -240,6 +240,22 @@ describe("voice with a provider choice (005)", () => {
     expect(cashText("p1")).toBe("$0");
   });
 
+  it("009 FR-004: a new Gemini key, and separately a new model, makes a new interpreter (no shared cache)", async () => {
+    const created: Created[] = [];
+    const { dbName } = await openSeededTable({
+      actions: OR_SETUP,
+      settings: { provider: "gemini", apiKeys: { gemini: "AIza-test" }, models: { gemini: "gemini-3.6-flash" } },
+      voiceDeps: providerDeps(created, () => Promise.resolve(gemini("payout"))),
+    });
+    await waitFor(() => expect(created.at(-1)).toEqual({ provider: "gemini", apiKey: "AIza-test", model: "gemini-3.6-flash" }));
+
+    await changeSettings(dbName, (repo) => repo.set({ apiKeys: { gemini: "AIza-other" } }));
+    await waitFor(() => expect(created.at(-1)).toEqual({ provider: "gemini", apiKey: "AIza-other", model: "gemini-3.6-flash" }));
+
+    await changeSettings(dbName, (repo) => repo.set({ models: { gemini: "gemini-3.8-flash" } }));
+    await waitFor(() => expect(created.at(-1)).toEqual({ provider: "gemini", apiKey: "AIza-other", model: "gemini-3.8-flash" }));
+  });
+
   it("an unavailable model ends in «No entendí» with the touch fallback", async () => {
     const created: Created[] = [];
     const { user } = await openSeededTable({

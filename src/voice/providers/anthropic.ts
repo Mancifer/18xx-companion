@@ -1,5 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
-import type { Interpreter } from "../interpreter";
+import type { Interpreter, InterpreterOptions } from "../interpreter";
 import { systemPromptEs } from "../prompt";
 import type { ModelReply, ReplyStop } from "../reply";
 import { buildToolSpecs, toAnthropicTools, type VoiceSession } from "../tools";
@@ -52,9 +52,10 @@ export function anthropicReply(message: Anthropic.Message, requestedModel: strin
  * The browser client with the user's own key (research R8, R17: `dangerouslyAllowBrowser` is the
  * supported way, the key never leaves the device except to the API, and is never logged).
  * Tools and system depend only on the session and are memoized, so the cached prefix is stable.
- * SDK errors pass through unchanged; resolveError maps them.
+ * SDK errors pass through unchanged; resolveError maps them. The feature 009 options are for
+ * Gemini's explicit caching and are ignored here (R11).
  */
-export function createInterpreter(apiKey: string, model: string): Interpreter {
+export function createInterpreter(apiKey: string, model: string, _options?: InterpreterOptions): Interpreter {
   const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true });
   let lastSession: VoiceSession | undefined;
   let prefix: { tools: Anthropic.Tool[]; system: Anthropic.TextBlockParam[] } | undefined;

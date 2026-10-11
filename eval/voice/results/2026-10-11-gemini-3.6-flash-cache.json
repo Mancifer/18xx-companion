@@ -1,0 +1,1665 @@
+{
+  "summary": {
+    "provider": "gemini",
+    "model": "gemini-3.6-flash",
+    "freeTier": false,
+    "cases": 83,
+    "runs": 1,
+    "overall": 0.9879518072289156,
+    "orSubset": 0.9803921568627451,
+    "tuning": 0.9846153846153847,
+    "heldout": 1,
+    "byCategory": {
+      "payout": 1,
+      "trains": 1,
+      "costs": 1,
+      "stock": 1,
+      "loans": 1,
+      "flow": 1,
+      "compound": 0.8,
+      "corrections": 1,
+      "queries": 1,
+      "clarification": 1,
+      "notUnderstood": 1
+    },
+    "latencyMs": {
+      "p50": 1833,
+      "p95": 2155,
+      "firstP95": 2042
+    },
+    "cacheReadRate": 1,
+    "tokens": {
+      "input": 87385,
+      "output": 2849,
+      "cacheRead": 403354,
+      "cacheWrite": 59869,
+      "thinking": 0
+    },
+    "costUsd": 0.1513758,
+    "costPerCaseUsd": 0.0018238048192771084,
+    "paidEquivalentUsd": 0.1513758,
+    "paidPerCaseUsd": 0.0018238048192771084,
+    "priceNotes": [
+      "escrituras de caché cobradas al precio de entrada"
+    ],
+    "cache": "on",
+    "cacheEvents": {
+      "created": 10,
+      "extended": 0,
+      "deleted": 10,
+      "fallbacks": 0,
+      "failures": 0
+    },
+    "storageUsd": 0.007908911426111111,
+    "totalUsd": 0.15928471142611111,
+    "totalPerCaseUsd": 0.0019190929087483267,
+    "at2027": {
+      "totalUsd": 0.31856942285222223,
+      "totalPerCaseUsd": 0.0038381858174966533
+    },
+    "stops": {
+      "done": 83,
+      "truncated": 0,
+      "refused": 0,
+      "malformed": 0,
+      "other": 0
+    },
+    "rateLimitRetries": 0,
+    "gates": {
+      "OR subset >= 90%": true,
+      "no category < 80%": true,
+      "p95 API latency < 2.5 s": true,
+      "cache reads ≥ 90%": true
+    }
+  },
+  "records": [
+    {
+      "caseId": "or-pay-01",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "payout",
+      "heldout": false,
+      "pass": true,
+      "got": "runAndPayout{\"mode\":\"full\",\"company\":null,\"parts\":[{\"part\":\"revenue\",\"amount\":240}]}",
+      "latencyMs": 1301,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 5221,
+        "output": 35,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "thinking": 0
+      },
+      "prefixFirst": true
+    },
+    {
+      "caseId": "or-pay-02",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "payout",
+      "heldout": false,
+      "pass": true,
+      "got": "runAndPayout{\"parts\":[{\"part\":\"revenue\",\"amount\":240}],\"mode\":\"full\",\"company\":null}",
+      "latencyMs": 1244,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 313,
+        "output": 35,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "or-pay-03",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "payout",
+      "heldout": false,
+      "pass": true,
+      "got": "runAndPayout{\"mode\":\"withhold\",\"company\":null,\"parts\":[{\"amount\":180,\"part\":\"revenue\"}]}",
+      "latencyMs": 1199,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 313,
+        "output": 36,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "or-pay-04",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "payout",
+      "heldout": false,
+      "pass": true,
+      "got": "runAndPayout{\"parts\":[{\"part\":\"revenue\",\"amount\":160}],\"company\":null,\"mode\":\"full\"}",
+      "latencyMs": 1350,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 313,
+        "output": 35,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "or-pay-05",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "payout",
+      "heldout": false,
+      "pass": true,
+      "got": "runAndPayout{\"parts\":[{\"amount\":300,\"part\":\"revenue\"}],\"mode\":\"full\",\"company\":\"PRR\"}",
+      "latencyMs": 1370,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 315,
+        "output": 38,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "or-pay-06",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "payout",
+      "heldout": true,
+      "pass": true,
+      "got": "runAndPayout{\"company\":null,\"parts\":[{\"part\":\"revenue\",\"amount\":280}],\"mode\":\"full\"}",
+      "latencyMs": 1352,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 317,
+        "output": 35,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "or-pay-07",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "payout",
+      "heldout": false,
+      "pass": true,
+      "got": "runAndPayout{\"parts\":[{\"part\":\"revenue\",\"amount\":120}],\"mode\":\"withhold\",\"company\":null}",
+      "latencyMs": 1903,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 313,
+        "output": 36,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "or-pay-08",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "payout",
+      "heldout": true,
+      "pass": true,
+      "got": "runAndPayout{\"mode\":\"full\",\"parts\":[{\"part\":\"revenue\",\"amount\":210}],\"company\":\"PRR\"}",
+      "latencyMs": 1902,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 315,
+        "output": 38,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "tr-01",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "trains",
+      "heldout": false,
+      "pass": true,
+      "got": "buyTrain{\"seller\":null,\"from\":\"bank\",\"company\":null,\"variant\":\"3\",\"tradeIn\":null,\"trainType\":\"3\",\"price\":180}",
+      "latencyMs": 1890,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 311,
+        "output": 47,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "tr-02",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "trains",
+      "heldout": false,
+      "pass": true,
+      "got": "buyTrain{\"variant\":\"2\",\"company\":null,\"from\":\"bank\",\"trainType\":\"2\",\"price\":80,\"tradeIn\":null,\"seller\":null}",
+      "latencyMs": 1894,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 311,
+        "output": 46,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "tr-03",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "trains",
+      "heldout": false,
+      "pass": true,
+      "got": "buyTrain{\"from\":\"company\",\"seller\":\"NYC\",\"price\":100,\"variant\":\"2\",\"tradeIn\":null,\"trainType\":\"2\",\"company\":\"PRR\"}",
+      "latencyMs": 1304,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 324,
+        "output": 52,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "tr-04",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "trains",
+      "heldout": true,
+      "pass": true,
+      "got": "buyTrain{\"price\":80,\"seller\":null,\"tradeIn\":null,\"trainType\":\"2\",\"variant\":\"2\",\"company\":\"PRR\",\"from\":\"bank\"}",
+      "latencyMs": 2007,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 311,
+        "output": 49,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "co-01",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "costs",
+      "heldout": false,
+      "pass": true,
+      "got": "payCost{\"amount\":120,\"company\":\"PRR\",\"reason\":\"montaña\"}",
+      "latencyMs": 1851,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 315,
+        "output": 29,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "co-02",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "costs",
+      "heldout": false,
+      "pass": true,
+      "got": "privateIncome{}",
+      "latencyMs": 1058,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 311,
+        "output": 9,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "fl-01",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "flow",
+      "heldout": false,
+      "pass": true,
+      "got": "nextCompany{}",
+      "latencyMs": 1116,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 310,
+        "output": 9,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "cp-01",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "compound",
+      "heldout": false,
+      "pass": false,
+      "got": "buyTrain{\"trainType\":\"3\",\"seller\":null,\"company\":null,\"tradeIn\":null,\"from\":\"bank\",\"variant\":\"3\",\"price\":180} + payCost{\"company\":null,\"reason\":\"costo\",\"amount\":290}",
+      "reason": "la acción 2 no coincide",
+      "latencyMs": 1377,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 318,
+        "output": 73,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "cp-02",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "compound",
+      "heldout": false,
+      "pass": true,
+      "got": "buyTrain{\"trainType\":\"2\",\"price\":80,\"variant\":\"2\",\"company\":null,\"seller\":null,\"from\":\"bank\",\"tradeIn\":null} + runAndPayout{\"mode\":\"withhold\",\"parts\":[{\"part\":\"revenue\",\"amount\":100}],\"company\":null}",
+      "latencyMs": 2182,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 315,
+        "output": 82,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "cr-01",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "corrections",
+      "heldout": false,
+      "pass": true,
+      "got": "undo{\"groupId\":null}",
+      "latencyMs": 1996,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 310,
+        "output": 12,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "q-01",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "queries",
+      "heldout": false,
+      "pass": true,
+      "got": "query{\"company\":null,\"player\":\"p1\",\"kind\":\"cash\"}",
+      "latencyMs": 1909,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 312,
+        "output": 25,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "nu-01",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "notUnderstood",
+      "heldout": false,
+      "pass": true,
+      "got": "notUnderstood{\"reason\":\"Charla de la mesa, no es una orden del juego.\"}",
+      "latencyMs": 2051,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 313,
+        "output": 28,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "nu-02",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "notUnderstood",
+      "heldout": false,
+      "pass": true,
+      "got": "notUnderstood{\"reason\":\"1830 no tiene mecánica de préstamos para compañías\"}",
+      "latencyMs": 1950,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 313,
+        "output": 27,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "fl-end-01",
+      "run": 1,
+      "fixture": "1830-or",
+      "category": "flow",
+      "heldout": false,
+      "pass": true,
+      "got": "endGame{}",
+      "latencyMs": 1992,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 311,
+        "output": 9,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "st-01",
+      "run": 1,
+      "fixture": "1830-sr",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "parCompany{\"player\":\"p3\",\"price\":82,\"company\":\"B&O\"}",
+      "latencyMs": 1972,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 5210,
+        "output": 29,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "thinking": 0
+      },
+      "prefixFirst": true
+    },
+    {
+      "caseId": "st-02",
+      "run": 1,
+      "fixture": "1830-sr",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "buyShare{\"source\":\"pool\",\"buyer\":\"player:p4\",\"company\":\"PRR\",\"count\":1}",
+      "latencyMs": 1186,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 297,
+        "output": 35,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "st-03",
+      "run": 1,
+      "fixture": "1830-sr",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "buyShare{\"company\":\"PRR\",\"source\":\"ipo\",\"count\":2,\"buyer\":\"player:p3\"}",
+      "latencyMs": 1207,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 297,
+        "output": 35,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "st-04",
+      "run": 1,
+      "fixture": "1830-sr",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "sellShares{\"company\":\"NYC\",\"count\":1,\"seller\":\"player:p2\"}",
+      "latencyMs": 1941,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 294,
+        "output": 28,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "st-05",
+      "run": 1,
+      "fixture": "1830-sr",
+      "category": "stock",
+      "heldout": true,
+      "pass": true,
+      "got": "sellShares{\"seller\":\"player:p4\",\"count\":2,\"company\":\"NYC\"}",
+      "latencyMs": 1155,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 297,
+        "output": 28,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "st-06",
+      "run": 1,
+      "fixture": "1830-sr",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "parCompany{\"price\":76,\"company\":\"Erie\",\"player\":\"p1\"}",
+      "latencyMs": 1052,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 297,
+        "output": 28,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "fl-02",
+      "run": 1,
+      "fixture": "1830-sr",
+      "category": "flow",
+      "heldout": false,
+      "pass": true,
+      "got": "endSR{}",
+      "latencyMs": 1041,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 295,
+        "output": 9,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "cr-02",
+      "run": 1,
+      "fixture": "1830-sr",
+      "category": "corrections",
+      "heldout": false,
+      "pass": true,
+      "got": "amendLast{\"part\":null,\"value\":2}",
+      "latencyMs": 1065,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 293,
+        "output": 18,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "cr-04",
+      "run": 1,
+      "fixture": "1830-sr",
+      "category": "corrections",
+      "heldout": true,
+      "pass": true,
+      "got": "amendLast{\"part\":null,\"value\":2}",
+      "latencyMs": 1842,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 295,
+        "output": 18,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "q-02",
+      "run": 1,
+      "fixture": "1830-sr",
+      "category": "queries",
+      "heldout": false,
+      "pass": true,
+      "got": "query{\"company\":\"NYC\",\"kind\":\"president\",\"player\":null}",
+      "latencyMs": 1833,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 296,
+        "output": 24,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "cl-01",
+      "run": 1,
+      "fixture": "1830-sr",
+      "category": "clarification",
+      "heldout": false,
+      "pass": true,
+      "got": "askClarification{\"options\":[{\"value\":\"buyShare_PRR_ipo\",\"label\":\"PRR (IPO)\"},{\"label\":\"PRR (Pool)\",\"value\":\"buyShare_PRR_pool\"},{\"label\":\"NYC (IPO)\",\"value\":\"buyShare_NYC_ipo\"}],\"question\":\"¿Qué acción quiere comprar Ana?\"}",
+      "latencyMs": 2189,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 292,
+        "output": 89,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "cl-02",
+      "run": 1,
+      "fixture": "1830-sr",
+      "category": "clarification",
+      "heldout": false,
+      "pass": true,
+      "got": "askClarification{\"question\":\"¿Qué acción quiere vender Anabel?\",\"options\":[{\"value\":\"sell_PRR_1\",\"label\":\"Anabel vende 1 PRR\"},{\"label\":\"Anabel vende 1 NYC\",\"value\":\"sell_NYC_1\"}]}",
+      "latencyMs": 2131,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 292,
+        "output": 70,
+        "cacheRead": 4909,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "or-pay-09",
+      "run": 1,
+      "fixture": "1848-or",
+      "category": "payout",
+      "heldout": false,
+      "pass": true,
+      "got": "runAndPayout{\"company\":null,\"mode\":\"full\",\"parts\":[{\"amount\":90,\"part\":\"revenue\"}]}",
+      "latencyMs": 1999,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 5523,
+        "output": 34,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "thinking": 0
+      },
+      "prefixFirst": true
+    },
+    {
+      "caseId": "or-pay-10",
+      "run": 1,
+      "fixture": "1848-or",
+      "category": "payout",
+      "heldout": false,
+      "pass": true,
+      "got": "runAndPayout{\"parts\":[{\"amount\":100,\"part\":\"revenue\"}],\"mode\":\"withhold\",\"company\":\"VR\"}",
+      "latencyMs": 2217,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 336,
+        "output": 38,
+        "cacheRead": 5188,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "or-pay-11",
+      "run": 1,
+      "fixture": "1848-or",
+      "category": "payout",
+      "heldout": false,
+      "pass": true,
+      "got": "runAndPayout{\"mode\":\"full\",\"company\":null,\"parts\":[{\"amount\":110,\"part\":\"revenue\"}]}",
+      "latencyMs": 1128,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 335,
+        "output": 35,
+        "cacheRead": 5188,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "tr-05",
+      "run": 1,
+      "fixture": "1848-or",
+      "category": "trains",
+      "heldout": false,
+      "pass": true,
+      "got": "buyTrain{\"from\":\"bank\",\"seller\":null,\"price\":230,\"tradeIn\":null,\"variant\":\"3+\",\"company\":null,\"trainType\":\"3\"}",
+      "latencyMs": 1882,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 336,
+        "output": 48,
+        "cacheRead": 5188,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "tr-06",
+      "run": 1,
+      "fixture": "1848-or",
+      "category": "trains",
+      "heldout": false,
+      "pass": true,
+      "got": "buyTrain{\"from\":\"bank\",\"price\":null,\"company\":null,\"seller\":null,\"tradeIn\":null,\"trainType\":\"3\",\"variant\":\"3\"}",
+      "latencyMs": 1916,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 336,
+        "output": 45,
+        "cacheRead": 5188,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "co-03",
+      "run": 1,
+      "fixture": "1848-or",
+      "category": "costs",
+      "heldout": true,
+      "pass": true,
+      "got": "payCost{\"reason\":\"terreno\",\"amount\":80,\"company\":null}",
+      "latencyMs": 1812,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 336,
+        "output": 25,
+        "cacheRead": 5188,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "ln-01",
+      "run": 1,
+      "fixture": "1848-or",
+      "category": "loans",
+      "heldout": false,
+      "pass": true,
+      "got": "takeLoan{\"company\":\"VR\",\"count\":1}",
+      "latencyMs": 1185,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 336,
+        "output": 19,
+        "cacheRead": 5188,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "ln-02",
+      "run": 1,
+      "fixture": "1848-or",
+      "category": "loans",
+      "heldout": false,
+      "pass": true,
+      "got": "takeLoan{\"count\":2,\"company\":null}",
+      "latencyMs": 1912,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 336,
+        "output": 17,
+        "cacheRead": 5188,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "cp-03",
+      "run": 1,
+      "fixture": "1848-or",
+      "category": "compound",
+      "heldout": false,
+      "pass": true,
+      "got": "takeLoan{\"count\":1,\"company\":null} + buyTrain{\"trainType\":\"3\",\"seller\":null,\"from\":\"bank\",\"company\":null,\"variant\":\"3\",\"tradeIn\":null,\"price\":200} + runAndPayout{\"mode\":\"full\",\"company\":null,\"parts\":[{\"amount\":150,\"part\":\"revenue\"}]}",
+      "latencyMs": 2295,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 345,
+        "output": 99,
+        "cacheRead": 5188,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "cp-05",
+      "run": 1,
+      "fixture": "1848-or",
+      "category": "compound",
+      "heldout": true,
+      "pass": true,
+      "got": "buyTrain{\"tradeIn\":null,\"variant\":\"3\",\"company\":null,\"price\":200,\"trainType\":\"3\",\"from\":\"bank\",\"seller\":null} + runAndPayout{\"company\":null,\"mode\":\"withhold\",\"parts\":[{\"amount\":90,\"part\":\"revenue\"}]}",
+      "latencyMs": 2091,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 340,
+        "output": 82,
+        "cacheRead": 5188,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "q-03",
+      "run": 1,
+      "fixture": "1848-or",
+      "category": "queries",
+      "heldout": false,
+      "pass": true,
+      "got": "query{\"player\":null,\"company\":\"QR\",\"kind\":\"price\"}",
+      "latencyMs": 1795,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 337,
+        "output": 24,
+        "cacheRead": 5188,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "st-07",
+      "run": 1,
+      "fixture": "1848-sr",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "buyShare{\"source\":\"ipo\",\"count\":1,\"buyer\":\"player:p3\",\"company\":\"QR\"}",
+      "latencyMs": 1940,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 5514,
+        "output": 34,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "thinking": 0
+      },
+      "prefixFirst": true
+    },
+    {
+      "caseId": "st-08",
+      "run": 1,
+      "fixture": "1848-sr",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "sellShares{\"count\":1,\"company\":\"VR\",\"seller\":\"player:p2\"}",
+      "latencyMs": 2003,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 329,
+        "output": 28,
+        "cacheRead": 5188,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "ln-03",
+      "run": 1,
+      "fixture": "1848-sr",
+      "category": "loans",
+      "heldout": true,
+      "pass": true,
+      "got": "buyShare{\"company\":\"BOE\",\"source\":\"ipo\",\"count\":1,\"buyer\":\"player:p1\"}",
+      "latencyMs": 1937,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 329,
+        "output": 35,
+        "cacheRead": 5188,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "cl-03",
+      "run": 1,
+      "fixture": "1848-sr",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "buyShare{\"company\":\"QR\",\"buyer\":\"player:p2\",\"source\":\"ipo\",\"count\":1}",
+      "latencyMs": 1871,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 327,
+        "output": 34,
+        "cacheRead": 5188,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "st-09",
+      "run": 1,
+      "fixture": "21moon-cr",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "issueShares{\"count\":1,\"company\":\"VH\"}",
+      "latencyMs": 1409,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 5709,
+        "output": 19,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "thinking": 0
+      },
+      "prefixFirst": true
+    },
+    {
+      "caseId": "st-10",
+      "run": 1,
+      "fixture": "21moon-cr",
+      "category": "stock",
+      "heldout": true,
+      "pass": true,
+      "got": "buyShare{\"count\":1,\"buyer\":\"company:SSF\",\"source\":\"ipo\",\"company\":\"VH\"}",
+      "latencyMs": 1116,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 315,
+        "output": 33,
+        "cacheRead": 5398,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "fl-03",
+      "run": 1,
+      "fixture": "21moon-cr",
+      "category": "flow",
+      "heldout": true,
+      "pass": true,
+      "got": "endCR{}",
+      "latencyMs": 1735,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 312,
+        "output": 9,
+        "cacheRead": 5398,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "cr-03",
+      "run": 1,
+      "fixture": "21moon-cr",
+      "category": "corrections",
+      "heldout": false,
+      "pass": true,
+      "got": "undo{\"groupId\":null}",
+      "latencyMs": 1183,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 309,
+        "output": 12,
+        "cacheRead": 5398,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "q-04",
+      "run": 1,
+      "fixture": "21moon-cr",
+      "category": "queries",
+      "heldout": true,
+      "pass": true,
+      "got": "query{\"player\":null,\"company\":\"VH\",\"kind\":\"cash\"}",
+      "latencyMs": 1838,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 314,
+        "output": 24,
+        "cacheRead": 5398,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "or-pay-12",
+      "run": 1,
+      "fixture": "21moon-or",
+      "category": "payout",
+      "heldout": false,
+      "pass": true,
+      "got": "runAndPayout{\"mode\":null,\"company\":null,\"parts\":[{\"part\":\"local\",\"amount\":120},{\"part\":\"spacePort\",\"amount\":240}]}",
+      "latencyMs": 1259,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 5711,
+        "output": 46,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "thinking": 0
+      },
+      "prefixFirst": true
+    },
+    {
+      "caseId": "or-pay-13",
+      "run": 1,
+      "fixture": "21moon-or",
+      "category": "payout",
+      "heldout": true,
+      "pass": true,
+      "got": "runAndPayout{\"company\":null,\"parts\":[{\"part\":\"local\",\"amount\":60},{\"amount\":40,\"part\":\"spacePort\"}],\"mode\":null}",
+      "latencyMs": 1995,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 311,
+        "output": 44,
+        "cacheRead": 5398,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "or-pay-14",
+      "run": 1,
+      "fixture": "21moon-or",
+      "category": "payout",
+      "heldout": false,
+      "pass": true,
+      "got": "runAndPayout{\"parts\":[{\"amount\":50,\"part\":\"local\"},{\"part\":\"spacePort\",\"amount\":30}],\"company\":null,\"mode\":null}",
+      "latencyMs": 1890,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 319,
+        "output": 44,
+        "cacheRead": 5398,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "tr-07",
+      "run": 1,
+      "fixture": "21moon-or",
+      "category": "trains",
+      "heldout": false,
+      "pass": true,
+      "got": "buyTrain{\"trainType\":\"2\",\"from\":\"bank\",\"price\":null,\"seller\":null,\"tradeIn\":null,\"variant\":\"2\",\"company\":null}",
+      "latencyMs": 1965,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 306,
+        "output": 45,
+        "cacheRead": 5398,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "tr-08",
+      "run": 1,
+      "fixture": "21moon-or",
+      "category": "trains",
+      "heldout": true,
+      "pass": true,
+      "got": "buyTrain{\"tradeIn\":null,\"from\":\"bank\",\"price\":120,\"variant\":\"2\",\"trainType\":\"2\",\"seller\":null,\"company\":\"VH\"}",
+      "latencyMs": 1328,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 310,
+        "output": 49,
+        "cacheRead": 5398,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "co-04",
+      "run": 1,
+      "fixture": "21moon-or",
+      "category": "costs",
+      "heldout": false,
+      "pass": true,
+      "got": "bankPays{\"amount\":30,\"company\":\"VH\",\"reason\":\"puente\"}",
+      "latencyMs": 1834,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 315,
+        "output": 27,
+        "cacheRead": 5398,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "cp-04",
+      "run": 1,
+      "fixture": "21moon-or",
+      "category": "compound",
+      "heldout": false,
+      "pass": true,
+      "got": "buyTrain{\"company\":null,\"tradeIn\":null,\"seller\":null,\"trainType\":\"2\",\"variant\":\"2\",\"from\":\"bank\",\"price\":120} + runAndPayout{\"company\":null,\"mode\":null,\"parts\":[{\"amount\":40,\"part\":\"local\"},{\"amount\":20,\"part\":\"spacePort\"}]}",
+      "latencyMs": 2155,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 316,
+        "output": 91,
+        "cacheRead": 5398,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "fl-end-03",
+      "run": 1,
+      "fixture": "21moon-or",
+      "category": "flow",
+      "heldout": true,
+      "pass": true,
+      "got": "endGame{}",
+      "latencyMs": 1839,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 309,
+        "output": 9,
+        "cacheRead": 5398,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-lm-rock-01",
+      "run": 1,
+      "fixture": "rotla-lm",
+      "category": "costs",
+      "heldout": false,
+      "pass": true,
+      "got": "rockFormation{\"company\":null}",
+      "latencyMs": 2042,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 8726,
+        "output": 13,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "thinking": 0
+      },
+      "prefixFirst": true
+    },
+    {
+      "caseId": "rl-lm-cliff-01",
+      "run": 1,
+      "fixture": "rotla-lm",
+      "category": "trains",
+      "heldout": false,
+      "pass": true,
+      "got": "cliffSale{\"train\":\"5\",\"company\":\"EXP\"}",
+      "latencyMs": 1443,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 416,
+        "output": 21,
+        "cacheRead": 8317,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-lm-canyon-01",
+      "run": 1,
+      "fixture": "rotla-lm",
+      "category": "trains",
+      "heldout": true,
+      "pass": true,
+      "got": "canyonTrain{\"company\":null}",
+      "latencyMs": 1205,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 409,
+        "output": 14,
+        "cacheRead": 8317,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-mr-start-01",
+      "run": 1,
+      "fixture": "rotla-mr",
+      "category": "flow",
+      "heldout": false,
+      "pass": true,
+      "got": "startMR{}",
+      "latencyMs": 1305,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 7215,
+        "output": 9,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "thinking": 0
+      },
+      "prefixFirst": true
+    },
+    {
+      "caseId": "rl-mr-merge-01",
+      "run": 1,
+      "fixture": "rotla-mr",
+      "category": "flow",
+      "heldout": false,
+      "pass": true,
+      "got": "mergeCompanies{\"identity\":\"primary\",\"a\":\"EXP\",\"into\":\"UNI\",\"b\":\"TUN\"}",
+      "latencyMs": 1870,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 365,
+        "output": 33,
+        "cacheRead": 6854,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-mr-merge-02",
+      "run": 1,
+      "fixture": "rotla-mr",
+      "category": "flow",
+      "heldout": true,
+      "pass": true,
+      "got": "mergeCompanies{\"b\":\"TUN\",\"a\":\"EXP\",\"identity\":\"alt\",\"into\":\"CON\"}",
+      "latencyMs": 1256,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 367,
+        "output": 33,
+        "cacheRead": 6854,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-or-pay-01",
+      "run": 1,
+      "fixture": "rotla-or",
+      "category": "payout",
+      "heldout": false,
+      "pass": true,
+      "got": "runAndPayout{\"parts\":[{\"amount\":60,\"part\":\"revenue\"}],\"mode\":\"full\",\"company\":null}",
+      "latencyMs": 1314,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 7248,
+        "output": 34,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "thinking": 0
+      },
+      "prefixFirst": true
+    },
+    {
+      "caseId": "rl-or-pay-02",
+      "run": 1,
+      "fixture": "rotla-or",
+      "category": "payout",
+      "heldout": true,
+      "pass": true,
+      "got": "runAndPayout{\"parts\":[{\"amount\":60,\"part\":\"revenue\"}],\"company\":\"TUN\",\"mode\":\"withhold\"}",
+      "latencyMs": 1256,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 395,
+        "output": 37,
+        "cacheRead": 6854,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-or-train-01",
+      "run": 1,
+      "fixture": "rotla-or",
+      "category": "trains",
+      "heldout": false,
+      "pass": true,
+      "got": "buyTrain{\"trainType\":\"2\",\"from\":\"bank\",\"price\":100,\"company\":null,\"tradeIn\":null,\"variant\":\"2\",\"seller\":null}",
+      "latencyMs": 1542,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 394,
+        "output": 47,
+        "cacheRead": 6854,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-or-issue-01",
+      "run": 1,
+      "fixture": "rotla-or",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "issueShares{\"count\":1,\"company\":\"TUN\"}",
+      "latencyMs": 1115,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 393,
+        "output": 19,
+        "cacheRead": 6854,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-or-redeem-01",
+      "run": 1,
+      "fixture": "rotla-or",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "redeemShare{\"company\":\"EXP\",\"count\":1}",
+      "latencyMs": 1356,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 395,
+        "output": 20,
+        "cacheRead": 6854,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-or-tunnel-01",
+      "run": 1,
+      "fixture": "rotla-or",
+      "category": "costs",
+      "heldout": false,
+      "pass": true,
+      "got": "namedPayment{\"company\":null,\"amount\":null,\"payment\":\"tunneling\"}",
+      "latencyMs": 1182,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 394,
+        "output": 24,
+        "cacheRead": 6854,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-or-token-01",
+      "run": 1,
+      "fixture": "rotla-or",
+      "category": "costs",
+      "heldout": false,
+      "pass": true,
+      "got": "namedPayment{\"amount\":null,\"company\":\"EXV\",\"payment\":\"expansiveToken\"}",
+      "latencyMs": 1153,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 394,
+        "output": 27,
+        "cacheRead": 6854,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-or-inf-01",
+      "run": 1,
+      "fixture": "rotla-or",
+      "category": "trains",
+      "heldout": false,
+      "pass": true,
+      "got": "buyTrain{\"trainType\":\"7\",\"from\":\"bank\",\"variant\":\"∞\",\"seller\":null,\"company\":null,\"tradeIn\":\"5\",\"price\":null}",
+      "latencyMs": 1994,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 398,
+        "output": 47,
+        "cacheRead": 6854,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-or-forced-01",
+      "run": 1,
+      "fixture": "rotla-or",
+      "category": "trains",
+      "heldout": false,
+      "pass": true,
+      "got": "forcedTrainPurchase{\"from\":\"bank\",\"variant\":\"4\",\"trainType\":\"4\",\"sales\":[{\"count\":2,\"company\":\"EXP\"}],\"company\":null}",
+      "latencyMs": 1174,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 403,
+        "output": 46,
+        "cacheRead": 6854,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "fl-end-02",
+      "run": 1,
+      "fixture": "rotla-or",
+      "category": "flow",
+      "heldout": false,
+      "pass": true,
+      "got": "endGame{}",
+      "latencyMs": 1895,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 392,
+        "output": 9,
+        "cacheRead": 6854,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-launch-01",
+      "run": 1,
+      "fixture": "rotla-sr",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "launchCompany{\"company\":\"TUN\",\"player\":\"p1\",\"bid\":140,\"price\":null}",
+      "latencyMs": 1260,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 7198,
+        "output": 32,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "thinking": 0
+      },
+      "prefixFirst": true
+    },
+    {
+      "caseId": "rl-launch-02",
+      "run": 1,
+      "fixture": "rotla-sr",
+      "category": "stock",
+      "heldout": true,
+      "pass": true,
+      "got": "launchCompany{\"bid\":165,\"player\":\"p2\",\"company\":\"EXP\",\"price\":null}",
+      "latencyMs": 1258,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 343,
+        "output": 32,
+        "cacheRead": 6854,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-sr-buy-01",
+      "run": 1,
+      "fixture": "rotla-sr",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "buyShare{\"buyer\":\"player:p2\",\"source\":\"treasury\",\"count\":1,\"company\":\"AGR\"}",
+      "latencyMs": 1297,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 345,
+        "output": 36,
+        "cacheRead": 6854,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-sr-buy-02",
+      "run": 1,
+      "fixture": "rotla-sr",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "buyShare{\"buyer\":\"player:p2\",\"source\":\"treasury\",\"company\":\"AGR\",\"count\":1}",
+      "latencyMs": 2148,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 341,
+        "output": 36,
+        "cacheRead": 6854,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    },
+    {
+      "caseId": "rl-sr-buy-03",
+      "run": 1,
+      "fixture": "rotla-sr",
+      "category": "stock",
+      "heldout": false,
+      "pass": true,
+      "got": "buyShare{\"source\":\"pool\",\"company\":\"AGR\",\"buyer\":\"player:p1\",\"count\":1}",
+      "latencyMs": 1955,
+      "stop": "done",
+      "rawStop": "STOP",
+      "usage": {
+        "input": 343,
+        "output": 35,
+        "cacheRead": 6854,
+        "cacheWrite": 0,
+        "thinking": 0
+      }
+    }
+  ]
+}

@@ -7,8 +7,9 @@ export function sortChips(set: ChipSet): ChipSet {
 }
 
 /**
- * The table's chips (FR-080): value, color, optional label and optional count, starting from the
- * game's preset. Rows keep their order while editing, so they do not jump under the finger.
+ * The table's chips (FR-080): color, value and optional count (empty = unlimited), starting
+ * from the game's preset. No label (feature 008): a chip shows its value. Rows keep their order
+ * while editing, so they do not jump under the finger.
  */
 export function ChipSetEditor({ value, onChange }: { value: ChipSet; onChange: (set: ChipSet) => void }) {
   const chips = value.chips;
@@ -27,16 +28,8 @@ export function ChipSetEditor({ value, onChange }: { value: ChipSet; onChange: (
                 inputMode="numeric"
                 aria-label={`Valor de la ficha ${i + 1}`}
                 value={c.value}
-                onChange={(e) => {
-                  const next = Number(e.target.value.replace(/\D/g, "")) || 0;
-                  // A label that only echoed the old value would go stale; a custom one ("Oro") stays.
-                  patch(i, c.label === String(c.value) ? { value: next, label: undefined } : { value: next });
-                }}
+                onChange={(e) => patch(i, { value: Number(e.target.value.replace(/\D/g, "")) || 0 })}
               />
-            </label>
-            <label>
-              <span className="label">Etiqueta</span>
-              <input value={c.label ?? ""} onChange={(e) => patch(i, { label: e.target.value || undefined })} />
             </label>
             <label>
               <span className="label">Cantidad</span>

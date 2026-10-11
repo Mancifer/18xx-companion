@@ -18,6 +18,11 @@ export interface SessionMeta {
   readonly walletMode: WalletMode;
   /** Table configuration, not game state: edited outside the log (data-model §2). */
   readonly chipSet: ChipSet;
+  /**
+   * Chip value (as a string) → the bank count the user set (feature 008, R17). Absent or `{}` =
+   * the suggestion. Counts are non-negative integers. Table configuration, never logged.
+   */
+  readonly bankPins?: Readonly<Record<string, number>>;
   readonly createdAt: string;
   readonly updatedAt: string;
   readonly entryCount: number;

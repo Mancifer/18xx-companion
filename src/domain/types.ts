@@ -92,7 +92,12 @@ export interface Player {
 export interface Chip {
   readonly value: number;
   readonly color: string;
+  /**
+   * @deprecated Kept only so older sessions and exports load (feature 008, R3); never written or
+   * displayed. A chip shows its value.
+   */
   readonly label?: string | undefined;
+  /** Chips of this color the table owns: absent = unlimited. Only shapes the setup plan. */
   readonly countAvailable?: number | undefined;
 }
 

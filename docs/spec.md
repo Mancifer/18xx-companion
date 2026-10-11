@@ -257,15 +257,33 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
 
 ## 7. Chips & Bank
 
-- **Chip set**: list of `{ value, color, label?, countAvailable? }`, configured per session
-  (with presets per game). Colors use a picker.
+- **Chip set**: list of `{ value, color, countAvailable? }`, configured per session. A chip has
+  no label: it shows its value (older data may carry a `label`, which is ignored). Colors use a
+  picker. Every built-in game starts with the same five chips: 500 green ×50, 100 red ×150,
+  25 black ×50, 5 blue ×100, 1 white ×150. An empty count means unlimited.
+- **Counts only shape the setup**: `countAvailable` is what the table owns. It is used for the
+  setup plan below, never to limit a mid-game breakdown.
+- **Setup plan** (derived, never stored or logged): how to set up the money on the table, shown
+  on the new-session screen, in the chips sheet ("Preparación") and in the start notice.
+  - *Cada jugador*: the fewest chips for the starting cash, using at most each player's share of
+    every color. Every player gets the same chips.
+  - *Banco* (fixed bank): the bank total minus the players' cash, built from the remaining chips.
+    The surplus is set aside as the fewest chips ("Apartadas"), which keeps the lower values in
+    the bank.
+  - *Banco* (unlimited bank): every remaining chip, plus "sin límite" for colors with no count.
+  - *Missing chips*: when the owned chips can't cover the setup, chips are added and marked
+    "faltan" (fewest missing chips first), with a "Faltan …" warning. Starting is never blocked.
+  - *Bank adjustments* (fixed bank): a − / + stepper per color pins that color's bank count; the
+    colors not pinned refill so the total stays exact, or a warning shows the excess or shortfall.
+    "Restablecer" clears the pins. The pins are saved with the session (`bankPins`, outside the
+    log) and exported.
 - **Pay view**: every confirmed transaction that moves money into or out of the bank shows the
   chips to hand over, as colored discs with counts.
   - Bank pays X: breakdown of X.
   - Someone pays the bank X with a given chip: the breakdown of the change is shown too.
-- **Algorithm**: greedy works for canonical denomination sets. If `countAvailable` is set, or
-  the set isn't canonical, use bounded change-making (small dynamic programming). Fewest chips
-  wins.
+- **Algorithm**: greedy works for canonical denomination sets; otherwise unbounded
+  change-making (small dynamic programming). Fewest chips wins. The setup plan uses the bounded
+  variant, which respects `countAvailable`.
 - **Bank view**: remaining bank total, and "bank broken" status when it reaches 0.
 - **Wallet mode setting**:
   - *App is the source of truth*: players' money lives in the app. Chips are only for the bank,
@@ -358,9 +376,15 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
    A finished game's row shows a "Completa" badge and "Ganó {name}" ("Ganaron A y B" on a shared
    win); tapping it, or "Continuar" when it is the last session, opens its results. Other rows
    open the Table.
-2. **New session**: pick game → players (names, colors, aliases) → chip set (preset +
-   colors) → wallet mode.
+2. **New session**: pick game → players (names, colors, aliases) → wallet mode → chip set
+   (preset with color, value and count per chip). Below the chips, the setup plan shows each
+   player's chips, the bank's chips with a stepper per color, and the chips set aside. It updates
+   with every change of chips, players, options or bank counts. When chips are missing, a warning
+   shows and the chip editor opens so counts can be fixed in place.
 3. **Table** (main screen):
+   - Start notice "Fichas iniciales": while only `createSession` is in the log, a notice shows
+     each player's chips and, for a fixed bank, the bank's chips (missing chips marked). It does
+     not auto-hide; "Entendido" or the first action hides it.
    - Top bar: round indicator (SR 3 / CR 1 / OR 2.1), phase, current company, bank remaining.
      Tapping the indicator opens a manual turn and phase control.
    - Round controls: "Operar <company>" for the current company, followed by the next companies

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { builtInGames, applyOptions, getBuiltInGame, hasUnverified } from "../../src/domain/games";
 import { createCustomGame } from "../../src/domain/games/customGame";
 import { validateDefinition } from "../../src/domain/games/validateDefinition";
+import { DEFAULT_CHIPS, colorNameEs } from "../../src/domain/games/chips";
 import type { GameDefinition } from "../../src/domain/games/schema";
 
 const game = (id: string): GameDefinition => getBuiltInGame(id);
@@ -16,6 +17,16 @@ describe("built-in definitions", () => {
   it.each(builtInGames.filter((g) => g.id !== "rotla").map((g) => [g.id, g] as const))("%s has every verification entry verified", (_id, def) => {
     expect(Object.values(def.verification).every((v) => v === "verified")).toBe(true);
     expect(Object.keys(def.verification).length).toBeGreaterThan(0);
+  });
+
+  it.each(builtInGames.map((g) => [g.id, g] as const))("%s uses the default chips with counts (FR-001, FR-004)", (_id, def) => {
+    expect(def.chipPreset).toEqual(DEFAULT_CHIPS);
+  });
+
+  it("names the default chip colors in Spanish", () => {
+    expect(DEFAULT_CHIPS.map((c) => colorNameEs(c.color))).toEqual(["verde", "roja", "negra", "azul", "blanca"]);
+    expect(colorNameEs("#2E7D32")).toBe("verde");
+    expect(colorNameEs("#9e9e9e")).toBeUndefined();
   });
 
   it("built-ins are deeply frozen", () => {

@@ -122,10 +122,10 @@ export class SessionStore {
   }
 
   /**
-   * Table configuration that is not game state (the chip set, the name): saved to the session
-   * metadata, never to the log (data-model §2).
+   * Table configuration that is not game state (the chip set, the bank pins, the name): saved to
+   * the session metadata, never to the log (data-model §2).
    */
-  updateMeta(patch: Pick<Partial<SessionMeta>, "chipSet" | "name">): Promise<{ ok: true } | StoreError> {
+  updateMeta(patch: Pick<Partial<SessionMeta>, "chipSet" | "name" | "bankPins">): Promise<{ ok: true } | StoreError> {
     return this.enqueue(async () => {
       const { meta } = this.snapshot;
       try {

@@ -2,28 +2,51 @@ import { useState } from "react";
 import type { GameDefinition } from "../../domain/games/schema";
 import { formatMoney } from "../../domain/i18n/format";
 import type { MoneyFlow } from "../../domain/ledger/flows";
-import { breakdown, change, chipLabel, type ChipBreakdown } from "../../domain/mechanics/chips";
+import { breakdown, change, type ChipBreakdown } from "../../domain/mechanics/chips";
 import type { ChipSet } from "../../domain/types";
+
+type ChipCount = { readonly value: number; readonly count: number };
+
+/**
+ * Chip discs with count and value (never color alone, contracts/ui.md §2). Missing chips (chips
+ * the table lacks, feature 008) use the same disc with a dashed outline and "faltan".
+ */
+export function ChipDiscs({
+  chips,
+  set,
+  missing = [],
+}: {
+  chips: readonly ChipCount[];
+  set: ChipSet;
+  missing?: readonly ChipCount[];
+}) {
+  const color = (value: number) => set.chips.find((x) => x.value === value)?.color ?? "#888";
+  return (
+    <span className="chip-discs">
+      {chips.map((c) => (
+        <span key={c.value} className="chip" aria-label={`${c.count} × ${c.value}`}>
+          <span className="chip-disc" style={{ background: color(c.value) }} aria-hidden="true" />
+          <span className="chip-text">
+            {c.count}×{c.value}
+          </span>
+        </span>
+      ))}
+      {missing.map((c) => (
+        <span key={`missing-${c.value}`} className="chip chip--missing" aria-label={`faltan ${c.count} × ${c.value}`}>
+          <span className="chip-disc chip-disc--missing" style={{ background: color(c.value) }} aria-hidden="true" />
+          <span className="chip-text">
+            faltan {c.count}×{c.value}
+          </span>
+        </span>
+      ))}
+    </span>
+  );
+}
 
 function Discs({ result, set }: { result: ChipBreakdown; set: ChipSet }) {
   if (!result) return <span className="muted">no hay cambio exacto</span>;
   if (result.chips.length === 0) return <span className="muted">sin fichas</span>;
-  return (
-    <span className="chip-discs">
-      {result.chips.map((c) => {
-        const chip = set.chips.find((x) => x.value === c.value);
-        const text = chip ? chipLabel(chip) : c.value;
-        return (
-          <span key={c.value} className="chip" aria-label={`${c.count} × ${text}`}>
-            <span className="chip-disc" style={{ background: chip?.color ?? "#888" }} aria-hidden="true" />
-            <span className="chip-text">
-              {c.count}×{text}
-            </span>
-          </span>
-        );
-      })}
-    </span>
-  );
+  return <ChipDiscs chips={result.chips} set={set} />;
 }
 
 /**
@@ -54,7 +77,7 @@ export function ChipStrip({
           <span className="muted">pagó con</span>
           {larger.slice(-2).map((v) => (
             <button key={v} className="chip-button" aria-pressed={paidWith === v} onClick={() => setPaidWith(paidWith === v ? null : v)}>
-              {chipLabel(set.chips.find((c) => c.value === v) ?? { value: v })}
+              {v}
             </button>
           ))}
         </span>

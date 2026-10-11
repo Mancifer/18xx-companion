@@ -1,5 +1,6 @@
 import type { CompanyDef, GameDefinition } from "./schema";
 import { parseMarket } from "./marketText";
+import { DEFAULT_CHIPS } from "./chips";
 
 /**
  * 21Moon (docs/rules/21Moon_Rules.pdf). Values and rule sections are in research.md R15; the
@@ -174,15 +175,7 @@ export const g21moon: GameDefinition = {
     { id: "corporateBankruptcy", config: { trigger: "closedCell" } },
     { id: "privateGrants", config: {} },
   ],
-  chipPreset: [
-    { value: 500, color: "#6a1b9a" },
-    { value: 100, color: "#212121" },
-    { value: 50, color: "#ef6c00" },
-    { value: 20, color: "#2e7d32" },
-    { value: 10, color: "#1565c0" },
-    { value: 5, color: "#c62828" },
-    { value: 1, color: "#f5f5f5" },
-  ],
+  chipPreset: [...DEFAULT_CHIPS],
   verification: {
     privateTrading: "verified",
     bank: "verified",

@@ -4,9 +4,11 @@ import { ALL_COMPANIES, applyOptions, builtInGames, hasUnverified, optionWarning
 import type { GameDefinition, OptionDef } from "../../domain/games/schema";
 import { trainCount } from "../../domain/events/state";
 import { formatMoney } from "../../domain/i18n/format";
-import { chipLabel } from "../../domain/mechanics/chips";
+import { validateChipSet } from "../../domain/mechanics/chips";
+import { setupPlan } from "../../domain/mechanics/chipSetup";
 import type { ChipSet, Player, WalletMode } from "../../domain/types";
 import { ChipSetEditor, sortChips } from "../components/ChipSetEditor";
+import { ChipSetupPlan } from "../components/ChipSetupPlan";
 import { CompanyBadge } from "../components/CompanyBadge";
 import { useNav } from "../nav";
 
@@ -101,6 +103,8 @@ export function NewSession() {
   /** null = the game's preset (FR-080). */
   const [chipSet, setChipSet] = useState<ChipSet | null>(null);
   const [editChips, setEditChips] = useState(false);
+  /** The bank counts the table set (feature 008): kept across players and options, not games. */
+  const [pins, setPins] = useState<Record<string, number>>({});
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +120,14 @@ export function NewSession() {
   const patched = useMemo(() => (game ? patchedCopy(game, options) : undefined), [game, options]);
   const warnings = game ? optionWarnings(game, options, rows.length) : [];
   const startingCash = patched?.startingCash[String(rows.length)];
+  const chips = useMemo(() => sortChips(chipSet ?? { chips: game?.chipPreset ?? [] }), [chipSet, game]);
+  /** Recomputed on every change of chips, players, options or pins (FR-024). */
+  const plan = useMemo(
+    () => (patched && validateChipSet(chips).length === 0 ? setupPlan(patched, rows.length, chips, pins) : undefined),
+    [patched, rows.length, chips, pins],
+  );
+  // Short of chips: open the editor so counts can be fixed in place (US5-2). It stays open after.
+  if (plan && plan.missing.length > 0 && !editChips) setEditChips(true);
 
   /** A choice option changes which companies are in play, so company subsets start over. */
   const setOption = (option: OptionDef, value: string) => {
@@ -127,6 +139,7 @@ export function NewSession() {
     setGameId(id);
     setOptions({});
     setChipSet(null);
+    setPins({});
     const g = all.find((x) => x.id === id);
     if (!g) return;
     setRows((current) => {
@@ -184,7 +197,8 @@ export function NewSession() {
         players,
         walletMode,
         name,
-        chipSet: sortChips(chipSet ?? { chips: game.chipPreset }),
+        chipSet: chips,
+        bankPins: pins,
       });
       go({ name: "table" });
     } catch (e) {
@@ -315,12 +329,24 @@ export function NewSession() {
           {editChips && game ? (
             <ChipSetEditor value={chipSet ?? { chips: game.chipPreset }} onChange={setChipSet} />
           ) : (
-            <button onClick={() => setEditChips(true)}>
-              {(chipSet ?? { chips: game?.chipPreset ?? [] }).chips.map(chipLabel).join(" · ") || "Sin fichas"} ·
-              Editar
+            <button className="chip-summary" onClick={() => setEditChips(true)}>
+              {chips.chips.length === 0 ? (
+                "Sin fichas"
+              ) : (
+                <span className="chip-discs">
+                  {chips.chips.map((c) => (
+                    <span key={c.value} className="chip">
+                      <span className="chip-disc" style={{ background: c.color }} aria-hidden="true" />
+                      <span className="chip-text">{c.value}</span>
+                    </span>
+                  ))}
+                </span>
+              )}{" "}
+              · Editar
             </button>
           )}
         </fieldset>
+        {plan && patched ? <ChipSetupPlan plan={plan} set={chips} game={patched} pins={pins} onPinsChange={setPins} /> : null}
 
         <label>
           Nombre (opcional)

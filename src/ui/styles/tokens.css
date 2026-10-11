@@ -39,6 +39,8 @@
   --danger-bg: #fde5e2;
   --shadow: 0 2px 10px rgb(0 0 0 / 0.12);
   --overlay: rgb(0 0 0 / 0.45);
+  /* Ring around chip discs, so white chips show on light backgrounds and black ones in dark mode. */
+  --chip-ring: #3a3d44;
 
   color-scheme: light;
 }
@@ -60,6 +62,7 @@
     --danger-bg: #3d1a18;
     --shadow: 0 2px 12px rgb(0 0 0 / 0.5);
     --overlay: rgb(0 0 0 / 0.6);
+    --chip-ring: #c9ced8;
     color-scheme: dark;
   }
 }

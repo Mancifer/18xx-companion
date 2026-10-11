@@ -1,5 +1,6 @@
 import { useContext, useSyncExternalStore } from "react";
 import { useFeedback } from "./AppProvider";
+import { cleanPins } from "../domain/mechanics/chipSetup";
 import type { ChipSet } from "../domain/types";
 import { SessionContext } from "./contexts";
 import type {
@@ -39,8 +40,11 @@ export interface SessionActions {
   readonly revert: (groupId?: string, options?: ConfirmOptions) => Promise<RevertResult>;
   /** Correct a past group (FR-013), with the same dependents check as revert. */
   readonly amend: (groupId: string, action: unknown, options?: ConfirmOptions) => Promise<AmendStoreResult>;
-  /** The table's chip set (FR-080): configuration, not game state, so it is not logged. */
-  readonly updateChipSet: (chipSet: ChipSet) => Promise<boolean>;
+  /**
+   * The table's chip set (FR-080) and bank pins (feature 008): configuration, not game state, so
+   * one meta write and nothing logged. Pins for values no longer in the set are dropped.
+   */
+  readonly updateChips: (chipSet: ChipSet, bankPins: Readonly<Record<string, number>>) => Promise<boolean>;
 }
 
 export function useDispatch(): SessionActions {
@@ -63,8 +67,8 @@ export function useDispatch(): SessionActions {
       }
       return result;
     },
-    async updateChipSet(chipSet) {
-      const result = await store.updateMeta({ chipSet });
+    async updateChips(chipSet, bankPins) {
+      const result = await store.updateMeta({ chipSet, bankPins: cleanPins(bankPins, chipSet) });
       if (!result.ok) push({ kind: "error", messageEs: result.messageEs });
       return result.ok;
     },

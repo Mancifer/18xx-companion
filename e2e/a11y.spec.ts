@@ -10,7 +10,8 @@ import { launch, newRotla, newSession, openCompany, payBank, showCompanies, toas
 const TAP = 48;
 const SHORT_NAMES = ["PRR", "NYC", "CPR", "B&O", "C&O", "Erie", "NNH", "B&M"];
 
-async function audit(page: Page, info: TestInfo, screen: string, shortNames: readonly string[] = SHORT_NAMES) {
+/** `minTargets`: a floor that proves the screen rendered; small screens (the results) have fewer controls. */
+async function audit(page: Page, info: TestInfo, screen: string, shortNames: readonly string[] = SHORT_NAMES, minTargets = 4) {
   // Let sheet and toast transitions settle before measuring.
   await page.waitForTimeout(300);
   const { small, total } = await page.evaluate((tap) => {
@@ -31,7 +32,7 @@ async function audit(page: Page, info: TestInfo, screen: string, shortNames: rea
       });
     return { total: measured.length, small: measured.filter((x) => x.w < tap - 0.5 || x.h < tap - 0.5) };
   }, TAP);
-  expect(total, `interactive elements on ${screen}`).toBeGreaterThan(3);
+  expect(total, `interactive elements on ${screen}`).toBeGreaterThanOrEqual(minTargets);
   const badges = await page.locator(".company-badge").allTextContents();
   for (const text of badges) expect(shortNames, `badge «${text}» on ${screen}`).toContain(text.trim());
   await info.attach(`${info.project.name}-${screen}.png`, { body: await page.screenshot({ fullPage: true }), contentType: "image/png" });
@@ -93,7 +94,7 @@ test("FR-101 tap targets and company names on the main screens", async ({ page }
 
 const ROTLA_NAMES = ["ADP", "AGR", "BRG", "EMN", "EXV", "EXP", "NPT", "OVN", "RES", "SPC", "SUB", "TUN", "CON", "UNI", "SYS", "INT", "FED", "EXM"];
 
-test("RotLA sheets: Launch, Merger and Score (feature 004)", async ({ page }, info) => {
+test("RotLA sheets: Launch, Merger, End game and Results (features 004, 007)", async ({ page }, info) => {
   await newRotla(page, ["Ana", "Bruno", "Carla"]);
   await page.getByRole("button", { name: "Abrir minor" }).click();
   await audit(page, info, "rotla-launch", ROTLA_NAMES);
@@ -118,9 +119,12 @@ test("RotLA sheets: Launch, Merger and Score (feature 004)", async ({ page }, in
   await page.getByRole("button", { name: "Cerrar" }).click();
 
   await page.getByRole("button", { name: "Menú" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Puntuación" }).click();
-  await expect(page.getByRole("dialog", { name: "Puntuación" })).toBeVisible();
-  await audit(page, info, "rotla-score", ROTLA_NAMES);
+  // Feature 007 replaced the "Puntuación" sheet with "Terminar partida" and the results screen.
+  await page.getByRole("dialog").getByRole("button", { name: "Terminar partida" }).click();
+  await expect(page.getByRole("dialog", { name: "¿Terminar la partida?" })).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "Terminar", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Resultados" })).toBeVisible();
+  await audit(page, info, "rotla-results", ROTLA_NAMES, 3);
 });
 
 test("the undo toast never covers the mic (bug toast-obscures-voice-button)", async ({ page }) => {
@@ -140,4 +144,25 @@ test("the undo toast never covers the mic (bug toast-obscures-voice-button)", as
     y: m.y + m.height / 2,
   });
   expect(onTop, "the mic's centre hits the mic").toBe(true);
+});
+
+test("new session: the chip setup plan with bank steppers, and the start notice (feature 008)", async ({ page }, info) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Nueva partida" }).click();
+  await page.getByRole("button", { name: "1830", exact: true }).click();
+  await page.getByRole("button", { name: "Más fichas de 500 en el banco" }).click();
+  await expect(page.getByText("fijada")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Restablecer" })).toBeVisible();
+  await page.getByRole("button", { name: /Editar/ }).click();
+  await expect(page.getByText("Cantidad").first()).toBeVisible();
+  await audit(page, info, "new-session-chips");
+
+  for (const [i, name] of ["Ana", "Bruno", "Carla", "Dani"].entries()) await page.getByLabel(`Nombre del jugador ${i + 1}`).fill(name);
+  await page.getByRole("button", { name: "Empezar" }).click();
+  const notice = page.getByRole("status", { name: "Fichas iniciales" });
+  await expect(notice).toBeVisible();
+  await expect(notice).toContainText("Cada jugador $600");
+  await audit(page, info, "start-notice");
+  await notice.getByRole("button", { name: "Entendido" }).click();
+  await expect(notice).toBeHidden();
 });

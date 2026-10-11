@@ -647,8 +647,23 @@ button[aria-pressed="true"] {
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  border: 2px dashed rgb(0 0 0 / 0.35);
+  border: 2px solid var(--chip-ring);
   flex: none;
+}
+
+/* The toast is drawn in inverse colors, so its discs take the inverse ring. */
+.toast {
+  --chip-ring: var(--bg);
+}
+
+/* Chips the table lacks (feature 008): the same disc, dashed, with "faltan" next to it. */
+.chip-disc--missing {
+  border-style: dashed;
+  opacity: 0.7;
+}
+
+.chip--missing .chip-text {
+  font-style: italic;
 }
 
 .chip-text {
@@ -672,13 +687,77 @@ button[aria-pressed="true"] {
 
 .chip-row {
   display: grid;
-  grid-template-columns: var(--tap) repeat(3, minmax(0, 1fr)) var(--tap);
+  grid-template-columns: var(--tap) repeat(2, minmax(0, 1fr)) var(--tap);
   gap: var(--space-2);
   align-items: end;
 }
 
 .chip-row input {
   width: 100%;
+}
+
+/* Setup plan (feature 008): players, bank with steppers, chips set aside, warnings. */
+.setup-plan {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.plan-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.plan-label {
+  font-weight: 700;
+}
+
+.plan-aside {
+  color: var(--text-muted);
+}
+
+.plan-aside .chip-disc {
+  opacity: 0.6;
+}
+
+.plan-steppers {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.plan-stepper {
+  display: grid;
+  grid-template-columns: minmax(64px, auto) var(--tap) minmax(56px, 72px) var(--tap) minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.plan-stepper button {
+  min-width: var(--tap);
+  min-height: var(--tap);
+  font-size: var(--text-lg);
+}
+
+.plan-stepper input {
+  width: 100%;
+  text-align: center;
+}
+
+.plan-stepper-notes {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+/* The start notice (feature 008): the plan inside the toast. */
+.start-chips .plan-label {
+  font-weight: 600;
 }
 
 /* Voice (US5) */

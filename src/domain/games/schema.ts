@@ -16,6 +16,7 @@ const holderRef = z
 export const ChipSchema = z.object({
   value: posInt,
   color: z.string().min(1),
+  /** Deprecated (feature 008, R3): accepted so older sessions and exports load, never displayed. */
   label: z.string().optional(),
   countAvailable: nonNegInt.optional(),
 });

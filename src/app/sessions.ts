@@ -1,6 +1,7 @@
 import { applyOptions, resolveOptions } from "../domain/games";
 import type { GameDefinition } from "../domain/games/schema";
 import { replay } from "../domain/ledger/replay";
+import { cleanPins } from "../domain/mechanics/chipSetup";
 import { outcomeOf } from "../domain/mechanics/gameEnd";
 import type { SessionMeta } from "../domain/session";
 import type { ChipSet, Player, WalletMode } from "../domain/types";
@@ -15,6 +16,8 @@ export interface NewSessionInput {
   readonly players: readonly Player[];
   readonly walletMode: WalletMode;
   readonly chipSet?: ChipSet;
+  /** The bank counts the table set on the new-session screen (feature 008). */
+  readonly bankPins?: Record<string, number>;
   readonly name?: string;
 }
 
@@ -37,6 +40,8 @@ export async function startSession(
   const options = resolveOptions(input.game, input.options);
   const game = applyOptions(input.game, options);
   const at = now.toISOString();
+  const chipSet = input.chipSet ?? { chips: game.chipPreset };
+  const bankPins = cleanPins(input.bankPins, chipSet);
   const meta: SessionMeta = {
     id: crypto.randomUUID(),
     name: input.name?.trim() || defaultSessionName(game, now),
@@ -44,7 +49,8 @@ export async function startSession(
     options,
     players: input.players,
     walletMode: input.walletMode,
-    chipSet: input.chipSet ?? { chips: game.chipPreset },
+    chipSet,
+    ...(Object.keys(bankPins).length > 0 ? { bankPins } : {}),
     createdAt: at,
     updatedAt: at,
     entryCount: 0,

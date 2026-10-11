@@ -4,6 +4,8 @@ import { getBuiltInGame } from "../../src/domain/games";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { seedCompany } from "../helpers/seed";
 import { createCustomGame, editCustomGame } from "../../src/domain/games/customGame";
+import { DEFAULT_CHIPS } from "../../src/domain/games/chips";
+import { builtInGames } from "../../src/domain/games";
 
 describe("custom games (FR-007, contracts/game-definition.md rule 4)", () => {
   it("copies a built-in with a new id and basedOn", () => {
@@ -12,6 +14,18 @@ describe("custom games (FR-007, contracts/game-definition.md rule 4)", () => {
     expect(custom.id).toMatch(/^custom-/);
     expect(custom.basedOn).toBe("1830");
     expect(custom.name).toBe("1830 corto");
+  });
+
+  it.each(builtInGames.map((g) => [g.id] as const))("a new custom game based on %s copies the default chips (FR-003)", (id) => {
+    expect(createCustomGame(getBuiltInGame(id), "Casera").chipPreset).toEqual(DEFAULT_CHIPS);
+  });
+
+  it("a saved custom game keeps its own chip preset (FR-003)", () => {
+    const own = [{ value: 50, color: "#ef6c00", label: "50" }, { value: 10, color: "#1565c0" }];
+    const result = editCustomGame(createCustomGame(getBuiltInGame("1830"), "Vieja"), { chipPreset: own });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.definition.chipPreset).toEqual(own);
   });
 
   it("inherits the base game's scoring block (feature 007)", () => {

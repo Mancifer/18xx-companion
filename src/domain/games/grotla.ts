@@ -1,4 +1,5 @@
 import type { CompanyDef, CompanyTraits, GameDefinition, PhaseDef, TrainDef } from "./schema";
+import { DEFAULT_CHIPS } from "./chips";
 
 /**
  * Railways of the Lost Atlas (docs/rules: "B p.N" = base rulebook, "L p.N" = Landmarks).
@@ -374,14 +375,7 @@ export const grotla: GameDefinition = {
       config: { trigger: "closedCell", presidentPays: true, companyTrainsTo: "pool", companyStatus: "closed", playerMode: "liquidatePresided" },
     },
   ],
-  chipPreset: [
-    { value: 500, color: "#6a1b9a" },
-    { value: 100, color: "#212121" },
-    { value: 50, color: "#ef6c00" },
-    { value: 20, color: "#2e7d32" },
-    { value: 10, color: "#1565c0" },
-    { value: 5, color: "#c62828" },
-  ],
+  chipPreset: [...DEFAULT_CHIPS],
   verification: {
     bank: "verified",
     startingCash: "verified",

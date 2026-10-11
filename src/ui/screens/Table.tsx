@@ -24,6 +24,7 @@ import { PlayerTile } from "../components/PlayerTile";
 import { RoundIndicator } from "../components/RoundIndicator";
 import { Sheet } from "../components/Sheet";
 import { TopBar } from "../components/TopBar";
+import { StartChipsNotice } from "../components/StartChipsNotice";
 import { UndoToast } from "../components/UndoToast";
 import { VoicePanel } from "../components/VoicePanel";
 import { useNav } from "../nav";
@@ -95,6 +96,8 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
     setTab(tabFor(round));
   }
   const [open, setOpen] = useState<Open>(null);
+  /** "Entendido" on the start notice: this view only, nothing written (feature 008, R9). */
+  const [chipsNoticeDismissed, setChipsNoticeDismissed] = useState(false);
   useWakeLock(true);
 
   const close = () => setOpen(null);
@@ -412,6 +415,11 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
         onPress={() => voice.controller.press()}
         onRelease={() => void voice.controller.release()}
       />
+      {/* Only createSession in the log: the game has just started (feature 008, R9). Hidden while
+          a sheet is open, so it never covers the sheet's buttons. */}
+      {effective.length === 1 && effective[0]?.action.type === "createSession" && open === null && !chipsNoticeDismissed ? (
+        <StartChipsNotice onDismiss={() => setChipsNoticeDismissed(true)} />
+      ) : null}
       <UndoToast />
     </main>
   );

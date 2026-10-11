@@ -163,3 +163,52 @@ describe("canonical JSON", () => {
     expect(await stateHash({ b: 1, a: 2 } as never)).toBe(await stateHash({ a: 2, b: 1 } as never));
   });
 });
+
+describe("chips with labels from older versions (feature 008, SC-005)", () => {
+  it("an export whose chips carry a label still imports, values and colors unchanged, and the label is written back", async () => {
+    const { repo, store } = await midGame();
+    const exp = await buildExport(repo, store.getSnapshot().meta.id, { appVersion: "0.1.0", now });
+    const labelled = [
+      { value: 500, color: "#6a1b9a", label: "500" },
+      { value: 1, color: "#c62828", label: "5" },
+    ];
+    const file = JSON.parse(JSON.stringify(exp)) as typeof exp;
+    const old = { ...file, session: { ...file.session, chipSet: { chips: labelled } } };
+    const parsed = await parseImport(old);
+    if (!parsed.ok) throw new Error(parsed.errorEs);
+
+    const fresh = new SessionRepo(await openCompanionDb(freshDbName()));
+    const meta = await importSession(fresh, parsed, { mode: "replace" });
+    expect(meta.chipSet.chips.map((c) => [c.value, c.color])).toEqual([
+      [500, "#6a1b9a"],
+      [1, "#c62828"],
+    ]);
+    const again = await buildExport(fresh, meta.id, { appVersion: "0.1.0", now });
+    expect(again.session.chipSet.chips).toEqual(labelled);
+  });
+});
+
+describe("bank pins on export and import (feature 008, FR-022d)", () => {
+  it("survive an export → import", async () => {
+    const { repo, store } = await midGame();
+    await store.updateMeta({ bankPins: { "500": 6 } });
+    const exp = await buildExport(repo, store.getSnapshot().meta.id, { appVersion: "0.1.0", now });
+    expect(exp.session.bankPins).toEqual({ "500": 6 });
+    const parsed = await parseImport(JSON.parse(JSON.stringify(exp)));
+    if (!parsed.ok) throw new Error(parsed.errorEs);
+    const fresh = new SessionRepo(await openCompanionDb(freshDbName()));
+    const meta = await importSession(fresh, parsed, { mode: "replace" });
+    expect((await fresh.loadSession(meta.id))?.meta.bankPins).toEqual({ "500": 6 });
+  });
+
+  it("an export without bankPins imports with no pins", async () => {
+    const { repo, store } = await midGame();
+    const exp = await buildExport(repo, store.getSnapshot().meta.id, { appVersion: "0.1.0", now });
+    expect("bankPins" in exp.session).toBe(false);
+    const parsed = await parseImport(JSON.parse(JSON.stringify(exp)));
+    if (!parsed.ok) throw new Error(parsed.errorEs);
+    const meta = await importSession(new SessionRepo(await openCompanionDb(freshDbName())), parsed, { mode: "copy" });
+    expect(meta.bankPins).toBeUndefined();
+    expect("bankPins" in meta).toBe(false);
+  });
+});

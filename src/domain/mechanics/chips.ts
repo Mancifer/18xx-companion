@@ -1,6 +1,6 @@
-import type { Chip, ChipSet } from "../types";
+import type { ChipSet } from "../types";
 
-/** data-model §12. null = no exact change with the chips available. */
+/** data-model §12. null = the chips cannot make the amount exactly. */
 export type ChipBreakdown = { readonly chips: readonly { readonly value: number; readonly count: number }[]; readonly total: number } | null;
 
 /**
@@ -9,14 +9,26 @@ export type ChipBreakdown = { readonly chips: readonly { readonly value: number;
  */
 export function isCanonical(values: readonly number[]): boolean {
   const asc = [...values].sort((a, b) => a - b);
+  const key = asc.join(",");
+  const known = canonicalCache.get(key);
+  if (known !== undefined) return known;
+  const result = checkCanonical(asc);
+  canonicalCache.set(key, result);
+  return result;
+}
+
+/** Chip sets are few and rarely change, while breakdowns run on every toast. */
+const canonicalCache = new Map<string, boolean>();
+
+function checkCanonical(asc: readonly number[]): boolean {
   if (asc[0] !== 1) return false;
   if (asc.length <= 2) return true;
   const lo = (asc[2] ?? 0) + 2;
   const hi = (asc.at(-1) ?? 0) + (asc.at(-2) ?? 0) - 1;
-  const unlimited = { chips: asc.map((value) => ({ value, color: "" })) };
+  const unlimited = asc.map((value) => ({ value, count: undefined }));
   for (let x = lo; x <= hi; x++) {
     const g = greedy(asc, x);
-    const d = dp(unlimited, x);
+    const d = boundedFewest(unlimited, x);
     if (!g || !d || count(g) > count(d)) return false;
   }
   return true;
@@ -37,19 +49,24 @@ function greedy(ascending: readonly number[], amount: number): NonNullable<ChipB
 
 /**
  * Bounded change-making by dynamic programming (research R11), minimizing the number of chips
- * and respecting `countAvailable`. Unlimited chips use the unbounded recurrence; limited ones are
- * split into 1, 2, 4, … bundles (0/1 items), so a full-bank amount stays fast.
+ * within each value's `count` (`undefined` = unlimited). Unlimited chips use the unbounded
+ * recurrence; limited ones are split into 1, 2, 4, … bundles (0/1 items), so a full-bank amount
+ * stays fast. Used by the setup plan (feature 008); mid-game breakdowns ignore counts.
  */
-function dp(set: ChipSet, amount: number): ChipBreakdown {
+export function boundedFewest(
+  available: readonly { readonly value: number; readonly count: number | undefined }[],
+  amount: number,
+): ChipBreakdown {
+  if (amount < 0) return null;
   type Item = { value: number; per: number; unlimited: boolean };
   const items: Item[] = [];
-  for (const chip of set.chips) {
+  for (const chip of available) {
     if (chip.value <= 0) continue;
-    if (chip.countAvailable === undefined) {
+    if (chip.count === undefined) {
       items.push({ value: chip.value, per: 1, unlimited: true });
       continue;
     }
-    let left = Math.min(chip.countAvailable, Math.floor(amount / chip.value));
+    let left = Math.min(chip.count, Math.floor(amount / chip.value));
     for (let k = 1; left > 0; k *= 2) {
       const take = Math.min(k, left);
       items.push({ value: chip.value, per: take, unlimited: false });
@@ -97,31 +114,22 @@ function dp(set: ChipSet, amount: number): ChipBreakdown {
   return { chips, total: amount };
 }
 
-/** The fewest chips that make `amount` (FR-081). Greedy when the set allows it. */
+/**
+ * The fewest chips that make `amount` (FR-081). Greedy when the set allows it. Counts are ignored
+ * (feature 008, FR-013): mid-game, making change is up to the table.
+ */
 export function breakdown(set: ChipSet, amount: number): ChipBreakdown {
   if (amount < 0) return null;
   if (amount === 0) return { chips: [], total: 0 };
   const values = set.chips.map((c) => c.value);
-  const limited = set.chips.some((c) => c.countAvailable !== undefined);
-  if (!limited && isCanonical(values)) return greedy([...values].sort((a, b) => a - b), amount);
-  return dp(set, amount);
+  if (isCanonical(values)) return greedy([...values].sort((a, b) => a - b), amount);
+  return boundedFewest(values.map((value) => ({ value, count: undefined })), amount);
 }
 
 /** Paying `amount` with one chip of `chipValue`: the change, as chips (US6-2). */
 export function change(set: ChipSet, chipValue: number, amount: number): ChipBreakdown {
   if (chipValue <= amount) return null;
   return breakdown(set, chipValue - amount);
-}
-
-/**
- * What a chip shows: its label, or its value. A label made only of digits must match the value
- * (it is what is printed on the chip), so one that differs is a stale echo of an old value and
- * the value is shown instead (bug chip-denomination-stale-label).
- */
-export function chipLabel(chip: Pick<Chip, "value" | "label">): string {
-  const { label, value } = chip;
-  if (!label || (/^\d+$/.test(label) && label !== String(value))) return String(value);
-  return label;
 }
 
 /** "sorted by value descending; values unique and > 0" (data-model §12). */

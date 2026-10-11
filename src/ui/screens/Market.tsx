@@ -117,19 +117,20 @@ export function Market() {
             : "Arrastra una ficha, o tócala y después toca una casilla."}
         </p>
         {game.market.shape === "1d" ? (
-          // RotLA (research R1): the one-column track as a strip that wraps on phones, highest
-          // price first; the current phase's launch range is highlighted.
+          // RotLA (research R1): the one-column track as a strip that wraps on phones, lowest
+          // price first (closed on the left, as on the board) — the data stays top-down so up/down
+          // moves work, only the display is reversed; the current phase's launch range is highlighted.
           <div className="market-strip" data-testid="market-strip">
-            {game.market.cells.flatMap((row, r) =>
-              row.flatMap((cell, c) => {
-                if (!cell) return [];
+            {game.market.cells
+              .flatMap((row, r) => row.flatMap((cell, c) => (cell ? [{ cell, ref: { row: r, col: c } }] : [])))
+              .reverse()
+              .map(({ cell, ref }, position) => {
                 const closed = cell.tags?.includes("closed") ?? false;
                 const range = phase?.launchPriceRange;
                 const inRange = range !== undefined && !closed && cell.price >= range[0] && cell.price <= range[1];
-                const label = `Casilla ${closed ? "cerrada" : formatMoney(cell.price, game)} (posición ${r + 1})${inRange ? ", precio de salida" : ""}`;
-                return [cellView({ row: r, col: c }, cell.price, `${closed ? "tag-closed" : ""}${inRange ? " launch-range" : ""}`, label)];
-              }),
-            )}
+                const label = `Casilla ${closed ? "cerrada" : formatMoney(cell.price, game)} (posición ${position + 1})${inRange ? ", precio de salida" : ""}`;
+                return cellView(ref, cell.price, `${closed ? "tag-closed" : ""}${inRange ? " launch-range" : ""}`, label);
+              })}
           </div>
         ) : (
           <div className="market-scroll">

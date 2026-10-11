@@ -61,6 +61,25 @@ describe("RotLA's 1-D track (T102)", () => {
     const at80 = within(strip).getByRole("button", { name: /^Casilla \$80/ });
     expect(within(at80).getAllByRole("button", { name: /^Ficha/ }).map((b) => b.getAttribute("aria-label"))).toEqual(["Ficha TUN", "Ficha EXP"]);
     const inRange = cells.filter((c) => c.classList.contains("launch-range")).map((c) => c.getAttribute("aria-label")?.split(" ")[1]);
-    expect(inRange).toEqual(["$90", "$80", "$70", "$60"]);
+    expect(inRange).toEqual(["$60", "$70", "$80", "$90"]);
+  });
+
+  it("reads like the board: Cerrada first (posición 1), $500 last (posición 27), and moves still land on the tapped cell", async () => {
+    const { user } = await openSeededTable({
+      game: "rotla",
+      players: ["Ana", "Bruno", "Carla"],
+      actions: [{ type: "launchCompany", player: "p1", company: "TUN", bid: 160, price: null }],
+    });
+    await openMenuItem(user, "Mercado");
+    const strip = await screen.findByTestId("market-strip");
+    const cells = within(strip).getAllByRole("button", { name: /^Casilla/ });
+    expect(cells.at(0)?.getAttribute("aria-label")).toMatch(/^Casilla cerrada \(posición 1\)/);
+    expect(cells.at(-1)?.getAttribute("aria-label")).toMatch(/^Casilla \$500 \(posición 27\)/);
+
+    await user.click(within(strip).getByRole("button", { name: "Ficha TUN" }));
+    await user.click(within(strip).getByRole("button", { name: /^Casilla \$120/ }));
+    const at120 = within(strip).getByRole("button", { name: /^Casilla \$120/ });
+    expect(await within(at120).findByRole("button", { name: "Ficha TUN" })).toBeTruthy();
+    expect(screen.getByText(/TUN movida a mano a \$120/)).toBeTruthy();
   });
 });

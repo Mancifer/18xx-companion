@@ -46,6 +46,22 @@ describe("chips in the toast (US6, FR-081)", () => {
     expect(within(change).getByText("cambio:")).toBeTruthy();
     expect(within(change).getAllByLabelText(/×/).map((el) => el.getAttribute("aria-label"))).toEqual(["2 × 25", "4 × 5"]);
   });
+
+  it("a payment between players shows chips and offers change too", async () => {
+    const { user } = await openSeededTable();
+    await user.click(screen.getByText("Ana", { selector: ".player-name" }).closest("button")!);
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Pagar…" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getByRole("button", { name: "Bruno" }));
+    for (const d of "30") await user.click(within(dialog).getByRole("button", { name: new RegExp(`^${d}$`) }));
+    await user.click(within(dialog).getByRole("button", { name: /^Pagar \$30/ }));
+
+    const toast = (await screen.findByText(/Ana paga \$30 a Bruno/)).closest(".toast") as HTMLElement;
+    expect(within(toast).getByText(/Ana paga a Bruno \$30/)).toBeTruthy();
+    expect(within(toast).getAllByLabelText(/×/).map((el) => el.getAttribute("aria-label"))).toEqual(["1 × 25", "1 × 5"]);
+    await user.click(within(toast).getByRole("button", { name: "100" }));
+    expect(toast.querySelector(".chip-change")).toBeTruthy();
+  });
 });
 
 describe("the chip editor without labels (feature 008, US2)", () => {

@@ -52,8 +52,8 @@ exports[`recorded Claude responses baseline (T002) > buy-private 1`] = `
   "flows": [
     {
       "amount": 20,
-      "counterparty": "player:p2",
-      "direction": "toBank",
+      "from": "player:p2",
+      "to": "bank",
     },
   ],
   "kind": "proposal",
@@ -210,13 +210,13 @@ exports[`recorded Claude responses baseline (T002) > compound 1`] = `
   "flows": [
     {
       "amount": 300,
-      "counterparty": "company:PRR",
-      "direction": "toBank",
+      "from": "company:PRR",
+      "to": "bank",
     },
     {
       "amount": 174,
-      "counterparty": "player:p1",
-      "direction": "fromBank",
+      "from": "bank",
+      "to": "player:p1",
     },
   ],
   "kind": "proposal",
@@ -367,8 +367,8 @@ exports[`recorded Claude responses baseline (T002) > payout 1`] = `
   "flows": [
     {
       "amount": 144,
-      "counterparty": "player:p1",
-      "direction": "fromBank",
+      "from": "bank",
+      "to": "player:p1",
     },
   ],
   "kind": "proposal",

@@ -1,7 +1,7 @@
 import type { Action } from "../domain/actions/schemas";
 import { runPipeline } from "../domain/actions/pipeline";
 import { summaryEs } from "../domain/i18n/es";
-import { bankFlows } from "../domain/ledger/flows";
+import { moneyFlows } from "../domain/ledger/flows";
 import type { Interpreter } from "../voice/interpreter";
 import { resolveError, resolveResponse, type ResolveContext, type VoiceResult } from "../voice/resolve";
 import { snapshotAndTranscript } from "../voice/snapshot";
@@ -145,7 +145,7 @@ export class VoiceController {
         events: run.events,
         warnings: run.warnings,
         summaryEs: summaryEs(run.action, ctx, run.events),
-        flows: bankFlows(run.events),
+        flows: moneyFlows(run.events),
       },
     });
   }

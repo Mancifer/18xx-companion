@@ -418,8 +418,8 @@ and history are identical and no AI key is present in the file.
 
 - **FR-080**: Users MUST be able to configure a chip set per session (value, color, optional
   label, optional count available), starting from a per-game preset.
-- **FR-081**: For every confirmed transaction into or out of the bank, the system MUST show the
-  chips to hand over with the fewest chips possible, respecting available counts, and MUST show
+- **FR-081**: For every confirmed money transfer, whoever pays and receives (bank, player or
+  company), the system MUST show the chips to hand over with the fewest chips possible, respecting available counts, and MUST show
   change when a payment is made with larger chips.
 - **FR-082**: The system MUST show remaining bank total and a "bank broken" status at zero.
 

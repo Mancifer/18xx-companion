@@ -3,9 +3,9 @@ import { useFeedback } from "../../app/AppProvider";
 import { useDispatch, useSession } from "../../app/useSession";
 import { holderName, summaryEs } from "../../domain/i18n/es";
 import { formatMoney } from "../../domain/i18n/format";
-import { bankFlows } from "../../domain/ledger/flows";
+import { moneyFlows } from "../../domain/ledger/flows";
 import type { HolderRef } from "../../domain/types";
-import { ChipStrip } from "./ChipStrip";
+import { ChipStrip, flowLabel } from "./ChipStrip";
 import type { GroupEntry } from "../../domain/ledger/entries";
 
 const VISIBLE_MS = 6000;
@@ -53,7 +53,9 @@ export function UndoToast({ extra }: { extra?: (group: GroupEntry) => ReactNode 
     );
   }
   const { group } = feedback;
-  // Takeovers and bankruptcies move money in many directions: list every flow (T093).
+  // Takeovers and bankruptcies move money in many directions: list every flow (T093). With chips,
+  // the chip strips below already show each flow.
+  const chips = meta.chipSet.chips.length > 0;
   const multiStep = group.events.some(
     (e) =>
       (e.t === "companyStatus" && (e.status === "receivership" || e.status === "bankrupt")) ||
@@ -68,7 +70,7 @@ export function UndoToast({ extra }: { extra?: (group: GroupEntry) => ReactNode 
           ⚠ {w.messageEs}
         </span>
       ))}
-      {multiStep ? (
+      {multiStep && !chips ? (
         <ul className="toast-flows">
           {group.events.flatMap((e, i) =>
             e.t === "moneyTransfer"
@@ -81,15 +83,9 @@ export function UndoToast({ extra }: { extra?: (group: GroupEntry) => ReactNode 
           )}
         </ul>
       ) : null}
-      {meta.chipSet.chips.length > 0
-        ? bankFlows(group.events).map((flow) => (
-            <ChipStrip
-              key={flow.counterparty}
-              flow={flow}
-              set={meta.chipSet}
-              game={meta.game}
-              label={flow.direction === "fromBank" ? `El banco paga a ${name(flow.counterparty)}` : `${name(flow.counterparty)} paga al banco`}
-            />
+      {chips
+        ? moneyFlows(group.events).map((flow) => (
+            <ChipStrip key={`${flow.from}|${flow.to}`} flow={flow} set={meta.chipSet} game={meta.game} label={flowLabel(flow, name)} />
           ))
         : null}
       {extra?.(group)}

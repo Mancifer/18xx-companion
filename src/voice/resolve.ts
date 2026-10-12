@@ -6,7 +6,7 @@ import { ActionSchema, type Action, type Warning } from "../domain/actions/schem
 import type { PrimitiveEvent } from "../domain/events/types";
 import { proposalSummaryEs, summaryEs } from "../domain/i18n/es";
 import type { EffectiveGroup } from "../domain/ledger/effectiveLog";
-import { bankFlows, type MoneyFlow } from "../domain/ledger/flows";
+import { moneyFlows, type MoneyFlow } from "../domain/ledger/flows";
 import { answerQuery, QUERY_KINDS, type QueryAnswer } from "../domain/queries";
 import { VoiceProviderError, type ProviderErrorKind } from "./errors";
 import type { ModelReply } from "./reply";
@@ -136,7 +136,7 @@ export function resolveResponse(reply: ModelReply, ctx: ResolveContext, transcri
     events: result.events,
     warnings: result.warnings,
     summaryEs: proposalSummaryEs(result.action, ctx, result.events),
-    flows: bankFlows(result.events),
+    flows: moneyFlows(result.events),
   };
 }
 

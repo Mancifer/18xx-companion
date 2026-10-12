@@ -107,7 +107,7 @@ export function LaunchSheet({ companyId, onClose }: { companyId?: CompanyId; onC
           ) : null}
           {playerName && bid !== null && bid > 0 && meta.chipSet.chips.length > 0 ? (
             <ChipStrip
-              flow={{ counterparty: `player:${player ?? ""}`, direction: "toBank", amount: bid }}
+              flow={{ from: `player:${player ?? ""}`, to: `company:${company ?? ""}`, amount: bid }}
               set={meta.chipSet}
               game={game}
               label={`${playerName} entrega`}

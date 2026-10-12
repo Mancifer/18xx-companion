@@ -1,29 +1,26 @@
 import type { PrimitiveEvent } from "../events/types";
 import type { HolderRef } from "../types";
 
-/** One counterparty's net money with the bank in a group (FR-081: what changes hands in chips). */
+/** The net money one holder pays another in a group (FR-081: what changes hands in chips). */
 export interface MoneyFlow {
-  readonly counterparty: HolderRef;
-  readonly direction: "fromBank" | "toBank";
+  readonly from: HolderRef;
+  readonly to: HolderRef;
   readonly amount: number;
 }
 
 /**
- * The bank's flows in a group, netted per counterparty, in order of first appearance. Transfers
- * that do not involve the bank (player ↔ company) need no chips from the bank and are left out.
+ * Every pair's net money in a group, in order of first appearance: A → B 100 and B → A 30 net to
+ * A → B 70. Any payer may need chips or change, whether or not the bank is involved.
  */
-export function bankFlows(events: readonly PrimitiveEvent[]): MoneyFlow[] {
-  const net = new Map<HolderRef, number>();
+export function moneyFlows(events: readonly PrimitiveEvent[]): MoneyFlow[] {
+  const net = new Map<string, { a: HolderRef; b: HolderRef; amount: number }>();
   for (const e of events) {
     if (e.t !== "moneyTransfer" || e.from === e.to) continue;
-    if (e.from === "bank") net.set(e.to, (net.get(e.to) ?? 0) + e.amount);
-    else if (e.to === "bank") net.set(e.from, (net.get(e.from) ?? 0) - e.amount);
+    const pair = net.get(`${e.from}|${e.to}`) ?? net.get(`${e.to}|${e.from}`);
+    if (!pair) net.set(`${e.from}|${e.to}`, { a: e.from, b: e.to, amount: e.amount });
+    else pair.amount += pair.a === e.from ? e.amount : -e.amount;
   }
-  return [...net]
-    .filter(([, amount]) => amount !== 0)
-    .map(([counterparty, amount]) => ({
-      counterparty,
-      direction: amount > 0 ? ("fromBank" as const) : ("toBank" as const),
-      amount: Math.abs(amount),
-    }));
+  return [...net.values()]
+    .filter((p) => p.amount !== 0)
+    .map((p) => (p.amount > 0 ? { from: p.a, to: p.b, amount: p.amount } : { from: p.b, to: p.a, amount: -p.amount }));
 }

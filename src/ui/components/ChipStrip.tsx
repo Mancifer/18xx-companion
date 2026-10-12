@@ -3,7 +3,7 @@ import type { GameDefinition } from "../../domain/games/schema";
 import { formatMoney } from "../../domain/i18n/format";
 import type { MoneyFlow } from "../../domain/ledger/flows";
 import { breakdown, change, type ChipBreakdown } from "../../domain/mechanics/chips";
-import type { ChipSet } from "../../domain/types";
+import type { ChipSet, HolderRef } from "../../domain/types";
 
 type ChipCount = { readonly value: number; readonly count: number };
 
@@ -49,9 +49,15 @@ function Discs({ result, set }: { result: ChipBreakdown; set: ChipSet }) {
   return <ChipDiscs chips={result.chips} set={set} />;
 }
 
+/** "El banco paga a Ana", "Ana paga al banco", "Ana paga a PRR". */
+export function flowLabel(flow: MoneyFlow, name: (h: HolderRef) => string): string {
+  const payer = name(flow.from);
+  return `${payer.charAt(0).toLocaleUpperCase("es")}${payer.slice(1)} paga ${flow.to === "bank" ? "al banco" : `a ${name(flow.to)}`}`;
+}
+
 /**
- * The chips for one bank flow (FR-081, US6): colored discs with count and value label (never
- * color alone). For a payment to the bank, "pagó con…" picks a larger chip and shows the change.
+ * The chips for one money flow (FR-081, US6): colored discs with count and value label (never
+ * color alone). Unless the bank pays, "pagó con…" picks a larger chip and shows the change.
  */
 export function ChipStrip({
   flow,
@@ -72,7 +78,7 @@ export function ChipStrip({
         {label} {formatMoney(flow.amount, game)}:
       </span>
       <Discs result={breakdown(set, flow.amount)} set={set} />
-      {flow.direction === "toBank" && larger.length > 0 ? (
+      {flow.from !== "bank" && larger.length > 0 ? (
         <span className="chip-paid-with">
           <span className="muted">pagó con</span>
           {larger.slice(-2).map((v) => (

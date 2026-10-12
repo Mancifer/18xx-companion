@@ -31,14 +31,14 @@ function context(log: LogEntry[] = []) {
 }
 
 describe("resolveResponse", () => {
-  it("one action → one proposal with its Spanish summary and bank flows", () => {
+  it("one action → one proposal with its Spanish summary and money flows", () => {
     const r = resolveResponse(recorded("payout"), context(), "240, paga");
     expect(r.kind).toBe("proposal");
     if (r.kind !== "proposal") return;
     expect(r.transcript).toBe("240, paga");
     expect(r.actions).toEqual([{ type: "runAndPayout", company: null, parts: [{ part: "revenue", amount: 240 }], mode: "full" }]);
     expect(r.summaryEs).toContain("PRR paga $240");
-    expect(r.flows).toEqual([{ counterparty: "player:p1", direction: "fromBank", amount: 144 }]);
+    expect(r.flows).toEqual([{ from: "bank", to: "player:p1", amount: 144 }]);
   });
 
   it("US5-2: two tool calls are one proposal with both actions in order, as one group", () => {

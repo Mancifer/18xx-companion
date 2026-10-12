@@ -6,7 +6,7 @@ import { formatMoney } from "../../domain/i18n/format";
 import type { HolderRef } from "../../domain/types";
 import type { VoiceResult } from "../../voice/resolve";
 import { editableFields, getField, setField, type ActionField } from "../actionFields";
-import { ChipStrip } from "./ChipStrip";
+import { ChipStrip, flowLabel } from "./ChipStrip";
 import { Keypad } from "./Keypad";
 
 type Proposal = Extract<VoiceResult, { kind: "proposal" }>;
@@ -59,7 +59,7 @@ export function ConfirmationCard({
       {proposal.action.type === "launchCompany" && meta.chipSet.chips.length > 0 ? (
         // US2-5: the whole bid goes from the player to the new treasury, in chips.
         <ChipStrip
-          flow={{ counterparty: `player:${proposal.action.player}`, direction: "toBank", amount: proposal.action.bid }}
+          flow={{ from: `player:${proposal.action.player}`, to: `company:${proposal.action.company}`, amount: proposal.action.bid }}
           set={meta.chipSet}
           game={meta.game}
           label={`${name(`player:${proposal.action.player}`)} entrega`}
@@ -68,16 +68,16 @@ export function ConfirmationCard({
       {proposal.flows.length > 0 ? (
         <ul className="toast-flows">
           {proposal.flows.map((f) => (
-            <li key={f.counterparty}>
+            <li key={`${f.from}|${f.to}`}>
               {meta.chipSet.chips.length > 0 ? (
                 <ChipStrip
                   flow={f}
                   set={meta.chipSet}
                   game={meta.game}
-                  label={f.direction === "fromBank" ? `El banco paga a ${name(f.counterparty)}` : `${name(f.counterparty)} paga al banco`}
+                  label={flowLabel(f, name)}
                 />
               ) : (
-                `${f.direction === "fromBank" ? `Banco → ${name(f.counterparty)}` : `${name(f.counterparty)} → banco`}: ${formatMoney(f.amount, meta.game)}`
+                `${name(f.from)} → ${name(f.to)}: ${formatMoney(f.amount, meta.game)}`
               )}
             </li>
           ))}

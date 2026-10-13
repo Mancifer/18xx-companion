@@ -2,15 +2,15 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
 import type { Action } from "../../domain/actions/schemas";
 import type { PrimitiveEvent } from "../../domain/events/types";
-import { eventLineEs, summaryEs } from "../../domain/i18n/es";
-import { isAmendable } from "../../domain/ledger/amend";
-import type { EffectiveGroup } from "../../domain/ledger/effectiveLog";
+import { balanceLineEs, movementLineEs, summaryEs, UNDO_RANGE_ES, type SummaryContext } from "../../domain/i18n/es";
+import { entryBreakdown } from "../../domain/ledger/breakdown";
 import { groupHistory, type GroupHistory } from "../../domain/ledger/effectiveLog";
-import type { EntrySource } from "../../domain/ledger/entries";
-import { DependentsDialog } from "../components/DependentsDialog";
+import type { EntrySource, LogEntry } from "../../domain/ledger/entries";
+import { isSetup, newestUndoable, type UndoRange } from "../../domain/ledger/undo";
+import { UndoRangeSheet } from "../components/UndoRangeSheet";
+import { UndoToast } from "../components/UndoToast";
 import { useNav } from "../nav";
 import { useExportSession } from "../useExport";
-import { AmendSheet } from "../sheets/AmendSheet";
 
 const SOURCE_ICON: Readonly<Record<EntrySource, { icon: string; label: string }>> = {
   touch: { icon: "👆", label: "Toque" },
@@ -24,24 +24,26 @@ function time(iso: string): string {
 }
 
 /**
- * Every entry, newest first (FR-013): reverted entries struck through, amended ones with the
- * original and the correction (US2-2), and the first entry after which an invariant broke
- * highlighted (FR-015). Each active entry can be undone or corrected.
+ * Every entry, newest first (FR-013): undone entries struck through, legacy corrected ones with
+ * the original and the latest version, and the first entry after which an invariant broke
+ * highlighted (FR-015). Undo only runs in order (feature 010): the newest entry has "Deshacer"
+ * on its row; any older active entry has "Deshacer hasta acá" in its panel, with a confirmation.
+ * One tap on a row shows where the money went (US3); the breakdown is computed only then.
  */
 export function History({ extraActions }: { extraActions?: ReactNode }) {
   const { meta, log, violations, autoEndGroups } = useSession();
-  const { revert } = useDispatch();
+  const { undoLast, undoTo } = useDispatch();
   const { go } = useNav();
   const exportSession = useExportSession();
-  const [amending, setAmending] = useState<{ groupId: string; action: Action } | null>(null);
-  const [pending, setPending] = useState<{ groupId: string; dependents: readonly EffectiveGroup[] } | null>(null);
+  const [confirming, setConfirming] = useState<UndoRange | null>(null);
   const history = useMemo(() => [...groupHistory(log)].sort((a, b) => b.group.seq - a.group.seq), [log]);
+  const newestId = useMemo(() => newestUndoable(log)?.id, [log]);
   const badGroups = new Set(violations.map((v) => v.firstBadGroupId));
   const ctx = { game: meta.game, players: meta.players };
 
-  const undo = async (groupId: string, confirmed: boolean) => {
-    const result = await revert(groupId, { confirmed });
-    if (!result.ok && result.error === "dependents") setPending({ groupId, dependents: result.dependents });
+  const undoBackTo = async (groupId: string) => {
+    const result = await undoTo(groupId);
+    if (!result.ok && result.error === "confirmRange") setConfirming(result.range);
   };
 
   return (
@@ -62,115 +64,143 @@ export function History({ extraActions }: { extraActions?: ReactNode }) {
         ) : null}
         {history.length === 0 ? <p className="muted">Todavía no hay entradas.</p> : null}
         <ol className="history-list">
-          {history.map((h) => (
-            <HistoryItem
-              key={h.group.id}
-              item={h}
-              bad={badGroups.has(h.group.id)}
-              autoEnd={autoEndGroups.includes(h.group.id)}
-              summary={(a, events) => summaryEs(a, ctx, events)}
-              lines={(e) => eventLineEs(e, ctx)}
-              onUndo={() => void undo(h.group.id, false)}
-              onAmend={() => {
-                const latest = h.versions[h.versions.length - 1] ?? h.versions[0];
-                if (latest) setAmending({ groupId: h.group.id, action: latest.action });
-              }}
-            />
-          ))}
+          {history.map((h) => {
+            const undoable = h.status !== "reverted" && !isSetup(h.group);
+            return (
+              <HistoryItem
+                key={h.group.id}
+                item={h}
+                bad={badGroups.has(h.group.id)}
+                autoEnd={autoEndGroups.includes(h.group.id)}
+                summary={(a, events) => summaryEs(a, ctx, events)}
+                log={log}
+                ctx={ctx}
+                onUndo={h.group.id === newestId ? () => void undoLast() : undefined}
+                onUndoBackTo={undoable && h.group.id !== newestId ? () => void undoBackTo(h.group.id) : undefined}
+              />
+            );
+          })}
         </ol>
       </div>
-      {amending ? <AmendSheet groupId={amending.groupId} action={amending.action} onClose={() => setAmending(null)} /> : null}
-      {pending ? (
-        <DependentsDialog
-          dependents={pending.dependents}
-          onCancel={() => setPending(null)}
-          onConfirm={() => {
-            const id = pending.groupId;
-            setPending(null);
-            void undo(id, true);
-          }}
+      {confirming ? (
+        <UndoRangeSheet
+          range={confirming}
+          ctx={ctx}
+          onConfirm={() => undoTo(confirming.targetId, { confirmed: true })}
+          onClose={() => setConfirming(null)}
         />
       ) : null}
+      <UndoToast undoOnly />
     </main>
   );
 }
-
-/** Groups whose single line cannot show every transfer: History lists them on demand (US7-7). */
-const MULTI_STEP: ReadonlySet<string> = new Set(["mergeCompanies", "forcedTrainPurchase", "declareBankruptcy"]);
 
 function HistoryItem({
   item,
   bad,
   autoEnd,
   summary,
-  lines,
+  log,
+  ctx,
   onUndo,
-  onAmend,
+  onUndoBackTo,
 }: {
   item: GroupHistory;
   bad: boolean;
   /** The group reached an automatic game end (feature 007), even if the game was reopened since. */
   autoEnd: boolean;
   summary: (a: Action, events: readonly PrimitiveEvent[]) => string;
-  /** One line per transfer, for multi-step groups (US7-7). */
-  lines?: (e: PrimitiveEvent) => string | undefined;
-  onUndo: () => void;
-  onAmend: () => void;
+  log: readonly LogEntry[];
+  ctx: SummaryContext;
+  /** Only for the newest effective non-setup entry. */
+  onUndo?: (() => void) | undefined;
+  /** For every other effective non-setup entry. */
+  onUndoBackTo?: (() => void) | undefined;
 }) {
   const { group, status, versions } = item;
   const source = SOURCE_ICON[group.source];
   const original = versions[0];
   const latest = versions[versions.length - 1];
-  const editable = status !== "reverted" && group.action.type !== "createSession";
+  const [open, setOpen] = useState(false);
   return (
     <li className={`history-item status-${status}${bad ? " invariant-broken" : ""}`} data-group={group.id}>
-      <div className="history-head">
-        <span className="history-source" title={source.label} aria-label={source.label}>
-          {source.icon}
-        </span>
-        <span className="muted">{time(group.at)}</span>
-        {status === "reverted" ? <span className="badge">deshecha</span> : null}
-        {status === "amended" ? <span className="badge">corregida</span> : null}
-        {bad ? <span className="badge danger">descuadre desde aquí</span> : null}
-        {autoEnd ? <span className="badge">Fin de la partida (automático)</span> : null}
-      </div>
-      {status === "amended" && original && latest ? (
-        <div className="history-summary">
-          <s className="muted">{summary(original.action, original.events)}</s>
-          <span>{summary(latest.action, latest.events)}</span>
-        </div>
-      ) : (
-        <div className="history-summary">
-          {status === "reverted" ? (
-            <s>{summary(group.action, group.events)}</s>
+      <details className="history-details" onToggle={(e) => setOpen(e.currentTarget.open)}>
+        <summary>
+          <div className="history-head">
+            <span className="history-source" title={source.label} aria-label={source.label}>
+              {source.icon}
+            </span>
+            <span className="muted">{time(group.at)}</span>
+            {status === "reverted" ? <span className="badge">deshecha</span> : null}
+            {status === "amended" ? <span className="badge">corregida</span> : null}
+            {bad ? <span className="badge danger">descuadre desde acá</span> : null}
+            {autoEnd ? <span className="badge">Fin de la partida (automático)</span> : null}
+          </div>
+          {status === "amended" && original && latest ? (
+            <div className="history-summary">
+              <s className="muted">{summary(original.action, original.events)}</s>
+              <span>{summary(latest.action, latest.events)}</span>
+            </div>
           ) : (
-            <span>{summary(group.action, group.events)}</span>
+            <div className="history-summary">
+              {status === "reverted" ? (
+                <s>{summary(group.action, group.events)}</s>
+              ) : (
+                <span>{summary(group.action, group.events)}</span>
+              )}
+            </div>
           )}
+        </summary>
+        <div className="history-panel">
+          {open ? <Breakdown log={log} groupId={group.id} ctx={ctx} /> : null}
+          {group.transcript ? <p className="muted transcript">«{group.transcript}»</p> : null}
+          {group.warnings.map((w) => (
+            <p key={w.code} className="toast-warning">
+              ⚠ {w.messageEs}
+            </p>
+          ))}
+          {onUndoBackTo ? (
+            <div className="row">
+              <button onClick={onUndoBackTo}>{UNDO_RANGE_ES.undoBackToHere}</button>
+            </div>
+          ) : null}
         </div>
-      )}
-      {MULTI_STEP.has(group.action.type) && lines ? (
-        <details className="history-moves">
-          <summary>Movimientos</summary>
-          <ul>
-            {group.events.map((e, i) => {
-              const line = lines(e);
-              return line ? <li key={i}>{line}</li> : null;
-            })}
-          </ul>
-        </details>
-      ) : null}
-      {group.transcript ? <p className="muted transcript">«{group.transcript}»</p> : null}
-      {group.warnings.map((w) => (
-        <p key={w.code} className="toast-warning">
-          ⚠ {w.messageEs}
-        </p>
-      ))}
-      {editable ? (
+      </details>
+      {onUndo ? (
         <div className="row">
-          <button onClick={onUndo}>{status === "amended" ? "Deshacer corrección" : "Deshacer"}</button>
-          {isAmendable(group.action) ? <button onClick={onAmend}>Corregir</button> : null}
+          <button onClick={onUndo}>Deshacer</button>
         </div>
       ) : null}
     </li>
+  );
+}
+
+/** "Movimientos" and "Saldos" (feature 010, US3); an empty section is left out. */
+function Breakdown({ log, groupId, ctx }: { log: readonly LogEntry[]; groupId: string; ctx: SummaryContext }) {
+  const breakdown = useMemo(() => entryBreakdown(ctx.game, ctx.players, log, groupId), [ctx.game, ctx.players, log, groupId]);
+  if (!breakdown) return null;
+  const moves = breakdown.movements.flatMap((m, i) => {
+    const line = movementLineEs(m, ctx);
+    return line ? [<li key={i}>{line}</li>] : [];
+  });
+  return (
+    <>
+      {moves.length > 0 ? (
+        <section className="history-moves">
+          <h3>Movimientos</h3>
+          <ul>{moves}</ul>
+        </section>
+      ) : null}
+      {breakdown.balances.length > 0 ? (
+        <section className="history-balances">
+          <h3>Saldos</h3>
+          <ul>
+            {breakdown.balances.map((b) => (
+              <li key={b.holder}>{balanceLineEs(b, ctx)}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+    </>
   );
 }

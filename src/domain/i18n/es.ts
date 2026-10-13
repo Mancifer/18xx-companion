@@ -1,7 +1,8 @@
 import type { ActionContext } from "../actions/context";
 import { ActionSchema, type Action, type ActionOf, type ActionType } from "../actions/schemas";
 import type { TurnState } from "../events/state";
-import type { CompanyStatus, PrimitiveEvent } from "../events/types";
+import type { CompanyStatus, EventOf, PrimitiveEvent } from "../events/types";
+import type { BalanceChange, Movement } from "../ledger/breakdown";
 import { launchPrice, priceAt, priceOf } from "../mechanics/market";
 import { RUSTED } from "../mechanics/phases";
 import { mergePreview } from "../mechanics/custom/mergers";
@@ -102,10 +103,13 @@ const summaries: SummaryMap = {
       : a.from === "bank"
         ? `El banco paga ${formatMoney(a.amount, ctx.game)} a ${name(a.to, ctx)}`
         : `${capitalize(name(a.from, ctx))} paga ${formatMoney(a.amount, ctx.game)} a ${name(a.to, ctx)}`,
-  adjustMoney: (a, ctx) =>
-    a.setTo !== null
-      ? `Dinero de ${name(a.holder, ctx)} fijado en ${formatMoney(a.setTo, ctx.game)}`
-      : `Ajuste de ${formatMoney(a.delta ?? 0, ctx.game)} a ${name(a.holder, ctx)}`,
+  adjustMoney: (a, ctx, events) => {
+    if (a.setTo === null) return `Ajuste de ${formatMoney(a.delta ?? 0, ctx.game)} a ${name(a.holder, ctx)}`;
+    // The difference comes from the group's own event (feature 010, R6).
+    const moved = events?.find((e): e is EventOf<"moneyTransfer"> => e.t === "moneyTransfer");
+    const diff = moved ? ` (${signedMoney(moved.to === a.holder ? moved.amount : -moved.amount, ctx)})` : "";
+    return `${capitalize(name(a.holder, ctx))}: dinero fijado en ${formatMoney(a.setTo, ctx.game)}${diff}`;
+  },
   transferShares: (a, ctx) =>
     `${a.units} ${a.units === 1 ? "acción" : "acciones"} de ${companyName(a.company, ctx)}${a.presidency ? " (presidencia)" : ""}: ${name(a.from, ctx)} → ${name(a.to, ctx)}`,
   note: (a) => `Nota: ${a.text}`,
@@ -128,11 +132,11 @@ const summaries: SummaryMap = {
       .join(", ");
     return `${company}: ${parts}`;
   },
-  buyTrain: (a, ctx) => {
+  buyTrain: (a, ctx, events) => {
     const company = operating(a.company, ctx);
     const train = a.variant ?? a.trainType;
     const from = a.from === "bank" ? "al banco" : a.from === "pool" ? "del pool" : `a ${companyName(a.seller ?? "", ctx)}`;
-    const price = a.price !== null ? ` por ${formatMoney(a.price, ctx.game)}` : "";
+    const price = a.price !== null ? ` por ${formatMoney(a.price, ctx.game)}` : paidEs(events, ctx);
     const tradeIn = a.tradeIn !== null ? ` entregando un ${a.tradeIn}` : "";
     return `${company} compra un ${train} ${from}${price}${tradeIn}`;
   },
@@ -145,7 +149,7 @@ const summaries: SummaryMap = {
   discardTrain: (a, ctx) =>
     `${companyName(a.company, ctx)} descarta un ${a.train.includes(":") ? (a.train.split(":")[1] ?? a.train) : a.train}`,
   changeTrainSupply: (a) => (a.op === "add" ? `Se añade un ${a.trainType} a la oferta` : `Se quita un ${a.trainType} de la oferta`),
-  startOR: () => "Empieza la ronda de operaciones",
+  startOR: (_a, ctx, events) => `Empieza la ronda de operaciones${capitalEs(events, ctx)}`,
   nationalPayout: (a, ctx) => `Pago del banco nacional (+${formatMoney(a.extra, ctx.game)} de ciudades)`,
   takeLoan: (a, ctx) =>
     `${operating(a.company, ctx)} pide ${a.count} ${a.count === 1 ? "préstamo" : "préstamos"}: +${formatMoney(a.count * (ctx.game.loans?.amount ?? 0), ctx.game)}`,
@@ -169,10 +173,14 @@ const summaries: SummaryMap = {
   },
   closeCompany: (a, ctx) => `Se cierra ${companyName(a.company, ctx)}`,
   // Stock round (US4)
-  parCompany: (a, ctx) => `${name(`player:${a.player}`, ctx)} abre la ${companyName(a.company, ctx)} a ${formatMoney(a.price, ctx.game)}`,
-  buyShare: (a, ctx) =>
-    `${capitalize(name(a.buyer, ctx))} compra ${a.count ?? 1} ${companyName(a.company, ctx)} ${SOURCE_ES[a.source]}`,
-  sellShares: (a, ctx) => `${capitalize(name(a.seller, ctx))} vende ${a.count} ${companyName(a.company, ctx)}`,
+  parCompany: (a, ctx, events) => {
+    const paid = singleTransfer(events);
+    const base = `${name(`player:${a.player}`, ctx)} abre la ${companyName(a.company, ctx)} a ${formatMoney(a.price, ctx.game)}`;
+    return paid ? `${base} y paga ${formatMoney(paid.amount, ctx.game)}` : base;
+  },
+  buyShare: (a, ctx, events) =>
+    `${capitalize(name(a.buyer, ctx))} compra ${a.count ?? 1} ${companyName(a.company, ctx)} ${SOURCE_ES[a.source]}${paidEs(events, ctx)}`,
+  sellShares: (a, ctx, events) => `${capitalize(name(a.seller, ctx))} vende ${a.count} ${companyName(a.company, ctx)}${paidEs(events, ctx)}`,
   swapCertificates: (a, ctx) =>
     `${name(`player:${a.player}`, ctx)} cambia ${a.give.units} ${companyName(a.give.company, ctx)} por ${a.take.units} ${companyName(a.take.company, ctx)} con la tesorería de ${companyName(a.company, ctx)}`,
   buyPrivate: (a, ctx) =>
@@ -205,10 +213,10 @@ const summaries: SummaryMap = {
   endGame: (a) => `Fin de la partida ${endConditionsEs(a.triggers ?? [])}`,
   reopenGame: () => "Partida reabierta",
   confirmFloatCondition: (a, ctx) => `Condición de flotación confirmada para ${companyName(a.company, ctx)}`,
-  issueShares: (a, ctx) =>
+  issueShares: (a, ctx, events) =>
     ctx.game.market.moves.issue?.from === "treasury"
-      ? `${companyName(a.company, ctx)} emite ${shareCountEs(a.count)} de su tesorería al pool`
-      : `${companyName(a.company, ctx)} emite ${a.count}`,
+      ? `${companyName(a.company, ctx)} emite ${shareCountEs(a.count)} de su tesorería al pool${paidEs(events, ctx)}`
+      : `${companyName(a.company, ctx)} emite ${a.count}${paidEs(events, ctx)}`,
   redeemShare: (a, ctx) => {
     const id = a.company ?? ctx.state?.turn.currentCompany ?? "";
     const price = ctx.state ? priceOf(ctx.game, ctx.state, id) : undefined;
@@ -344,6 +352,31 @@ export const COUNTER_LABELS: Readonly<Record<string, string>> = {
   nationalTakeovers: "administraciones",
 };
 
+/** The group's only money transfer, if it has exactly one (FR-014). */
+function singleTransfer(events: readonly PrimitiveEvent[] | undefined): EventOf<"moneyTransfer"> | undefined {
+  const transfers = (events ?? []).filter((e): e is EventOf<"moneyTransfer"> => e.t === "moneyTransfer");
+  return transfers.length === 1 ? transfers[0] : undefined;
+}
+
+/** " por $X" from the group's only transfer: the price actually paid (feature 010, R6). */
+function paidEs(events: readonly PrimitiveEvent[] | undefined, ctx: SummaryContext): string {
+  const paid = singleTransfer(events);
+  return paid ? ` por ${formatMoney(paid.amount, ctx.game)}` : "";
+}
+
+/** " · capital de PRR: $X" for each company paid its capital at the end of the round. */
+function capitalEs(events: readonly PrimitiveEvent[] | undefined, ctx: SummaryContext): string {
+  return (events ?? [])
+    .filter((e): e is EventOf<"moneyTransfer"> => e.t === "moneyTransfer" && e.from === "bank" && e.to.startsWith("company:"))
+    .map((e) => ` · capital de ${name(e.to, ctx)}: ${formatMoney(e.amount, ctx.game)}`)
+    .join("");
+}
+
+/** "+$40" / "−$80". */
+function signedMoney(delta: number, ctx: SummaryContext): string {
+  return delta < 0 ? formatMoney(delta, ctx.game) : `+${formatMoney(delta, ctx.game)}`;
+}
+
 /** The named company, or the operating one when null. */
 function operating(id: string | null, ctx: SummaryContext): string {
   const resolved = id ?? ctx.state?.turn.currentCompany;
@@ -451,10 +484,30 @@ function noRunSummary(events: readonly PrimitiveEvent[], ctx: SummaryContext): s
   return moved ? `${companyName(company.id, ctx)} no corrió` : undefined;
 }
 
-/** Summary of an undo, for the toast and History. */
-export function undoSummaryEs(undone: Action, ctx: SummaryContext): string {
-  return `Deshecho: ${summaryEs(undone, ctx)}`;
+type Summarized = { readonly action: Action; readonly events: readonly PrimitiveEvent[] };
+
+/**
+ * The toast after an undo (feature 010), `groups` newest first: "Deshecho: <summary>", or for a
+ * range "Deshechas N entradas: desde <oldest> hasta <newest>".
+ */
+export function undoneEs(groups: readonly Summarized[], ctx: SummaryContext): string {
+  const newest = groups[0];
+  const oldest = groups[groups.length - 1];
+  if (!newest || !oldest) return "";
+  const line = (g: Summarized) => summaryEs(g.action, ctx, g.events);
+  return groups.length === 1 ? `Deshecho: ${line(newest)}` : `Deshechas ${groups.length} entradas: desde ${line(oldest)} hasta ${line(newest)}`;
 }
+
+/** The range confirmation (feature 010, contracts/history-ui.md). Uruguayan voseo (FR-020). */
+export const UNDO_RANGE_ES = {
+  title: (count: number) => `¿Deshacer ${count} entradas?`,
+  from: (summary: string) => `Desde: ${summary}`,
+  to: (summary: string) => `Hasta: ${summary}`,
+  note: "Quedan en el historial marcadas como deshechas. Después volvé a anotar lo que corresponda.",
+  confirm: (count: number) => `Deshacer ${count}`,
+  cancel: "Cancelar",
+  undoBackToHere: "Deshacer hasta acá",
+} as const;
 
 /**
  * One line describing an action, e.g. "Ana paga $100 al banco". With the group's events, the
@@ -480,29 +533,69 @@ export function proposalSummaryEs(action: Action, ctx: SummaryContext, events?: 
   return summaryEs(action, ctx, events);
 }
 
-/**
- * One transfer of a group, for History's "Movimientos" list (US7-7): "2 EXP: Ana → fuera del
- * juego", "$160: EXP → UNI", "tren 3: EXP → UNI". Turn markers and notes have no line.
- */
-export function eventLineEs(e: PrimitiveEvent, ctx: SummaryContext): string | undefined {
-  switch (e.t) {
-    case "shareTransfer":
-      return `${e.units} ${companyName(e.company, ctx)}${e.presidency ? " (presidencia)" : ""}: ${name(e.from, ctx)} → ${name(e.to, ctx)}`;
-    case "moneyTransfer":
-      return `${formatMoney(e.amount, ctx.game)}: ${name(e.from, ctx)} → ${name(e.to, ctx)}`;
-    case "assetTransfer":
-      return `${e.asset.startsWith("train:") ? `tren ${e.asset.split(":")[1] ?? ""}` : e.asset}: ${name(e.from, ctx)} → ${name(e.to, ctx)}`;
-    case "marketMove": {
-      const price = priceAt(ctx.game, e.company, e.to);
-      return `${companyName(e.company, ctx)} → ${price !== undefined ? formatMoney(price, ctx.game) : "?"}`;
-    }
-    case "companyStatus":
-      return `${companyName(e.company, ctx)}: ${statusLabel[e.status]}`;
-    case "counterChange":
-      return `${COUNTER_LABELS[e.key] ?? e.key} de ${name(e.subject, ctx)}: ${e.delta > 0 ? "+" : ""}${e.delta}`;
+/** A holder in a breakdown line: "Banco", "Pool", "IPO", a player's or company's name. */
+function lineHolder(holder: HolderRef, ctx: SummaryContext): string {
+  const h = parseHolder(holder);
+  switch (h.kind) {
+    case "bank":
+      return "Banco";
+    case "pool":
+      return "Pool";
+    case "removed":
+      return "Fuera del juego";
+    case "ipo":
+      return "IPO";
     default:
-      return undefined;
+      return name(holder, ctx);
   }
+}
+
+/** Where a price move lands, labelled as effectsEs does (restack, receivership zone, closed cell). */
+function priceTo(m: Extract<Movement, { kind: "price" }>, ctx: SummaryContext): string {
+  if (m.to === null) return "sin precio";
+  return formatMoney(m.to, ctx.game);
+}
+
+/**
+ * One line of an entry's "Movimientos" (feature 010, contracts/history-ui.md): "$240: Banco →
+ * Ana", "2 PRR: IPO → Ana (presidencia)", "tren 3: Banco → PRR", "PRR: $100 → $112".
+ */
+export function movementLineEs(m: Movement, ctx: SummaryContext): string | undefined {
+  switch (m.kind) {
+    case "money":
+      return `${formatMoney(m.amount, ctx.game)}: ${lineHolder(m.from, ctx)} → ${lineHolder(m.to, ctx)}`;
+    case "shares":
+      return `${m.units} ${companyName(m.company, ctx)}: ${lineHolder(m.from, ctx)} → ${lineHolder(m.to, ctx)}${m.presidency ? " (presidencia)" : ""}`;
+    case "asset": {
+      const [kind, id = ""] = m.asset.split(":");
+      const what = kind === "train" ? `tren ${id}` : kind === "private" ? `privada ${id}` : m.asset;
+      return `${what}: ${lineHolder(m.from, ctx)} → ${lineHolder(m.to, ctx)}`;
+    }
+    case "price": {
+      const company = companyName(m.company, ctx);
+      if (m.reason === "restack") return `${company}: pasa al fondo de la pila`;
+      const from = m.from === null ? "sin precio" : formatMoney(m.from, ctx.game);
+      return `${company}: ${from} → ${priceTo(m, ctx)}${m.zone ? ` (${m.zone === "receivership" ? "zona de administración" : "casilla cerrada"})` : ""}`;
+    }
+    case "status":
+      return `${companyName(m.company, ctx)}: ${statusLabel[m.from]} → ${statusLabel[m.to]}`;
+    case "counter": {
+      const label = COUNTER_LABELS[m.key] ?? m.key;
+      const amount = m.key === "debt" ? signedMoney(m.delta, ctx) : `${m.delta > 0 ? "+" : "−"}${Math.abs(m.delta)}`;
+      return `${label} de ${name(m.subject, ctx)}: ${amount}`;
+    }
+    case "turn": {
+      const words = effectsEs([m.event], ctx);
+      return words.length > 0 ? words.join(" · ") : undefined;
+    }
+  }
+}
+
+/** One line of "Saldos": "Ana: $480 → $720 (+$240)"; an unlimited bank shows only "Banco: −$240" (FR-011). */
+export function balanceLineEs(b: BalanceChange, ctx: SummaryContext): string {
+  const who = lineHolder(b.holder, ctx);
+  if (b.before === null || b.after === null) return `${who}: ${signedMoney(b.delta, ctx)}`;
+  return `${who}: ${formatMoney(b.before, ctx.game)} → ${formatMoney(b.after, ctx.game)} (${signedMoney(b.delta, ctx)})`;
 }
 
 /** "Se exporta un tren 3: empieza la fase verde; se oxidan los 2." (the startSR info, US8). */

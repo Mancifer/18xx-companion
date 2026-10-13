@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { SessionStore } from "../../src/app/SessionStore";
 import { startSession } from "../../src/app/sessions";
 import { getBuiltInGame } from "../../src/domain/games";
+import { groupHistory } from "../../src/domain/ledger/effectiveLog";
 import { canonicalJson, stateHash } from "../../src/persistence/canonical";
 import { openCompanionDb } from "../../src/persistence/db";
 import { buildExport, EXPORT_VERSION, exportFileName, importSession, parseImport } from "../../src/persistence/exportImport";
@@ -31,9 +32,8 @@ async function midGame() {
   await store.dispatch({ type: "buyShare", buyer: "player:p2", company: "PRR", source: "ipo", count: 4 });
   const pay = await store.dispatch({ type: "transferMoney", from: "player:p3", to: "bank", amount: 40 });
   if (!pay.ok) throw new Error(pay.messageEs);
-  await store.amend(pay.group.id, { type: "transferMoney", from: "player:p3", to: "bank", amount: 45 }, { confirmed: true });
   await store.dispatch({ type: "note", text: "deshacer esto" });
-  await store.revert();
+  await store.undoLast();
   await store.dispatch({ type: "endSR" });
   await store.dispatch({ type: "startOR" });
   return { db, repo, settings, store };
@@ -55,7 +55,7 @@ describe("export (FR-091, FR-092)", () => {
   it("has the contract's shape and a state hash of the replayed state", async () => {
     const { repo, store } = await midGame();
     const exp = await buildExport(repo, store.getSnapshot().meta.id, { appVersion: "0.1.0", now });
-    expect(exp).toMatchObject({ format: "18xx-companion/session", version: 1, appVersion: "0.1.0" });
+    expect(exp).toMatchObject({ format: "18xx-companion/session", version: 2, appVersion: "0.1.0" });
     expect(exp.session.game.id).toBe("1830");
     expect(exp.entries).toHaveLength(store.getSnapshot().log.length);
     expect(exp.stateHash).toBe(await stateHash(store.getSnapshot().state));
@@ -69,7 +69,7 @@ describe("export (FR-091, FR-092)", () => {
 });
 
 describe("import (US8-1)", () => {
-  it("round-trips state, log (with reverts and amends) and turn into a fresh profile", async () => {
+  it("round-trips state, log (with undo entries) and turn into a fresh profile", async () => {
     const { repo, store } = await midGame();
     const exp = await buildExport(repo, store.getSnapshot().meta.id, { appVersion: "0.1.0", now });
     const parsed = await parseImport(JSON.parse(JSON.stringify(exp)));
@@ -111,11 +111,12 @@ describe("import (US8-1)", () => {
     expect((await repo.loadSession(id))?.entries).toHaveLength(store.getSnapshot().log.length);
   });
 
-  it("a version newer than 1 is refused", async () => {
+  it("a version newer than 2 is refused with the update message", async () => {
     const { repo, store } = await midGame();
     const exp = await buildExport(repo, store.getSnapshot().meta.id, { appVersion: "0.1.0", now });
-    const parsed = await parseImport({ ...exp, version: 2 });
+    const parsed = await parseImport({ ...exp, version: 3 });
     expect(parsed.ok).toBe(false);
+    if (!parsed.ok) expect(parsed.errorEs).toBe("El archivo es de una versión más nueva de la app (3). Actualiza la app.");
   });
 
   it("something that is not an export is refused with a reason", async () => {
@@ -126,7 +127,7 @@ describe("import (US8-1)", () => {
 });
 
 describe("the outcome on export and import (feature 007, FR-018, SC-005)", () => {
-  it("a finished session's file has no outcome and stays version 1; importing it writes the same outcome", async () => {
+  it("a finished session's file has no outcome; importing it writes the same outcome", async () => {
     const { repo, store } = await midGame();
     await store.dispatch({ type: "transferMoney", from: "bank", to: "player:p4", amount: 100 });
     const ended = await store.dispatch({ type: "endGame", triggers: null });
@@ -135,8 +136,7 @@ describe("the outcome on export and import (feature 007, FR-018, SC-005)", () =>
     expect(meta.outcome).toEqual({ endedAt: ended.group.at, winners: ["p4"] });
 
     const file = await buildExport(repo, meta.id, { appVersion: "test", now });
-    expect(file.version).toBe(1);
-    expect(EXPORT_VERSION).toBe(1);
+    expect(file.version).toBe(EXPORT_VERSION);
     expect(JSON.stringify(file)).not.toContain("outcome");
 
     const fresh = new SessionRepo(await openCompanionDb(freshDbName()));
@@ -210,5 +210,67 @@ describe("bank pins on export and import (feature 008, FR-022d)", () => {
     const meta = await importSession(new SessionRepo(await openCompanionDb(freshDbName())), parsed, { mode: "copy" });
     expect(meta.bankPins).toBeUndefined();
     expect("bankPins" in meta).toBe(false);
+  });
+});
+
+describe("export format v2: undo entries (feature 010, FR-019)", () => {
+  async function withUndo() {
+    const game = await midGame();
+    const { repo, store } = game;
+    const { meta, log, effective } = store.getSnapshot();
+    const last = effective.slice(-2).map((g) => g.id).reverse();
+    const seq = Math.max(...log.map((e) => e.seq)) + 1;
+    await repo.appendEntry(meta.id, { kind: "undo", seq, at: "2026-10-12T21:14:03.000Z", groupIds: last });
+    const reopened = await SessionStore.open(repo, meta.id);
+    if (!reopened) throw new Error("missing");
+    return { ...game, store: reopened };
+  }
+
+  it("EXPORT_VERSION is 2", () => {
+    expect(EXPORT_VERSION).toBe(2);
+  });
+
+  it("a session with undo entries round-trips: entries, statuses and state hash", async () => {
+    const { repo, store } = await withUndo();
+    const exp = await buildExport(repo, store.getSnapshot().meta.id, { appVersion: "0.1.0", now });
+    expect(exp.entries.some((e) => e.kind === "undo")).toBe(true);
+    const parsed = await parseImport(JSON.parse(JSON.stringify(exp)));
+    if (!parsed.ok) throw new Error(parsed.errorEs);
+    expect(parsed.hashMatches).toBe(true);
+    const fresh = new SessionRepo(await openCompanionDb(freshDbName()));
+    const meta = await importSession(fresh, parsed, { mode: "replace" });
+    const reopened = await SessionStore.open(fresh, meta.id);
+    const before = store.getSnapshot();
+    const after = reopened!.getSnapshot();
+    expect(after.log).toEqual(before.log);
+    expect(groupHistory(after.log).map((h) => h.status)).toEqual(groupHistory(before.log).map((h) => h.status));
+    expect(await stateHash(after.state)).toBe(await stateHash(before.state));
+  });
+
+  it("a version-1 file imports unchanged, with legacy revert and amend entries", async () => {
+    const { repo, store } = await midGame();
+    const exp = await buildExport(repo, store.getSnapshot().meta.id, { appVersion: "0.1.0", now });
+    const log = store.getSnapshot().log;
+    const seq = Math.max(...log.map((e) => e.seq));
+    const note = log.find((e) => e.kind === "group" && e.action.type === "note");
+    if (!note || note.kind !== "group") throw new Error("missing note");
+    const legacy = [
+      ...exp.entries,
+      { kind: "amend", seq: seq + 1, at: "2026-10-01T20:00:00.000Z", groupId: note.id, action: { type: "note", text: "corregida" }, events: [{ t: "note", text: "corregida" }], touches: [] },
+      { kind: "revert", seq: seq + 2, at: "2026-10-01T20:00:00.000Z", groupId: note.id },
+    ];
+    const v1 = { ...(JSON.parse(JSON.stringify(exp)) as object), version: 1, entries: legacy };
+    const parsed = await parseImport(v1);
+    if (!parsed.ok) throw new Error(parsed.errorEs);
+    expect(parsed.file.version).toBe(2);
+    expect(parsed.file.entries).toEqual(legacy);
+  });
+
+  it("an undo entry with no groupIds is refused", async () => {
+    const { repo, store } = await midGame();
+    const exp = await buildExport(repo, store.getSnapshot().meta.id, { appVersion: "0.1.0", now });
+    const bad = { ...exp, entries: [...exp.entries, { kind: "undo", seq: 999, at: "2026-10-12T21:14:03.000Z", groupIds: [] }] };
+    const parsed = await parseImport(JSON.parse(JSON.stringify(bad)));
+    expect(parsed.ok).toBe(false);
   });
 });

@@ -1,7 +1,7 @@
 import { useEffect, type ReactNode } from "react";
 import { useFeedback } from "../../app/AppProvider";
 import { useDispatch, useSession } from "../../app/useSession";
-import { holderName, summaryEs } from "../../domain/i18n/es";
+import { holderName, summaryEs, undoneEs } from "../../domain/i18n/es";
 import { formatMoney } from "../../domain/i18n/format";
 import { moneyFlows } from "../../domain/ledger/flows";
 import type { HolderRef } from "../../domain/types";
@@ -14,10 +14,10 @@ const VISIBLE_MS = 6000;
  * After every applied group, whatever its source, a brief notice with Undo (FR-061,
  * constitution IV). `extra` renders below the summary (the chip breakdown, US6).
  */
-export function UndoToast({ extra }: { extra?: (group: GroupEntry) => ReactNode }) {
+export function UndoToast({ extra, undoOnly = false }: { extra?: (group: GroupEntry) => ReactNode; undoOnly?: boolean }) {
   const { feedback, clear } = useFeedback();
   const { meta } = useSession();
-  const { revert } = useDispatch();
+  const { undoLast } = useDispatch();
 
   useEffect(() => {
     if (!feedback) return;
@@ -28,7 +28,8 @@ export function UndoToast({ extra }: { extra?: (group: GroupEntry) => ReactNode 
     };
   }, [feedback, clear]);
 
-  if (!feedback) return null;
+  // History shows its own entries: there only undos and errors need a notice.
+  if (!feedback || (undoOnly && feedback.kind === "applied")) return null;
   const ctx = { game: meta.game, players: meta.players };
 
   if (feedback.kind === "error") {
@@ -41,14 +42,7 @@ export function UndoToast({ extra }: { extra?: (group: GroupEntry) => ReactNode 
   if (feedback.kind === "reverted") {
     return (
       <div className="toast" role="status">
-        <span>Deshecho: {summaryEs(feedback.group.action, ctx)}</span>
-      </div>
-    );
-  }
-  if (feedback.kind === "amended") {
-    return (
-      <div className="toast" role="status">
-        <span>Corregido: {summaryEs(feedback.action, ctx)}</span>
+        <span>{undoneEs(feedback.groups, ctx)}</span>
       </div>
     );
   }
@@ -91,7 +85,8 @@ export function UndoToast({ extra }: { extra?: (group: GroupEntry) => ReactNode 
       {extra?.(group)}
       <div className="row">
         <span className="spacer" />
-        <button onClick={() => void revert(group.id)}>Deshacer</button>
+        {/* Undo only runs in order: this undoes the newest entry, which is this toast's group. */}
+        <button onClick={() => void undoLast()}>Deshacer</button>
       </div>
     </div>
   );

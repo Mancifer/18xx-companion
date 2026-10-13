@@ -49,6 +49,11 @@
 {"id": "cr-02", "fixture": "1830-sr", "transcript": "no, eran dos", "category": "corrections", "expect": {"kind": "amend", "value": 2}, "tags": ["numbers-as-words"], "heldout": false}
 {"id": "cr-03", "fixture": "21moon-cr", "transcript": "borra eso", "category": "corrections", "expect": {"kind": "undo"}, "tags": [], "heldout": false}
 {"id": "cr-04", "fixture": "1830-sr", "transcript": "perdón, fueron dos acciones", "category": "corrections", "expect": {"kind": "amend", "value": 2}, "tags": ["numbers-as-words"], "heldout": true}
+{"id": "cr-05", "fixture": "rotla-or", "transcript": "deshacé hasta la compra del tren de la EXP", "category": "corrections", "expect": {"kind": "undo", "groupId": "g8"}, "tags": ["undo-to"], "heldout": false}
+{"id": "cr-06", "fixture": "rotla-or", "transcript": "volvé a antes de que la EXP emitiera", "category": "corrections", "expect": {"kind": "undo", "groupId": "g10"}, "tags": ["undo-to"], "heldout": false}
+{"id": "cr-07", "fixture": "rotla-or", "transcript": "deshacer", "category": "corrections", "expect": {"kind": "undo", "groupId": null}, "tags": [], "heldout": false}
+{"id": "cr-08", "fixture": "1830-or", "transcript": "no, eran 260", "category": "corrections", "expect": {"kind": "amend", "value": 260}, "tags": ["digits"], "heldout": false}
+{"id": "cr-09", "fixture": "rotla-or", "transcript": "deshacé todo hasta que pagó la EXP", "category": "corrections", "expect": {"kind": "undo", "groupId": "g9"}, "tags": ["undo-to"], "heldout": true}
 {"id": "q-01", "fixture": "1830-or", "transcript": "¿cuánto tiene Ana?", "category": "queries", "expect": {"kind": "query", "query": "cash", "player": "p1"}, "tags": ["confusable"], "heldout": false}
 {"id": "q-02", "fixture": "1830-sr", "transcript": "¿quién preside la Nueva York?", "category": "queries", "expect": {"kind": "query", "query": "president", "company": "NYC"}, "tags": ["nickname"], "heldout": false}
 {"id": "q-03", "fixture": "1848-or", "transcript": "¿a cuánto está la QR?", "category": "queries", "expect": {"kind": "query", "query": "price", "company": "QR"}, "tags": [], "heldout": false}

@@ -21,8 +21,10 @@ export type VoicePhase =
 
 export interface VoiceEffects {
   readonly dispatch: (action: unknown, options: { source: "voice"; transcript: string }) => Promise<{ ok: boolean }>;
-  readonly revert: () => Promise<{ ok: boolean }>;
-  readonly amend: (groupId: string, action: unknown) => Promise<{ ok: boolean }>;
+  /** Undoes the newest entry (feature 010). */
+  readonly undoLast: () => Promise<{ ok: boolean }>;
+  /** Undoes back to an entry, after the range sheet was confirmed. */
+  readonly undoTo: (groupId: string, options: { confirmed: true }) => Promise<{ ok: boolean }>;
 }
 
 export interface VoiceEnvironment {
@@ -120,6 +122,12 @@ export class VoiceController {
       }
       result = { kind: "notUnderstood", transcript, reasonEs: "No hay nada que confirmar." };
     }
+    // Undoing the newest entry needs no confirmation, as by touch (feature 010, US1-5).
+    if (result.kind === "undo") {
+      await this.env.effects.undoLast();
+      this.set({ phase: "idle" });
+      return;
+    }
     this.env.log?.(`voz: ${(this.env.now?.() ?? Date.now()) - this.releasedAt} ms hasta la tarjeta`);
     this.set({ phase: "result", result, ...(clarification !== undefined ? { clarification } : {}) });
   }
@@ -158,9 +166,9 @@ export class VoiceController {
     if (result.kind === "proposal") {
       ok = (await effects.dispatch(result.action, { source: "voice", transcript: result.transcript })).ok;
     } else if (result.kind === "undo") {
-      ok = (await effects.revert()).ok;
-    } else if (result.kind === "amend") {
-      ok = (await effects.amend(result.groupId, result.action)).ok;
+      ok = (await effects.undoLast()).ok;
+    } else if (result.kind === "undoTo") {
+      ok = (await effects.undoTo(result.groupId, { confirmed: true })).ok;
     } else {
       ok = true;
     }

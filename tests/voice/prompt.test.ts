@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { Action } from "../../src/domain/actions/schemas";
 import { getBuiltInGame } from "../../src/domain/games";
 import { effectiveLog } from "../../src/domain/ledger/effectiveLog";
 import type { LogEntry } from "../../src/domain/ledger/entries";
@@ -28,24 +29,35 @@ describe("systemPromptEs (cached prefix)", () => {
     expect(blocks).toHaveLength(1);
     expect(blocks[0]).toMatchObject({ type: "text", cache_control: { type: "ephemeral" } });
   });
+
+  it("explains undo, undo back to an entry and correction requests (feature 010)", () => {
+    expect(systemPromptEs({ game, players })).toContain(
+      "«deshacer» → undo (groupId null); «deshacé hasta X» → undo con el id de X; «no, eran 260» → amendLast. «sí» / «confirmar» con una propuesta en pantalla → confirmProposal.",
+    );
+  });
 });
 
 describe("snapshotAndTranscript (volatile user message)", () => {
-  function snapshot(clarification?: string) {
+  function snapshot(clarification?: string, notes = 6) {
     const s = TestSession.start(game, players);
     seedCompany(s, "PRR", { cell: { row: 0, col: 6 }, holders: { "player:p1": 6 } });
     s.do({ type: "startOR" });
-    const log: LogEntry[] = [1, 2, 3, 4, 5, 6].map((n) => ({
+    const group = (n: number, action: Action): LogEntry => ({
       kind: "group",
       seq: n,
       id: `g${n}`,
       at: "2026-10-08T20:00:00.000Z",
       source: "touch",
-      action: { type: "note", text: `nota ${n}` },
+      action,
       events: [],
       touches: [],
       warnings: [],
-    }));
+    });
+    // g1 is the setup group; notes are g2 onwards.
+    const log: LogEntry[] = [
+      group(1, { type: "createSession", players: [], walletMode: "appTruth" }),
+      ...Array.from({ length: notes }, (_, i) => group(i + 2, { type: "note", text: `nota ${i + 2}` })),
+    ];
     return snapshotAndTranscript({
       game,
       players,
@@ -56,7 +68,7 @@ describe("snapshotAndTranscript (volatile user message)", () => {
     });
   }
 
-  it("carries round, operating company, cash, holdings, trains on sale, the last 5 groups and the transcript", () => {
+  it("carries round, operating company, cash, holdings, trains on sale, the recent entries and the transcript", () => {
     const text = snapshot();
     expect(text).toContain("OR 1.1");
     expect(text).toMatch(/opera:? PRR/i);
@@ -64,10 +76,20 @@ describe("snapshotAndTranscript (volatile user message)", () => {
     expect(text).toContain("$600");
     expect(text).toContain("PRR 60%");
     expect(text).toMatch(/2 \(\$80/);
-    expect(text).toContain("nota 6");
+    expect(text).toContain("nota 7");
     expect(text).toContain("nota 2");
-    expect(text).not.toContain("nota 1");
     expect(text).toContain("240, paga");
+  });
+
+  it("lists the last 15 entries with their ids, oldest to newest, setup excluded (feature 010)", () => {
+    const text = snapshot(undefined, 20);
+    expect(text).toContain("Últimas entradas (id entre corchetes, la más nueva al final):");
+    expect(text).toContain("- [g21] Nota: nota 21");
+    expect(text).toContain("- [g7] Nota: nota 7");
+    expect(text).not.toContain("[g6]");
+    expect(text.indexOf("[g7]")).toBeLessThan(text.indexOf("[g21]"));
+    expect(text.match(/^- \[g\d+\] /gm)).toHaveLength(15);
+    expect(snapshot()).not.toContain("[g1]");
   });
 
   it("appends the chosen clarification", () => {

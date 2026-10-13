@@ -357,8 +357,9 @@ describe("Merger sheet (US7)", () => {
     await openMenuItem(user, "Historial");
     const entries = screen.getAllByRole("listitem").filter((li) => li.textContent.includes("Express + Tunneling → Union"));
     expect(entries).toHaveLength(1);
-    await user.click(within(entries[0]!).getByText("Movimientos"));
-    expect(within(entries[0]!).getByText("2 EXP (presidencia): Ana → fuera del juego")).toBeTruthy();
+    await user.click(entries[0]!.querySelector("summary")!);
+    expect(within(entries[0]!).getByText("Movimientos")).toBeTruthy();
+    expect(within(entries[0]!).getByText("2 EXP: Ana → Fuera del juego (presidencia)")).toBeTruthy();
     expect(within(entries[0]!).getByText("$160: EXP → UNI")).toBeTruthy();
   });
 

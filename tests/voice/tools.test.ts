@@ -113,6 +113,15 @@ describe("buildTools", () => {
     expect(enumOf(props(query)["kind"])).toEqual(["cash", "shares", "price", "treasury", "trains", "bank", "president", "turn"]);
   });
 
+  it("undo targets an entry id; amendLast only asks to correct (feature 010)", () => {
+    expect(toolNamed("1830", "undo").description).toBe(
+      "Deshacer. Sin destino (null) = la última entrada. «deshacé hasta …» = el id de esa entrada en Últimas entradas. «deshacer» · «borrá eso» · «deshacé hasta la compra del tren de la EXP».",
+    );
+    expect(toolNamed("1830", "amendLast").description).toBe(
+      "Pedido de corregir una cantidad o una entrada anterior. La app no corrige: explica cómo deshacer. «no, eran 260» · «perdón, 300».",
+    );
+  });
+
   it("descriptions are in Spanish with example phrases", () => {
     const run = toolNamed("1830", "runAndPayout");
     expect(run.description).toMatch(/«.+»/);

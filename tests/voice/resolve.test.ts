@@ -67,23 +67,71 @@ describe("resolveResponse", () => {
     expect(r).toMatchObject({ kind: "query", answer: { textEs: "Ana tiene $600" } });
   });
 
-  it("undo, amendLast and confirmProposal are ledger operations", () => {
+  it("undo and confirmProposal are ledger operations", () => {
     expect(resolveResponse(recorded("undo"), context(), "deshacer").kind).toBe("undo");
     expect(resolveResponse(recorded("confirm"), context(), "sí").kind).toBe("confirm");
-
-    const ctx = context();
-    const action: Action = { type: "runAndPayout", company: "PRR", parts: [{ part: "revenue", amount: 240 }], mode: "full" };
-    const log: LogEntry[] = [
-      { kind: "group", seq: 9, id: "g9", at: "", source: "voice", action, events: [], touches: touchesOf([]), warnings: [] },
-    ];
-    const r = resolveResponse(recorded("amend"), { ...ctx, effective: effectiveLog(log) }, "no, eran 260");
-    expect(r).toMatchObject({ kind: "amend", groupId: "g9", action: { parts: [{ part: "revenue", amount: 260 }] } });
   });
 
-  it("amendLast with nothing to amend is not understood", () => {
-    expect(resolveResponse(recorded("amend"), context(), "no, eran 260").kind).toBe("notUnderstood");
+  it.each([
+    ["no, eran 260", recorded("amend")],
+    ["perdón, 300", undoReply("amendLast", { part: null, value: 300 })],
+    ["corregí eso", undoReply("amendLast", {})],
+  ])("amendLast (%s) explains how to correct and changes nothing (FR-008)", (transcript, reply) => {
+    const r = resolveResponse(reply, { ...context(), effective: effectiveLog(history()) }, transcript);
+    expect(r).toEqual({
+      kind: "notUnderstood",
+      transcript,
+      reasonEs: "Para corregir, deshacé hasta esa entrada y volvé a anotarla.",
+    });
+  });
+});
+
+/** A setup group and three notes, g1 to g4. */
+function history(): LogEntry[] {
+  const group = (seq: number, action: Action): LogEntry => ({
+    kind: "group", seq, id: `g${seq}`, at: "", source: "touch", action, events: [], touches: touchesOf([]), warnings: [],
+  });
+  return [
+    group(1, { type: "createSession", players, walletMode: "appTruth" } as unknown as Action),
+    group(2, { type: "note", text: "a" }),
+    group(3, { type: "note", text: "b" }),
+    group(4, { type: "note", text: "c" }),
+  ];
+}
+
+function undoReply(name: string, input: unknown): ModelReply {
+  return { provider: "gemini", model: "m", calls: [{ name, input }], stop: "done", rawStop: "" } as ModelReply;
+}
+
+describe("voice undo (feature 010, contracts/voice-undo.md)", () => {
+  const ctx = () => ({ ...context(), effective: effectiveLog(history()) });
+
+  it("undo with no target or the newest entry's id is a plain undo", () => {
+    expect(resolveResponse(undoReply("undo", { groupId: null }), ctx(), "deshacer")).toEqual({ kind: "undo", transcript: "deshacer" });
+    expect(resolveResponse(undoReply("undo", { groupId: "g4" }), ctx(), "deshacé eso")).toEqual({ kind: "undo", transcript: "deshacé eso" });
   });
 
+  it("undo with an older entry's id is an undo back to it, with the range", () => {
+    const r = resolveResponse(undoReply("undo", { groupId: "g2" }), ctx(), "deshacé hasta la nota a");
+    expect(r).toMatchObject({ kind: "undoTo", transcript: "deshacé hasta la nota a", groupId: "g2" });
+    if (r.kind !== "undoTo") return;
+    expect(r.range.count).toBe(3);
+    expect(r.range.oldest.id).toBe("g2");
+    expect(r.range.newest.id).toBe("g4");
+  });
+
+  const undone: LogEntry = { kind: "undo", seq: 5, at: "", groupIds: ["g4"] };
+  it.each([
+    ["an unknown id", "g99", history()],
+    ["the setup entry", "g1", history()],
+    ["an undone entry", "g4", [...history(), undone]],
+  ])("undo with %s is not understood, with the touch fallback", (_what, groupId, log) => {
+    const r = resolveResponse(undoReply("undo", { groupId }), { ...context(), effective: effectiveLog(log) }, "deshacé hasta eso");
+    expect(r).toEqual({ kind: "notUnderstood", transcript: "deshacé hasta eso", reasonEs: "No encontré esa entrada. Usá el historial." });
+  });
+});
+
+describe("resolveResponse: not understood", () => {
   it.each(["not-understood", "no-tool", "bad-input", "unknown-entity", "refusal", "max-tokens"])(
     "US5-6: %s → No entendí, with the transcript",
     (name) => {

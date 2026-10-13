@@ -20,7 +20,7 @@ the table. When the app and the table disagree, the table wins: every value can 
 2. **Voice and touch are equal.** Both produce the same actions. Voice is a shortcut, never the
    only path.
 3. **Nothing changes without confirmation.** AI-proposed actions are shown first and applied only
-   after confirmation. Everything can be undone.
+   after confirmation. Everything can be undone, newest first.
 4. **Money is conserved.** Bank + players + companies always equals the starting total (unless
    the bank is unlimited). A broken invariant is a bug or a misheard command, and the app shows it.
 5. **Rules as configuration.** Game differences live in data (game definitions), not in
@@ -45,7 +45,7 @@ the table. When the app and the table disagree, the table wins: every value can 
   correct routing of dividends for unowned shares.
 - Stock market price tracking, with automatic standard moves and manual override.
 - Turn tracking: current round (SR/OR n.m), current operating company, operating order.
-- Event ledger with undo, amend, and history view.
+- Event ledger with in-order undo and a history view that shows where the money went.
 - Voice commands in **Spanish**, resolved by an AI provider (Anthropic Claude or Google Gemini,
   chosen in settings) into structured actions with a confirmation card.
 - Local persistence (survives reloads and app restarts). Installable PWA.
@@ -97,12 +97,16 @@ never change state directly. They emit **actions**, which pass validation and be
  touch ─┘                         └─> (touch actions skip the card: applied at once, with undo)
 ```
 
-- **Undo**: marks the last event (or group) as reverted. Reverted events stay in the log.
-- **Amend**: appends an amend entry that replaces a group's effects ("no, it was 260"). The
-  correction is expanded against the state at the original group's position; later groups keep
-  what they recorded (they are not recalculated), and any resulting imbalance is shown, not
-  corrected. Undoing an amend restores the previous version. History shows both the original and
-  the correction, and asks before undoing or amending an entry that later entries depend on.
+- **Undo** (feature 010): only in order, newest first. "Deshacer" undoes the latest action in one
+  tap, with no confirmation. "Deshacer hasta acá" on an older entry undoes it and every later
+  active entry in one step, after a confirmation that names the count, the oldest and the newest
+  entry. Either way one `undo` ledger entry lists the groups it undoes; they stay in the log and in
+  History, marked "deshecha". No entry ever stays active after an undone one, so later entries
+  are never left with results computed from a state that no longer exists. Undoing past an
+  automatic end of round or game end undoes that step too.
+- **No correcting**: to fix an entry, undo back to it and record the actions again. Sessions saved
+  before this change keep their old `revert` and `amend` entries and replay exactly as before; a
+  corrected entry still shows "corregida" with the original struck through.
 - **Event groups**: one user intent (e.g. a dividend payout) produces one group of atomic
   transfers. Undo works on whole groups.
 - **Invariant check** after every reduce: total money is conserved, and each company's share
@@ -230,7 +234,7 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 | Loans | `takeLoan(company, n)` | only if the game defines loans. Repayment and interest are definition fields for future games; v1 builds no repay action |
 | Flow | `nextCompany / startSR / startOR / endSR / startCR / endCR` | turn events; `nextCompany` for a company with no run this OR first records a zero run (the game's withhold move, warning "no corrió"). `startSR / startCR / startOR` first apply, in the same group, the end step of the round being left, at most once per round: at the end of the SR, the capital of companies floated during the SR and the sold-out moves; at the end of the CR, the sold-out and pool-penalty moves. Leaving an OR, an MR or the private auction applies nothing. In games with a train export (RotLA), `startSR` then exports the top of the train stack (with its phase change and rust) before the new SR. `endSR / endCR` are voice only, apply the same step, and are unavailable once it was applied or outside their round |
 | Manual | `adjust(holder, amount)` / `setPrice(company, position)` | overrides, recorded as events |
-| Game end | `endGame(triggers)` / `reopenGame()` | one `note` each; nothing moves. `endGame` records the end conditions that had fired (info warning when none, or when the game was already finished) and is also a voice tool. `reopenGame` is touch only and unavailable unless the game is finished. Neither can be amended (undo them), and neither can go inside a compound command |
+| Game end | `endGame(triggers)` / `reopenGame()` | one `note` each; nothing moves. `endGame` records the end conditions that had fired (info warning when none, or when the game was already finished) and is also a voice tool. `reopenGame` is touch only and unavailable unless the game is finished. Neither can go inside a compound command |
 
 **Whether the game is finished is derived, never stored.** Replay folds over the effective log:
 an `endGame` group ends the game at that group, a `reopenGame` group cancels the end, and for
@@ -361,7 +365,8 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
 | "Ana abre la NYC a 82" | `parCompany(Ana, NYC, 82)` |
 | "Bruno compra una B&O del pool" | `buyShare(Bruno, B&O, pool)` |
 | "Carla vende dos Erie" | `sellShares(Carla, Erie, 2)` |
-| "deshacer" / "no, eran 260" | undo / amend last |
+| "deshacer" / "deshacé hasta la compra del tren de la EXP" | undo the latest entry / undo back to that entry (the snapshot lists the last 15 entries with ids; the same confirmation as touch) |
+| "no, eran 260" | `amendLast`: nothing changes; the app explains how to undo back to the entry and record it again |
 | "¿cuánto tiene Ana?" | query |
 | "siguiente compañía" | `nextCompany()` (with no run recorded, the card warns that it counts as "no corrió" and shows the price drop) |
 
@@ -426,8 +431,12 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
    from the table), a share-count stepper, par prices for unstarted companies, issue and company
    trades in the corporate round, and a batch sheet for end-of-round statements.
 6. **Confirmation card**: summary, flows, chips, Confirm / Edit / Cancel.
-7. **History**: grouped ledger. Undo or amend any group, with a warning when later events depend
-   on it.
+7. **History**: grouped ledger, newest first, undone entries included. One tap on an entry
+   expands it: "Movimientos" (every money, share, train, private, price and status movement) and
+   "Saldos" (each affected holder's balance before → after, the bank's amount only when it is
+   unlimited), plus the transcript and warnings. Summaries with a single money movement show its
+   amount. "Deshacer" sits on the newest entry; "Deshacer hasta acá" is in the panel of every
+   other active entry.
 8. **Market view**: grid with company tokens stacked by arrival, plus 1-D tracks such as the
    1848 BoE. A token moves by dragging it, or by tapping it and then a cell; each move is a
    recorded manual override, so cell effects (receivership, closed) still apply.
@@ -489,5 +498,6 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
   other than misheard commands.
 - Common OR commands are resolved correctly ≥ 90% of the time on the eval set, with
   transcript-to-card latency under 3 s on a typical connection.
-- Any action can be undone in one tap.
+- The latest action can be undone in one tap; older ones with "Deshacer hasta acá" and one
+  confirmation.
 - Money is conserved at all times in a full playthrough.

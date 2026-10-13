@@ -61,7 +61,7 @@ function golden(c: EvalCase): ModelReply {
     case "query":
       return message(["query", { kind: e.query, player: e.player ?? null, company: e.company ?? null }]);
     case "undo":
-      return message(["undo", { groupId: null }]);
+      return message(["undo", { groupId: e.groupId ?? null }]);
     case "amend":
       return message(["amendLast", { part: e.part ?? null, value: e.value }]);
     case "notUnderstood":
@@ -128,7 +128,7 @@ describe("seed cases (T136)", () => {
       loans: 3,
       flow: 9, // + 3 endGame cases (feature 007)
       compound: 5,
-      corrections: 4,
+      corrections: 9, // + 5 undo/correction cases (feature 010)
       queries: 4,
       clarification: 2,
       notUnderstood: 2,
@@ -164,6 +164,18 @@ describe("grading (T134)", () => {
     const undo = gradeResponse(message(["undo", { groupId: null }]), c, ctxOf(c));
     expect(undo.pass).toBe(false);
     expect(undo.reason).toMatch(/undo/);
+  });
+
+  it("undo is graded by its target: null and the newest id both mean the newest entry (feature 010)", () => {
+    const undo = (groupId: string | null) => message(["undo", { groupId }]);
+    const to = byId("cr-05"); // back to EXP's train purchase, g8
+    expect(gradeResponse(undo("g8"), to, ctxOf(to)).pass).toBe(true);
+    expect(gradeResponse(undo("g9"), to, ctxOf(to)).pass).toBe(false);
+    expect(gradeResponse(undo(null), to, ctxOf(to)).pass).toBe(false);
+    const bare = byId("cr-07"); // «deshacer»; g11 is the newest entry
+    expect(gradeResponse(undo(null), bare, ctxOf(bare)).pass).toBe(true);
+    expect(gradeResponse(undo("g11"), bare, ctxOf(bare)).pass).toBe(true);
+    expect(gradeResponse(undo("g8"), bare, ctxOf(bare)).pass).toBe(false);
   });
 
   it("an explicit list price equals a null price for a bank train", () => {

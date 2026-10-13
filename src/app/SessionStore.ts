@@ -1,12 +1,11 @@
 import { runPipeline } from "../domain/actions/pipeline";
 import type { Warning } from "../domain/actions/schemas";
 import type { SessionState } from "../domain/events/state";
-import { buildAmend } from "../domain/ledger/amend";
-import { dependentsOf } from "../domain/ledger/dependencies";
 import { effectiveLog, type EffectiveGroup } from "../domain/ledger/effectiveLog";
-import type { AmendEntry, EntrySource, GroupEntry, GroupId, LogEntry, RevertEntry } from "../domain/ledger/entries";
+import type { EntrySource, GroupEntry, GroupId, LogEntry, UndoEntry } from "../domain/ledger/entries";
 import { advance, type ReplayCursor } from "../domain/ledger/replay";
 import { SNAPSHOT_EVERY, invalidatedBy, rebuild, toSnapshot, type Snapshot } from "../domain/ledger/snapshots";
+import { isSetup, newestUndoable, undoRangeOf, type UndoRange } from "../domain/ledger/undo";
 import { gameEndStatus, outcomeOf, sameOutcome, type GameEndStatus } from "../domain/mechanics/gameEnd";
 import type { InvariantWarning } from "../domain/mechanics/invariants";
 import type { SessionMeta } from "../domain/session";
@@ -35,29 +34,24 @@ export type StoreError =
   | { readonly ok: false; readonly error: "unavailable"; readonly messageEs: string }
   | { readonly ok: false; readonly error: "persist"; readonly messageEs: string }
   | { readonly ok: false; readonly error: "notFound"; readonly messageEs: string }
-  /** FR-014: later entries depend on this one; call again with `confirmed: true`. */
-  | {
-      readonly ok: false;
-      readonly error: "dependents";
-      readonly messageEs: string;
-      readonly dependents: readonly EffectiveGroup[];
-    };
+  /** Feature 010 (FR-003): more than one entry would be undone; call again with `confirmed: true`. */
+  | { readonly ok: false; readonly error: "confirmRange"; readonly messageEs: string; readonly range: UndoRange };
 
 export type DispatchResult =
   | { readonly ok: true; readonly group: GroupEntry; readonly warnings: readonly Warning[] }
   | StoreError;
 
-export type RevertResult = { readonly ok: true; readonly entry: RevertEntry } | StoreError;
-export type AmendStoreResult = { readonly ok: true; readonly entry: AmendEntry } | StoreError;
+/** Feature 010 (data-model §4): the undo entry written and the groups it undid, newest first. */
+export type UndoResult = { readonly ok: true; readonly entry: UndoEntry; readonly undone: readonly EffectiveGroup[] } | StoreError;
+
+export interface UndoOptions {
+  /** Undo a range of more than one entry (FR-003). */
+  readonly confirmed?: boolean;
+}
 
 export interface DispatchOptions {
   readonly source?: EntrySource;
   readonly transcript?: string;
-}
-
-export interface ConfirmOptions {
-  /** Apply even though later entries depend on the target (FR-014). */
-  readonly confirmed?: boolean;
 }
 
 export interface StoreOptions {
@@ -111,14 +105,33 @@ export class SessionStore {
     return this.enqueue(() => this.doDispatch(action, options));
   }
 
-  /** Undo (FR-012, FR-013): appends a revert entry for the given group, or the last active one. */
-  revert(groupId?: string, options: ConfirmOptions = {}): Promise<RevertResult> {
-    return this.enqueue(() => this.doRevert(groupId, options));
+  /**
+   * Undoes the newest effective non-setup group, with no confirmation (feature 010, FR-004).
+   * Undo only ever runs newest first, so no later group can keep events computed from a state
+   * that no longer exists.
+   */
+  undoLast(): Promise<UndoResult> {
+    return this.enqueue(() => {
+      const target = newestUndoable(this.snapshot.log);
+      if (!target) return Promise.resolve({ ok: false, error: "notFound", messageEs: "No hay nada que deshacer" } as const);
+      return this.writeUndo([target]);
+    });
   }
 
-  /** Correct a past group (FR-013, US2-2). Defaults to the last active group. */
-  amend(groupId: string | undefined, action: unknown, options: ConfirmOptions = {}): Promise<AmendStoreResult> {
-    return this.enqueue(() => this.doAmend(groupId, action, options));
+  /**
+   * Undoes the entry and every later active one (feature 010, contracts/undo-store.md). A range
+   * of more than one comes back as "confirmRange" unless `confirmed`; nothing is written then.
+   */
+  undoTo(groupId: string, options: UndoOptions = {}): Promise<UndoResult> {
+    return this.enqueue(() => {
+      const { log } = this.snapshot;
+      const range = undoRangeOf(log, groupId);
+      if (!range) return Promise.resolve(this.notUndoable(groupId));
+      if (range.count > 1 && !options.confirmed) {
+        return Promise.resolve({ ok: false, error: "confirmRange", messageEs: `Se van a deshacer ${range.count} entradas`, range } as const);
+      }
+      return this.writeUndo(range.groups);
+    });
   }
 
   /**
@@ -137,11 +150,6 @@ export class SessionStore {
       for (const listener of this.listeners) listener();
       return { ok: true } as const;
     });
-  }
-
-  /** Later active groups that depend on this one (FR-014), without changing anything. */
-  dependentsOf(groupId: string, extraKeys: readonly string[] = []): readonly EffectiveGroup[] {
-    return dependentsOf(this.snapshot.log, groupId, extraKeys);
   }
 
   private enqueue<T>(work: () => Promise<T>): Promise<T> {
@@ -176,45 +184,22 @@ export class SessionStore {
     return failed ?? { ok: true, group, warnings: result.warnings };
   }
 
-  private async doRevert(groupId: string | undefined, options: ConfirmOptions): Promise<RevertResult> {
-    const { effective, log } = this.snapshot;
-    const target = groupId ?? effective[effective.length - 1]?.id;
-    if (!target || !effective.some((g) => g.id === target)) {
-      return { ok: false, error: "notFound", messageEs: "No hay nada que deshacer" };
-    }
-    const blocked = this.needsConfirmation(target, [], options);
-    if (blocked) return blocked;
-    const entry: RevertEntry = { kind: "revert", seq: nextSeq(log), at: this.now(), groupId: target };
+  private notUndoable(groupId: string): StoreError {
+    const group = this.snapshot.log.find((e) => e.kind === "group" && e.id === groupId);
+    const messageEs =
+      group?.kind !== "group"
+        ? "Esa entrada no existe"
+        : isSetup(group)
+          ? "Esa entrada no se puede deshacer"
+          : "Esa entrada ya está deshecha";
+    return { ok: false, error: "notFound", messageEs };
+  }
+
+  /** One entry per undo intent (R1): `groups` newest first. */
+  private async writeUndo(groups: readonly EffectiveGroup[]): Promise<UndoResult> {
+    const entry: UndoEntry = { kind: "undo", seq: nextSeq(this.snapshot.log), at: this.now(), groupIds: groups.map((g) => g.id) };
     const failed = await this.persist(entry);
-    return failed ?? { ok: true, entry };
-  }
-
-  private async doAmend(groupId: string | undefined, action: unknown, options: ConfirmOptions): Promise<AmendStoreResult> {
-    const { meta, effective, log } = this.snapshot;
-    const target = groupId ?? effective[effective.length - 1]?.id;
-    if (!target) return { ok: false, error: "notFound", messageEs: "No hay nada que corregir" };
-    const built = buildAmend(meta.game, meta.players, log, target, action, { seq: nextSeq(log), at: this.now() });
-    if (!built.ok) {
-      return built.issues
-        ? { ok: false, error: "invalid", messageEs: built.reasonEs, issues: built.issues }
-        : { ok: false, error: "unavailable", messageEs: built.reasonEs };
-    }
-    const blocked = this.needsConfirmation(target, built.entry.touches, options);
-    if (blocked) return blocked;
-    const failed = await this.persist(built.entry);
-    return failed ?? { ok: true, entry: built.entry };
-  }
-
-  private needsConfirmation(groupId: string, extraKeys: readonly string[], options: ConfirmOptions): StoreError | undefined {
-    if (options.confirmed) return undefined;
-    const dependents = this.dependentsOf(groupId, extraKeys);
-    if (dependents.length === 0) return undefined;
-    return {
-      ok: false,
-      error: "dependents",
-      messageEs: `Hay ${dependents.length} ${dependents.length === 1 ? "entrada posterior que depende" : "entradas posteriores que dependen"} de esta`,
-      dependents,
-    };
+    return failed ?? { ok: true, entry, undone: groups };
   }
 
   /**
@@ -224,8 +209,8 @@ export class SessionStore {
   private async persist(entry: LogEntry): Promise<StoreError | undefined> {
     const { meta, log } = this.snapshot;
     const nextLog = [...log, entry];
-    // A new group only appends: apply it to the current cursor. A revert or amend changes
-    // history: replay from the last snapshot it leaves valid.
+    // A new group only appends: apply it to the current cursor. An undo changes history: replay
+    // from the last snapshot it leaves valid.
     const stale = entry.kind === "group" ? [] : this.snapshots.filter((s) => invalidatedBy(log, entry, s));
     const cursor =
       entry.kind === "group"

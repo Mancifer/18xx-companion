@@ -157,6 +157,63 @@ describe("voice (US5)", () => {
   });
 });
 
+describe("voice undo and correction requests (feature 010, US1)", () => {
+  it("«deshacer» undoes the newest entry directly, with no sheet", async () => {
+    const { user } = await openSeededTable({
+      actions: [...OR_SETUP, { type: "transferMoney", from: "bank", to: "player:p1", amount: 50 }],
+      settings: KEY,
+      voiceDeps: deps({ deshacer: "undo" }),
+    });
+    expect(cashText("p1")).toBe("$50");
+    await speak(user, "deshacer");
+    expect(await screen.findByText(/^Deshecho: /)).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: /Deshacer/ })).toBeNull();
+    expect(cashText("p1")).toBe("$0");
+  });
+
+  it("«no, eran 260» explains how to correct and changes nothing (FR-008)", async () => {
+    const { user } = await openSeededTable({
+      actions: [...OR_SETUP, { type: "transferMoney", from: "bank", to: "player:p1", amount: 50 }],
+      settings: KEY,
+      voiceDeps: deps({ "no, eran 260": "amend" }),
+    });
+    await speak(user, "no, eran 260");
+    const card = await screen.findByRole("dialog", { name: "No entendí" });
+    expect(within(card).getByText("Para corregir, deshacé hasta esa entrada y volvé a anotarla.")).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: /Corregir/ })).toBeNull();
+    expect(cashText("p1")).toBe("$50");
+  });
+
+  /** g1 is the setup; Ana gets $10, $20 and $30 in g2, g3 and g4. */
+  const PAID = [10, 20, 30].map((amount) => ({ type: "transferMoney", from: "bank", to: "player:p1", amount }));
+  function undoToDeps(): VoiceDeps {
+    const reply: ModelReply = { provider: "anthropic", model: "m", calls: [{ name: "undo", input: { groupId: "g2" } }], stop: "done", rawStop: "" };
+    return {
+      recognizer: () => new FakeRecognizer(),
+      online: () => true,
+      createInterpreter: () => () => Promise.resolve(reply),
+    };
+  }
+
+  it("«deshacé hasta …» opens the range sheet with the transcript; Cancelar changes nothing", async () => {
+    const { user } = await openSeededTable({ actions: PAID, settings: KEY, voiceDeps: undoToDeps() });
+    await speak(user, "deshacé hasta el primer pago");
+    const sheet = await screen.findByRole("dialog", { name: "¿Deshacer 3 entradas?" });
+    expect(within(sheet).getByText("«deshacé hasta el primer pago»")).toBeTruthy();
+    await user.click(within(sheet).getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog", { name: "¿Deshacer 3 entradas?" })).toBeNull();
+    expect(cashText("p1")).toBe("$660");
+  });
+
+  it("Deshacer N undoes the range", async () => {
+    const { user } = await openSeededTable({ actions: PAID, settings: KEY, voiceDeps: undoToDeps() });
+    await speak(user, "deshacé hasta el primer pago");
+    await user.click(within(await screen.findByRole("dialog", { name: "¿Deshacer 3 entradas?" })).getByRole("button", { name: "Deshacer 3" }));
+    expect(await screen.findByText(/^Deshechas 3 entradas: desde /)).toBeTruthy();
+    expect(cashText("p1")).toBe("$600");
+  });
+});
+
 describe("voice «siguiente compañía» with no run recorded (T016, FR-009)", () => {
   const TWO_IN_OR = [
     { type: "startSR" },

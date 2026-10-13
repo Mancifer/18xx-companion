@@ -56,7 +56,7 @@ describe("21Moon two-base revenue (§11.5)", () => {
     expect(s.state.companies["VH"]!.position).toEqual({ row: 4, col: 3 });
   });
 
-  it("quickstart 12: amending the Space Port to 30 gives no move; to 0 moves left 1", async () => {
+  it("quickstart 12: undoing and recording the Space Port as 30 gives no move; as 0 moves left 1", async () => {
     const created = start();
     const seed = seedEvents("VH", { cell: { row: 4, col: 2 }, holders: VH_HOLDERS });
     const log: LogEntry[] = [
@@ -70,11 +70,14 @@ describe("21Moon two-base revenue (§11.5)", () => {
     const position = () => store.getSnapshot().state.companies["VH"]!.position;
     expect(position()).toEqual({ row: 4, col: 3 });
 
-    await store.amend(paid.group.id, run("VH", 60, 30), { confirmed: true });
+    // Correcting is undo and record again (feature 010, FR-008).
+    expect((await store.undoLast()).ok).toBe(true);
+    expect((await store.dispatch(run("VH", 60, 30))).ok).toBe(true);
     expect(position()).toEqual({ row: 4, col: 2 });
     expect(cashOf(store.getSnapshot().state, "player:p2")).toBe(410 + 3);
 
-    await store.amend(paid.group.id, run("VH", 60, 0), { confirmed: true });
+    expect((await store.undoLast()).ok).toBe(true);
+    expect((await store.dispatch(run("VH", 60, 0))).ok).toBe(true);
     expect(position()).toEqual({ row: 4, col: 1 });
   });
 

@@ -3,7 +3,7 @@
 exports[`recorded Claude responses baseline (T002) > amend 1`] = `
 {
   "kind": "notUnderstood",
-  "reasonEs": "No hay nada que corregir.",
+  "reasonEs": "Para corregir, deshacé hasta esa entrada y volvé a anotarla.",
   "transcript": "orden",
 }
 `;

@@ -111,8 +111,8 @@ const DESCRIPTIONS: Readonly<Record<string, string>> = {
     "Pregunta al usuario cuando la orden es ambigua (dos jugadores parecidos, falta la compañía). Da de 2 a 6 opciones. «Ana compra una» (¿Ana o Anabel? ¿qué compañía?).",
   query: "Pregunta sobre el estado; la app responde con sus datos. «¿cuánto tiene Ana?» · «¿quién preside la Erie?» · «¿a cuánto está la PRR?».",
   notUnderstood: "Úsala cuando la frase no es una orden del juego o no se puede expresar con las herramientas. «charla de la mesa».",
-  undo: "Deshacer la última entrada. «deshacer» · «borra eso».",
-  amendLast: "Corregir la cantidad de la última entrada. part solo para ingresos en varias partes. «no, eran 260» · «perdón, 300».",
+  undo: "Deshacer. Sin destino (null) = la última entrada. «deshacé hasta …» = el id de esa entrada en Últimas entradas. «deshacer» · «borrá eso» · «deshacé hasta la compra del tren de la EXP».",
+  amendLast: "Pedido de corregir una cantidad o una entrada anterior. La app no corrige: explica cómo deshacer. «no, eran 260» · «perdón, 300».",
   confirmProposal: "Confirmar la propuesta que está en pantalla. «sí» · «confirmar» · «vale».",
 };
 

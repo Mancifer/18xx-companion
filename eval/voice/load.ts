@@ -3,7 +3,7 @@ import { join } from "node:path";
 import type { LogEntry } from "../../src/domain/ledger/entries";
 import { effectiveLog } from "../../src/domain/ledger/effectiveLog";
 import { replay } from "../../src/domain/ledger/replay";
-import { SessionExportSchema } from "../../src/persistence/exportImport";
+import { SessionExportSchema, upgradeExport } from "../../src/persistence/exportImport";
 import type { ResolveContext } from "../../src/voice/resolve";
 import type { VoiceSession } from "../../src/voice/tools";
 
@@ -16,7 +16,9 @@ export interface LoadedFixture {
 }
 
 export function loadFixture(dir: string, id: string): LoadedFixture {
-  const file = SessionExportSchema.parse(JSON.parse(readFileSync(join(dir, `${id}.json`), "utf8")));
+  const upgraded = upgradeExport(JSON.parse(readFileSync(join(dir, `${id}.json`), "utf8")));
+  if (!upgraded.ok) throw new Error(`${id}: ${upgraded.errorEs}`);
+  const file = SessionExportSchema.parse(upgraded.data);
   const { game, players } = file.session;
   const entries = file.entries as LogEntry[];
   const { state } = replay(game, players, entries);

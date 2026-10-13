@@ -7,8 +7,9 @@ import { SessionStore } from "../../src/app/SessionStore";
 import { touchesOf, type GroupEntry, type LogEntry } from "../../src/domain/ledger/entries";
 import { endTriggers } from "../../src/domain/mechanics/endTriggers";
 import { finalResults } from "../../src/domain/mechanics/scores";
-import { bankTrainCounts, rotlaGame, rotlaSession } from "../helpers/rotla";
+import { ROTLA_NAMES, bankTrainCounts, rotlaGame, rotlaSession } from "../helpers/rotla";
 import { makeMeta } from "../helpers/session";
+import { makePlayers } from "../helpers/dispatch";
 
 /** The RotLA definition (contracts/game-definition.md). */
 
@@ -236,8 +237,11 @@ describe("US4: reopen an automatic end, fix the last dividend (feature 007, FR-0
     expect(open.gameEnd.end).toBeNull();
     expect(endTriggers(open.meta.game, open.state).map((t) => t.type)).toContain("cyclesComplete");
 
-    await must(store.revert(next.group.id, { confirmed: true }));
-    await must(store.revert(paid.group.id, { confirmed: true }));
+    // Undo runs newest first (feature 010): the reopening, the end, then the dividend.
+    await must(store.undoLast());
+    await must(store.undoLast());
+    const undone = await must(store.undoLast());
+    expect(undone.undone.map((g) => g.id)).toEqual([paid.group.id]);
     expect(store.getSnapshot().gameEnd.end).toBeNull();
     await must(store.dispatch(pay(200)));
     const again = await must(store.dispatch({ type: "nextCompany" }));
@@ -252,8 +256,51 @@ describe("US4: reopen an automatic end, fix the last dividend (feature 007, FR-0
     const next = await must(store.dispatch({ type: "nextCompany" }));
     const original = store.getSnapshot().gameEnd.end;
     const reopened = await must(store.dispatch({ type: "reopenGame" }));
-    await must(store.revert(reopened.group.id));
+    const undone = await must(store.undoLast());
+    expect(undone.undone.map((g) => g.id)).toEqual([reopened.group.id]);
     expect(store.getSnapshot().gameEnd.end).toEqual(original);
     expect(store.getSnapshot().gameEnd.end?.groupId).toBe(next.group.id);
+  });
+});
+
+describe("SC-002: undoing an issue after a run restores the price (feature 010, stale-market bug)", () => {
+  const players = makePlayers(ROTLA_NAMES.slice(0, 3));
+  async function issuedAndPaid() {
+    const store = new SessionStore({ appendEntry: () => Promise.resolve() }, makeMeta({ game: rotlaGame(), players }), []);
+    for (const action of [
+      { type: "createSession", players, walletMode: "appTruth" },
+      { type: "launchCompany", player: "p1", company: "TUN", bid: 160, price: null },
+      { type: "launchCompany", player: "p2", company: "EXP", bid: 160, price: null },
+      { type: "startOR" },
+    ]) {
+      const r = await store.dispatch(action);
+      if (!r.ok) throw new Error(`${action.type}: ${r.messageEs}`);
+    }
+    return store;
+  }
+  const price = (store: SessionStore) => {
+    const { meta, state } = store.getSnapshot();
+    return priceOf(meta.game, state, "TUN");
+  };
+  const cash = (store: SessionStore) => {
+    const { state } = store.getSnapshot();
+    return ["company:TUN", "player:p1", "player:p2", "player:p3", "bank"].map((h) => cashOf(state, h as never));
+  };
+
+  it("issue (80 → 70), run and pay out, undo twice: price 80, treasury and cash as before the issue", async () => {
+    const store = await issuedAndPaid();
+    expect(price(store)).toBe(80);
+    const before = store.getSnapshot().state;
+    const cashBefore = cash(store);
+    expect((await store.dispatch({ type: "issueShares", company: "TUN", count: 1 })).ok).toBe(true);
+    expect(price(store)).toBe(70);
+    const paid = await store.dispatch({ type: "runAndPayout", company: "TUN", parts: [{ part: "revenue", amount: 50 }], mode: "full" });
+    expect(paid.ok).toBe(true);
+
+    expect((await store.undoLast()).ok).toBe(true);
+    expect((await store.undoLast()).ok).toBe(true);
+    expect(price(store)).toBe(80);
+    expect(cash(store)).toEqual(cashBefore);
+    expect(store.getSnapshot().state).toEqual(before);
   });
 });

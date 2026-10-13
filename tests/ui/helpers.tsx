@@ -4,6 +4,7 @@ import { startSession } from "../../src/app/sessions";
 import type { VoiceDeps } from "../../src/app/useVoice";
 import { getBuiltInGame } from "../../src/domain/games";
 import type { GameDefinition } from "../../src/domain/games/schema";
+import type { LogEntry } from "../../src/domain/ledger/entries";
 import { openCompanionDb } from "../../src/persistence/db";
 import { SessionRepo } from "../../src/persistence/sessionRepo";
 import { SettingsRepo } from "../../src/persistence/settingsRepo";
@@ -17,6 +18,8 @@ export interface SeedOptions {
   readonly options?: Readonly<Record<string, string>>;
   /** Actions dispatched (as touch) before the app opens. */
   readonly actions?: readonly unknown[];
+  /** Raw entries appended after the actions, e.g. legacy revert/amend entries (feature 010). */
+  readonly entries?: (log: readonly LogEntry[]) => readonly LogEntry[];
   readonly settings?: Parameters<SettingsRepo["set"]>[0];
   readonly voiceDeps?: VoiceDeps;
 }
@@ -41,6 +44,7 @@ export async function openSeededTable(seed: SeedOptions = {}) {
     const result = await store.dispatch(action);
     if (!result.ok) throw new Error(`seed ${JSON.stringify(action)}: ${result.messageEs}`);
   }
+  for (const entry of seed.entries?.(store.getSnapshot().log) ?? []) await sessions.appendEntry(store.getSnapshot().meta.id, entry);
   if (seed.settings) await settings.set(seed.settings);
   db.close();
 

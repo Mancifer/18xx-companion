@@ -2,7 +2,7 @@ import type { GameDefinition } from "../domain/games/schema";
 import { holdsMoney, isHolderRef, type HolderRef, type Player } from "../domain/types";
 
 /**
- * The editable fields of a recorded action, for the amend sheet (FR-013). Numbers are edited on
+ * The editable fields of an action, for the voice card's edit (FR-060). Numbers are edited on
  * the keypad, references and enums with pickers. Nested lists other than revenue parts
  * (batches, compound actions, setup) are not editable here: undo and record them again.
  */

@@ -5,7 +5,7 @@ Responde SIEMPRE llamando al menos una herramienta. No escribas texto para el us
 - Una pregunta sobre el estado: llama query; la app responde con sus datos.
 - Si es ambiguo (dos jugadores parecidos, falta la compañía o la cantidad): llama askClarification con 2 a 6 opciones; value es el id.
 - Si no es una orden del juego o ninguna herramienta la expresa: llama notUnderstood. No adivines.
-- "deshacer" → undo. "no, eran 260" → amendLast. "sí" / "confirmar" con una propuesta en pantalla → confirmProposal.
+- «deshacer» → undo (groupId null); «deshacé hasta X» → undo con el id de X; «no, eran 260» → amendLast. «sí» / «confirmar» con una propuesta en pantalla → confirmProposal.
 Números: entiende cifras y palabras ("doscientos cuarenta" = 240). Las cantidades son enteros en la moneda del juego.
 company null significa la compañía que opera ahora; úsalo cuando no se nombra otra.
 

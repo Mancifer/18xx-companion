@@ -17,7 +17,7 @@ import type { SessionRepo } from "./sessionRepo";
  */
 
 export const EXPORT_FORMAT = "18xx-companion/session";
-export const EXPORT_VERSION = 1;
+export const EXPORT_VERSION = 2;
 
 const GroupEntrySchema = z.object({
   kind: z.literal("group"),
@@ -43,6 +43,12 @@ const EntrySchema = z.discriminatedUnion("kind", [
     action: ActionSchema,
     events: z.array(PrimitiveEventSchema),
     touches: z.array(z.string()),
+  }),
+  z.object({
+    kind: z.literal("undo"),
+    seq: z.number().int().positive(),
+    at: z.string(),
+    groupIds: z.array(z.string().min(1)).min(1),
   }),
 ]);
 
@@ -70,8 +76,11 @@ export const SessionExportSchema = z.object({
 
 export type SessionExport = z.infer<typeof SessionExportSchema>;
 
-/** Upgrades older files to the current version (none yet: version 1 is the first). */
-const migrations: Readonly<Record<number, (old: Record<string, unknown>) => Record<string, unknown>>> = {};
+/** Upgrades older files to the current version. Keyed by the version being upgraded from. */
+const migrations: Readonly<Record<number, (old: Record<string, unknown>) => Record<string, unknown>>> = {
+  // Version 2 (feature 010) only adds the `undo` entry kind, which version-1 files never contain.
+  1: (old) => ({ ...old, version: 2 }),
+};
 
 export async function buildExport(
   repo: SessionRepo,
@@ -124,7 +133,8 @@ export type ParsedImport =
     }
   | { readonly ok: false; readonly errorEs: string };
 
-export async function parseImport(json: unknown): Promise<ParsedImport> {
+/** Brings an older file up to EXPORT_VERSION, before schema validation. */
+export function upgradeExport(json: unknown): { readonly ok: true; readonly data: unknown } | { readonly ok: false; readonly errorEs: string } {
   if (!json || typeof json !== "object" || (json as { format?: unknown }).format !== EXPORT_FORMAT) {
     return { ok: false, errorEs: "El archivo no es una partida de 18xx Companion." };
   }
@@ -139,8 +149,13 @@ export async function parseImport(json: unknown): Promise<ParsedImport> {
     if (!migrate) return { ok: false, errorEs: `No se puede convertir un archivo de la versión ${v}.` };
     data = migrate(data);
   }
+  return { ok: true, data };
+}
 
-  const parsed = SessionExportSchema.safeParse(data);
+export async function parseImport(json: unknown): Promise<ParsedImport> {
+  const upgraded = upgradeExport(json);
+  if (!upgraded.ok) return upgraded;
+  const parsed = SessionExportSchema.safeParse(upgraded.data);
   if (!parsed.success) {
     const first = parsed.error.issues[0];
     return { ok: false, errorEs: `Archivo dañado: ${first ? `${first.path.join(".")}: ${first.message}` : "formato inválido"}` };

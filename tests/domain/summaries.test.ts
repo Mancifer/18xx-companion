@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Action } from "../../src/domain/actions/schemas";
-import { getBuiltInGame } from "../../src/domain/games";
-import { summaryEs } from "../../src/domain/i18n/es";
+import { applyOptions, getBuiltInGame } from "../../src/domain/games";
+import type { GameDefinition } from "../../src/domain/games/schema";
+import { balanceLineEs, formatMoney, movementLineEs, summaryEs } from "../../src/domain/i18n/es";
+import type { Movement } from "../../src/domain/ledger/breakdown";
 import { TestSession, makePlayers } from "../helpers/dispatch";
+import { FLOW, NAMES, candidates, rng } from "../helpers/randomWalk";
 import { seedCompany } from "../helpers/seed";
 import { rotlaSession, seedCompany as seedRotla } from "../helpers/rotla";
 
@@ -76,7 +79,7 @@ describe("Spanish summaries (US4)", () => {
     const s = TestSession.start(g1830, players);
     const action: Action = { type: "parCompany", player: "p1", company: "NYC", price: 82 };
     s.do(action);
-    expect(summaryEs(action, s, s.lastEvents)).toBe("Ana abre la NYC a $82");
+    expect(summaryEs(action, s, s.lastEvents)).toBe("Ana abre la NYC a $82 y paga $164");
   });
 
   it("a sale with its price move and a presidency change", () => {
@@ -87,7 +90,7 @@ describe("Spanish summaries (US4)", () => {
     const action: Action = { type: "sellShares", seller: "player:p3", company: "Erie", count: 2 };
     s.do(action);
     expect(summaryEs(action, s, s.lastEvents)).toBe(
-      "Carla vende 2 Erie · Erie → $76 · Presidencia de la Erie: Carla → Bruno",
+      "Carla vende 2 Erie por $180 · Erie → $76 · Presidencia de la Erie: Carla → Bruno",
     );
   });
 
@@ -97,7 +100,7 @@ describe("Spanish summaries (US4)", () => {
       .do({ type: "buyShare", buyer: "player:p2", company: "PRR", source: "ipo", count: 3 });
     const action: Action = { type: "buyShare", buyer: "player:p3", company: "PRR", source: "ipo", count: 1 };
     s.do(action);
-    expect(summaryEs(action, s, s.lastEvents)).toBe("Carla compra 1 PRR de la IPO · PRR flota (capital al final de la ronda)");
+    expect(summaryEs(action, s, s.lastEvents)).toBe("Carla compra 1 PRR de la IPO por $100 · PRR flota (capital al final de la ronda)");
   });
 });
 
@@ -154,7 +157,7 @@ describe("RotLA summaries (feature 004)", () => {
     const s = minorInOR("EXP", { "player:p1": 2, "company:EXP": 2, pool: 1 });
     const issue: Action = { type: "issueShares", company: "EXP", count: 1 };
     s.do(issue);
-    expect(summaryEs(issue, s, s.lastEvents)).toBe("EXP emite 1 acción de su tesorería al pool · EXP → $70");
+    expect(summaryEs(issue, s, s.lastEvents)).toBe("EXP emite 1 acción de su tesorería al pool por $80 · EXP → $70");
     const redeem: Action = { type: "redeemShare", company: "EXP", count: null };
     expect(summaryEs(redeem, s)).toBe("EXP recompra 1 acción del pool por $70");
   });
@@ -185,7 +188,7 @@ describe("RotLA summaries (feature 004)", () => {
     s.apply({ t: "turnAdvance", phase: "grey" });
     const action = buyTrain("CON", "7", { variant: "∞", tradeIn: "5" });
     s.do(action);
-    expect(summaryEs(action, s, s.lastEvents)).toBe("CON compra un ∞ al banco entregando un 5 · fuera del juego: 1 × 5");
+    expect(summaryEs(action, s, s.lastEvents)).toBe("CON compra un ∞ al banco por $800 entregando un 5 · fuera del juego: 1 × 5");
   });
 
   it("a Resourceful train kept rusted reads 'oxidado, última carrera'", () => {
@@ -194,7 +197,7 @@ describe("RotLA summaries (feature 004)", () => {
     seedRotla(s, "CON", { price: 100, holders: { "player:p2": 10 }, treasury: 3000 });
     const action = buyTrain("CON", "4");
     s.do(action);
-    expect(summaryEs(action, s, s.lastEvents)).toBe("CON compra un 4 al banco · fase Verde · RES: el 2 queda oxidado, última carrera · fuera del juego: 6 × 2");
+    expect(summaryEs(action, s, s.lastEvents)).toBe("CON compra un 4 al banco por $300 · fase Verde · RES: el 2 queda oxidado, última carrera · fuera del juego: 6 × 2");
   });
 
   it("forcedTrainPurchase lists the sales", () => {
@@ -296,5 +299,94 @@ describe("RotLA summaries (feature 004)", () => {
     expect(summaryEs(mfg, s)).toBe(
       "Bruno abre Manufacturing por $140 · precio $70 · tesorería $90 ($50 al banco) · 3 acciones en tesorería · con su propio tren",
     );
+  });
+});
+
+describe("one money transfer: the summary carries the amount (feature 010, FR-014, R6)", () => {
+  // Payouts state the revenue and the per-share amount instead (FR-012); the breakdown lists each recipient.
+  const PAYOUTS = new Set(["runAndPayout", "nationalPayout"]);
+  const games: [string, GameDefinition][] = [
+    ["1830", getBuiltInGame("1830")],
+    ["1848", getBuiltInGame("1848")],
+    ["21moon", getBuiltInGame("21moon")],
+    ["rotla", applyOptions(getBuiltInGame("rotla"), {})],
+  ];
+
+  it.each(games)("%s: every action type seen in random play with one money flow names it", (_id, game) => {
+    const missing = new Map<string, string>();
+    for (const seed of [11, 12, 13]) {
+      const s = TestSession.start(game, makePlayers(NAMES.slice(0, 4)));
+      const rand = rng(seed);
+      for (let step = 0; step < 150; step++) {
+        const next = [...candidates(s, rand), ...FLOW].find((a) => s.tryDo(a).kind === "ok");
+        if (!next) break;
+        const before = { game, players: s.players, state: s.state };
+        s.do(next);
+        const transfers = s.lastEvents.filter((e) => e.t === "moneyTransfer");
+        const action = s.groups[s.groups.length - 1]!.action;
+        const [only] = transfers;
+        if (transfers.length !== 1 || only?.t !== "moneyTransfer" || PAYOUTS.has(action.type)) continue;
+        const summary = summaryEs(action, before, s.lastEvents);
+        if (!summary.includes(formatMoney(only.amount, game))) missing.set(action.type, summary);
+      }
+    }
+    expect(Object.fromEntries(missing)).toEqual({});
+  });
+
+  it("table: actions with one money movement", () => {
+    const s = seedCompany(TestSession.start(getBuiltInGame("1830"), players), "PRR", { cell: { row: 0, col: 6 }, cash: 500, holders: { "player:p1": 6 } });
+    const cases: [Action, string][] = [
+      [{ type: "transferMoney", from: "player:p1", to: "bank", amount: 100 }, "$100"],
+      [{ type: "adjustMoney", holder: "player:p2", delta: 25, setTo: null }, "$25"],
+      [{ type: "payCost", company: "PRR", amount: 60, reason: null }, "$60"],
+      [{ type: "bankPays", company: "PRR", amount: 40, reason: "puente" }, "$40"],
+    ];
+    for (const [action, amount] of cases) {
+      const before = s.state;
+      s.do(action);
+      expect(summaryEs(action, { game: s.game, players: s.players, state: before }, s.lastEvents)).toContain(amount);
+    }
+  });
+
+  it("setting money reads the difference from its event", () => {
+    const s = TestSession.start(getBuiltInGame("1830"), players);
+    const action: Action = { type: "adjustMoney", holder: "player:p1", delta: null, setTo: 520 };
+    s.do(action);
+    expect(summaryEs(action, s, s.lastEvents)).toBe("Ana: dinero fijado en $520 (−$80)");
+    s.do({ type: "adjustMoney", holder: "player:p1", delta: null, setTo: 560 });
+    expect(summaryEs(s.groups.at(-1)!.action, s, s.lastEvents)).toBe("Ana: dinero fijado en $560 (+$40)");
+  });
+});
+
+describe("breakdown lines (feature 010, contracts/history-ui.md)", () => {
+  const game = getBuiltInGame("1830");
+  const ctx = { game, players };
+
+  it.each([
+    [{ kind: "money", from: "bank", to: "player:p1", amount: 240 }, "$240: Banco → Ana"],
+    [{ kind: "shares", company: "PRR", from: "ipo:PRR", to: "player:p1", units: 2, presidency: true }, "2 PRR: IPO → Ana (presidencia)"],
+    [{ kind: "shares", company: "PRR", from: "player:p1", to: "pool", units: 1, presidency: false }, "1 PRR: Ana → Pool"],
+    [{ kind: "asset", asset: "train:3:1", from: "bank", to: "company:PRR" }, "tren 3: Banco → PRR"],
+    [{ kind: "asset", asset: "private:CS", from: "player:p1", to: "company:PRR" }, "privada CS: Ana → PRR"],
+    [{ kind: "price", company: "PRR", from: 100, to: 112, reason: "payout" }, "PRR: $100 → $112"],
+    [{ kind: "price", company: "PRR", from: 100, to: 100, reason: "restack" }, "PRR: pasa al fondo de la pila"],
+    [{ kind: "price", company: "PRR", from: 60, to: null, reason: "sell" }, "PRR: $60 → sin precio"],
+    [{ kind: "status", company: "PRR", from: "floated", to: "closed" }, "PRR: flotada → cerrada"],
+    [{ kind: "counter", subject: "company:PRR", key: "debt", delta: 100 }, "deuda de PRR: +$100"],
+    [{ kind: "counter", subject: "company:PRR", key: "runs", delta: 1 }, "operaciones de PRR: +1"],
+  ] as [Movement, string][])("%o → %s", (movement, line) => {
+    expect(movementLineEs(movement, ctx)).toBe(line);
+  });
+
+  it("a turn change reads as effectsEs words it", () => {
+    expect(movementLineEs({ kind: "turn", event: { t: "turnAdvance", round: "OR", orSet: 1, orIndex: 1, company: "PRR" } }, ctx)).toBe(
+      "OR 1.1 · turno de PRR",
+    );
+  });
+
+  it("balances: before → after with the difference; an unlimited bank only the amount", () => {
+    expect(balanceLineEs({ holder: "player:p1", before: 480, after: 720, delta: 240 }, ctx)).toBe("Ana: $480 → $720 (+$240)");
+    expect(balanceLineEs({ holder: "company:PRR", before: 500, after: 420, delta: -80 }, ctx)).toBe("PRR: $500 → $420 (−$80)");
+    expect(balanceLineEs({ holder: "bank", before: null, after: null, delta: -240 }, ctx)).toBe("Banco: −$240");
   });
 });

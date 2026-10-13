@@ -3,11 +3,11 @@ import { useSession } from "../../app/useSession";
 import { APP_VERSION } from "../../app/version";
 import type { VoiceController, VoicePhase } from "../../app/voiceController";
 import type { Action } from "../../domain/actions/schemas";
-import { summaryEs } from "../../domain/i18n/es";
 import { buildExport } from "../../persistence/exportImport";
 import { downloadJson } from "../useExport";
 import { ClarifyButtons } from "./ClarifyButtons";
 import { ConfirmationCard } from "./ConfirmationCard";
+import { UndoRangeSheet } from "./UndoRangeSheet";
 
 /**
  * Dev only (T137, research R18): saves the recognizer's transcript, a fixture of the session and
@@ -41,10 +41,9 @@ export function VoicePanel({
   phase: VoicePhase;
   onManual: (hint: string | undefined) => void;
 }) {
-  const { meta, state, effective } = useSession();
+  const { meta } = useSession();
   if (phase.phase !== "result") return null;
   const { result } = phase;
-  const ctx = { game: meta.game, players: meta.players, state };
   const cancel = () => controller.cancel();
 
   switch (result.kind) {
@@ -77,27 +76,18 @@ export function VoicePanel({
           </button>
         </section>
       );
-    case "undo":
-    case "amend": {
-      const last = [...effective].reverse().find((g) => g.action.type !== "createSession");
-      const text =
-        result.kind === "undo"
-          ? `Deshacer: ${last ? summaryEs(last.action, ctx, last.events) : "nada"}`
-          : `Corregir: ${result.summaryEs}`;
+    case "undoTo":
+      // Only "Deshacer N" undoes; closing the sheet any other way changes nothing (FR-005).
       return (
-        <section className="voice-card" role="dialog" aria-label="Confirmar corrección">
-          <p className="muted transcript">«{result.transcript}»</p>
-          <p className="voice-summary">{text}</p>
-          <div className="row">
-            <button onClick={cancel}>Cancelar</button>
-            <span className="spacer" />
-            <button className="primary big" disabled={!last} onClick={() => void controller.confirm()}>
-              Confirmar
-            </button>
-          </div>
-        </section>
+        <UndoRangeSheet
+          range={result.range}
+          ctx={{ game: meta.game, players: meta.players }}
+          transcript={result.transcript}
+          onConfirm={() => controller.confirm()}
+          onClose={cancel}
+        />
       );
-    }
+    case "undo":
     case "confirm":
       return null;
     case "notUnderstood":

@@ -4,9 +4,13 @@ import type { GameDefinition } from "../domain/games/schema";
 import { cycleRoundLabel, roundLabel, summaryEs } from "../domain/i18n/es";
 import { formatMoney } from "../domain/i18n/format";
 import type { EffectiveGroup } from "../domain/ledger/effectiveLog";
+import { isSetup } from "../domain/ledger/undo";
 import { priceOf } from "../domain/mechanics/market";
 import { trainsHeldBy } from "../domain/mechanics/phases";
 import { trainTypeOf, type Player } from "../domain/types";
+
+/** How many recent entries the snapshot lists. */
+const RECENT_ENTRIES = 15;
 
 export interface SnapshotInput {
   readonly game: GameDefinition;
@@ -71,10 +75,11 @@ export function snapshotAndTranscript(input: SnapshotInput): string {
     .map((t) => ({ t, left: t.count === "unlimited" ? "∞" : String(trainsHeldBy(state, "bank", t.type).length) }))
     .filter(({ left }) => left !== "0");
   lines.push(`Trenes en el banco: ${onSale.map(({ t, left }) => `${t.type} (${money(t.variants[0]?.cost ?? 0)}, quedan ${left})`).join(", ")}.`);
-  const recent = input.effective.slice(-5);
+  // With ids, so «deshacé hasta …» can name an entry (feature 010, contracts/voice-undo.md).
+  const recent = input.effective.filter((g) => !isSetup(g)).slice(-RECENT_ENTRIES);
   if (recent.length > 0) {
-    lines.push("Últimas entradas:");
-    for (const g of recent) lines.push(`- ${summaryEs(g.action, { game, players, state })}`);
+    lines.push("Últimas entradas (id entre corchetes, la más nueva al final):");
+    for (const g of recent) lines.push(`- [${g.id}] ${summaryEs(g.action, { game, players, state })}`);
   }
   lines.push("", `Transcripción: «${input.transcript}»`);
   if (input.clarification !== undefined) lines.push(`Aclaración elegida: ${input.clarification}`);

@@ -5,7 +5,8 @@
 - **Source**: pasted text
 - **Verdict**: valid (reproduced)
 - **Severity**: high
-- **Status**: deferred to a feature spec (2026-10-11). The user will redesign transaction history in general rather than patch this as a bug. Options weighed: re-expanding later actions vs. storing before/after cells on `marketMove`. This file is input for that spec.
+- **Status**: resolved by feature 010 (reliable play history, 2026-10-12). Undo now runs only newest first ("Deshacer" on the latest entry, "Deshacer hasta acá" with a confirmation for older ones), so no entry stays active after an undone one and no later event can re-apply a stale price. Neither re-expansion nor relative market moves was needed (specs/010-reliable-play-history/research.md R3). Regression: "SC-002: undoing an issue after a run restores the price" in `tests/games/rotla.test.ts`, plus the 1830 sell → payout → undo back to the sell case in `tests/app/sessionStore.test.ts`. The recommendations below are kept for the record.
+- **Previous status**: deferred to a feature spec (2026-10-11). The user will redesign transaction history in general rather than patch this as a bug. Options weighed: re-expanding later actions vs. storing before/after cells on `marketMove`. This file is input for that spec.
 
 ## Report (verbatim or summarized)
 

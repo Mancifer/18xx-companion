@@ -26,43 +26,129 @@ describe("History (US2)", () => {
     expect(cashText("p1")).toBe("$600");
   });
 
-  it("amend 240 → 260 shows the original and the correction", async () => {
-    const { user } = await openSeededTable({ actions: [pay("bank", "player:p2", 240)] });
+  it("only the newest entry shows Deshacer; tapping it undoes with no confirmation (FR-002, FR-004)", async () => {
+    const { user } = await openSeededTable({ actions: [pay("bank", "player:p2", 240), pay("player:p1", "bank", 100)] });
     await openMenuItem(user, "Historial");
-    await user.click(within(item("El banco paga $240 a Bruno")).getByRole("button", { name: "Corregir" }));
+    expect(within(item("El banco paga $240 a Bruno")).queryByRole("button", { name: "Deshacer" })).toBeNull();
+    expect(within(item(/Nueva partida/)).queryByRole("button", { name: "Deshacer" })).toBeNull();
+    expect(screen.getAllByRole("button", { name: "Deshacer" })).toHaveLength(1);
 
-    const sheet = await screen.findByRole("dialog");
-    await user.click(within(sheet).getByRole("button", { name: /^Cantidad/ }));
-    const keypad = await screen.findByRole("dialog");
-    await user.click(within(keypad).getByRole("button", { name: "Vaciar" }));
-    for (const d of "260") await user.click(within(keypad).getByRole("button", { name: new RegExp(`^${d}$`) }));
-    await user.click(within(keypad).getByRole("button", { name: "Listo" }));
-    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Corregir" }));
+    await user.click(within(item("Ana paga $100 al banco")).getByRole("button", { name: "Deshacer" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(await within(item("Ana paga $100 al banco")).findByText("deshecha")).toBeTruthy();
+    // The previous entry is now the newest.
+    expect(within(item("El banco paga $240 a Bruno")).getByRole("button", { name: "Deshacer" })).toBeTruthy();
+  });
 
+  it("offers no Corregir or Deshacer corrección anywhere", async () => {
+    const { user } = await openSeededTable({ actions: [pay("bank", "player:p2", 240), pay("player:p1", "bank", 100)] });
+    await openMenuItem(user, "Historial");
+    expect(screen.queryByRole("button", { name: "Corregir" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Deshacer corrección" })).toBeNull();
+  });
+
+  it("a legacy amended entry still shows corregida with the original struck through (FR-018)", async () => {
+    const { user } = await openSeededTable({
+      actions: [pay("bank", "player:p2", 240)],
+      entries: (log) => {
+        const last = log[log.length - 1]!;
+        if (last.kind !== "group") throw new Error("no group");
+        const action = pay("bank", "player:p2", 260) as never;
+        const events = [{ t: "moneyTransfer", from: "bank", to: "player:p2", amount: 260 }] as never;
+        return [{ kind: "amend", seq: last.seq + 1, at: last.at, groupId: last.id, action, events, touches: last.touches }];
+      },
+    });
+    await openMenuItem(user, "Historial");
     const amended = await screen.findByText("corregida");
     const li = amended.closest("li")!;
     expect(li.querySelector("s")?.textContent).toBe("El banco paga $240 a Bruno");
     expect(li.textContent).toContain("El banco paga $260 a Bruno");
+    expect(within(li).getByRole("button", { name: "Deshacer" })).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Volver" }));
     expect(cashText("p2")).toBe("$860");
   });
+});
 
-  it("warns about later entries that touch the same company before undoing", async () => {
-    const { user } = await openSeededTable({
-      actions: [pay("bank", "company:PRR", 300), pay("company:PRR", "player:p3", 50)],
-    });
+describe("History: undo back to here (feature 010, US2)", () => {
+  const three = [pay("player:p1", "bank", 10), pay("player:p1", "bank", 20), pay("player:p1", "bank", 30)];
+
+  it("an older active entry offers Deshacer hasta acá in its panel; Cancelar changes nothing", async () => {
+    const { user } = await openSeededTable({ actions: three });
     await openMenuItem(user, "Historial");
-    await user.click(within(item("El banco paga $300 a PRR")).getByRole("button", { name: "Deshacer" }));
+    const oldest = item("Ana paga $10 al banco");
+    expect(within(oldest).queryByRole("button", { name: "Deshacer" })).toBeNull();
+    await user.click(oldest.querySelector("summary")!);
+    await user.click(within(oldest).getByRole("button", { name: "Deshacer hasta acá" }));
 
-    const dialog = await screen.findByRole("dialog");
-    expect(within(dialog).getByText("Hay 1 entrada posterior que depende de esta")).toBeTruthy();
-    expect(within(dialog).getByText("PRR paga $50 a Carla")).toBeTruthy();
-    await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    const sheet = await screen.findByRole("dialog", { name: "¿Deshacer 3 entradas?" });
+    expect(within(sheet).getByText("Desde: Ana paga $10 al banco")).toBeTruthy();
+    expect(within(sheet).getByText("Hasta: Ana paga $30 al banco")).toBeTruthy();
+    await user.click(within(sheet).getByRole("button", { name: "Cancelar" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
     expect(screen.queryByText("deshecha")).toBeNull();
+  });
 
-    await user.click(within(item("El banco paga $300 a PRR")).getByRole("button", { name: "Deshacer" }));
-    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Aplicar igualmente" }));
-    expect(await screen.findByText("deshecha")).toBeTruthy();
+  it("confirming undoes the range: the entries stay, marked deshecha, and the toast names the range", async () => {
+    const { user } = await openSeededTable({ actions: three });
+    await openMenuItem(user, "Historial");
+    await user.click(item("Ana paga $10 al banco").querySelector("summary")!);
+    await user.click(within(item("Ana paga $10 al banco")).getByRole("button", { name: "Deshacer hasta acá" }));
+    await user.click(within(await screen.findByRole("dialog", { name: "¿Deshacer 3 entradas?" })).getByRole("button", { name: "Deshacer 3" }));
+
+    expect(await screen.findByText("Deshechas 3 entradas: desde Ana paga $10 al banco hasta Ana paga $30 al banco")).toBeTruthy();
+    for (const amount of [10, 20, 30]) {
+      const li = item(`Ana paga $${amount} al banco`);
+      expect(within(li).getByText("deshecha")).toBeTruthy();
+      expect(within(li).queryByRole("button", { name: /Deshacer/ })).toBeNull();
+      expect(li.querySelector("details")).toBeTruthy();
+    }
+    await user.click(screen.getByRole("button", { name: "Volver" }));
+    expect(cashText("p1")).toBe("$600");
+  });
+});
+
+describe("History: where the money went (feature 010, US3)", () => {
+  const PAYING = [
+    { type: "startSR" },
+    { type: "parCompany", player: "p1", company: "PRR", price: 100 },
+    { type: "buyShare", buyer: "player:p2", company: "PRR", source: "ipo", count: 2 },
+    { type: "buyShare", buyer: "player:p1", company: "PRR", source: "ipo", count: 3 },
+    { type: "endSR" },
+    { type: "startOR" },
+    { type: "runAndPayout", company: "PRR", parts: [{ part: "revenue", amount: 100 }], mode: "full" },
+  ];
+
+  it("one tap on a payout shows Movimientos with each recipient and Saldos before → after (SC-003)", async () => {
+    const { user } = await openSeededTable({ actions: PAYING });
+    await openMenuItem(user, "Historial");
+    const entry = item(/PRR paga \$100/);
+    await user.click(entry.querySelector("summary")!);
+    const panel = entry.querySelector(".history-panel") as HTMLElement;
+    expect(within(panel).getByText("Movimientos")).toBeTruthy();
+    expect(within(panel).getByText("$50: Banco → Ana")).toBeTruthy();
+    expect(within(panel).getByText("$20: Banco → Bruno")).toBeTruthy();
+    expect(within(panel).getByText("Saldos")).toBeTruthy();
+    expect(within(panel).getByText(/^Ana: \$\d+ → \$\d+ \(\+\$50\)$/)).toBeTruthy();
+    expect(within(panel).getByText(/^PRR: \$\d+ → \$\d+$/)).toBeTruthy();
+  });
+
+  it("every entry is expandable, omits empty sections, and an undone entry keeps its breakdown", async () => {
+    const { user } = await openSeededTable({ actions: [{ type: "note", text: "hola" }, pay("player:p1", "bank", 100)] });
+    await openMenuItem(user, "Historial");
+    for (const li of screen.getAllByRole("listitem").filter((x) => x.classList.contains("history-item"))) {
+      expect(li.querySelector("details > summary")).toBeTruthy();
+    }
+    const note = item("Nota: hola");
+    await user.click(note.querySelector("summary")!);
+    expect(within(note).queryByText("Movimientos")).toBeNull();
+    expect(within(note).queryByText("Saldos")).toBeNull();
+
+    const paid = item("Ana paga $100 al banco");
+    await user.click(within(paid).getByRole("button", { name: "Deshacer" }));
+    await within(paid).findByText("deshecha");
+    await user.click(paid.querySelector("summary")!);
+    expect(within(paid).getByText("$100: Ana → Banco")).toBeTruthy();
+    expect(within(paid).getByText("Ana: $600 → $500 (−$100)")).toBeTruthy();
   });
 });
 

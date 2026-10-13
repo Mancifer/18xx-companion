@@ -73,9 +73,12 @@ export function replayFromSnapshot(game: GameDefinition, log: readonly LogEntry[
   return resultOf(cursor);
 }
 
-/** A revert or amend aimed at a group the snapshot includes makes the snapshot stale. */
+/**
+ * An undo (or legacy revert/amend) aimed at a group the snapshot includes makes the snapshot
+ * stale. An undo counts from its oldest group (feature 010, R4).
+ */
 export function invalidatedBy(log: readonly LogEntry[], entry: LogEntry, snapshot: Snapshot): boolean {
   if (entry.kind === "group") return false;
-  const target = log.find((e) => e.kind === "group" && e.id === entry.groupId);
-  return target !== undefined && target.seq <= snapshot.seq;
+  const ids = new Set(entry.kind === "undo" ? entry.groupIds : [entry.groupId]);
+  return log.some((e) => e.kind === "group" && ids.has(e.id) && e.seq <= snapshot.seq);
 }

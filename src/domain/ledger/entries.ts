@@ -20,6 +20,7 @@ export interface GroupEntry {
   readonly warnings: readonly Warning[];
 }
 
+/** Legacy (before feature 010): read-only, never written again. Undid one group or popped its latest amendment. */
 export interface RevertEntry {
   readonly kind: "revert";
   readonly seq: number;
@@ -27,6 +28,7 @@ export interface RevertEntry {
   readonly groupId: GroupId;
 }
 
+/** Legacy (before feature 010): read-only, never written again. A corrected version of a group. */
 export interface AmendEntry {
   readonly kind: "amend";
   readonly seq: number;
@@ -37,7 +39,18 @@ export interface AmendEntry {
   readonly touches: readonly string[];
 }
 
-export type LogEntry = GroupEntry | RevertEntry | AmendEntry;
+/**
+ * One undo intent (feature 010, research R1): every listed group becomes reverted as a whole,
+ * whatever its versions. Newest first; at least one id.
+ */
+export interface UndoEntry {
+  readonly kind: "undo";
+  readonly seq: number;
+  readonly at: string;
+  readonly groupIds: readonly GroupId[];
+}
+
+export type LogEntry = GroupEntry | RevertEntry | AmendEntry | UndoEntry;
 
 /**
  * Keys of the entities whose values an event changes (FR-014 dependency detection):

@@ -4,9 +4,11 @@ import type { ActionContext } from "../domain/actions/context";
 import { runPipeline } from "../domain/actions/pipeline";
 import { ActionSchema, type Action, type Warning } from "../domain/actions/schemas";
 import type { PrimitiveEvent } from "../domain/events/types";
-import { proposalSummaryEs, summaryEs } from "../domain/i18n/es";
+import { proposalSummaryEs } from "../domain/i18n/es";
 import type { EffectiveGroup } from "../domain/ledger/effectiveLog";
+import type { GroupId } from "../domain/ledger/entries";
 import { moneyFlows, type MoneyFlow } from "../domain/ledger/flows";
+import { isSetup, undoRangeIn, type UndoRange } from "../domain/ledger/undo";
 import { answerQuery, QUERY_KINDS, type QueryAnswer } from "../domain/queries";
 import { VoiceProviderError, type ProviderErrorKind } from "./errors";
 import type { ModelReply } from "./reply";
@@ -42,8 +44,9 @@ export type VoiceResult =
     }
   | { readonly kind: "query"; readonly transcript: string; readonly answer: QueryAnswer }
   | { readonly kind: "undo"; readonly transcript: string }
+  /** Undo back to an older entry: shown in UndoRangeSheet before anything changes (feature 010). */
+  | { readonly kind: "undoTo"; readonly transcript: string; readonly groupId: GroupId; readonly range: UndoRange }
   | { readonly kind: "confirm"; readonly transcript: string }
-  | { readonly kind: "amend"; readonly transcript: string; readonly groupId: string; readonly action: Action; readonly summaryEs: string }
   | { readonly kind: "notUnderstood"; readonly transcript: string; readonly reasonEs: string; readonly hint?: string };
 
 const notUnderstood = (transcript: string, reasonEs: string, hint?: string): VoiceResult => ({
@@ -62,22 +65,8 @@ const QueryInput = z.object({
   player: z.string().nullable(),
   company: z.string().nullable(),
 });
-const AmendInput = z.object({ part: z.string().nullable(), value: z.number().int() });
-const NUMERIC_KEYS = ["amount", "price", "count", "units", "setTo", "delta", "extra"];
-
-/** "no, eran 260": the corrected number replaces the main amount of the last entry. */
-export function correctNumber(action: Action, value: number, part: string | null): Action | undefined {
-  if (action.type === "runAndPayout") {
-    const index = part === null ? 0 : action.parts.findIndex((p) => p.part === part);
-    if (index < 0 || !action.parts[index]) return undefined;
-    return { ...action, parts: action.parts.map((p, i) => (i === index ? { ...p, amount: value } : p)) };
-  }
-  const record = action as unknown as Record<string, unknown>;
-  const key = NUMERIC_KEYS.find((k) => typeof record[k] === "number");
-  if (!key) return undefined;
-  const parsed = ActionSchema.safeParse({ ...record, [key]: value });
-  return parsed.success ? parsed.data : undefined;
-}
+/** "no, eran 260": the app no longer corrects entries (feature 010, FR-008). */
+export const CORRECT_BY_UNDO_ES = "Para corregir, deshacé hasta esa entrada y volvé a anotarla.";
 
 /** Reads only the neutral reply's stop and calls, so every provider shares one path (FR-007). */
 export function resolveResponse(reply: ModelReply, ctx: ResolveContext, transcript: string): VoiceResult {
@@ -105,17 +94,10 @@ export function resolveResponse(reply: ModelReply, ctx: ResolveContext, transcri
     const reason = (nope.input as { reason?: unknown }).reason;
     return notUnderstood(transcript, typeof reason === "string" && reason ? reason : "No es una orden del juego.");
   }
-  if (meta("undo")) return { kind: "undo", transcript };
+  const undo = meta("undo");
+  if (undo) return resolveUndo(undo.input["groupId"], ctx, transcript);
   if (meta("confirmProposal")) return { kind: "confirm", transcript };
-  const amend = meta("amendLast");
-  if (amend) {
-    const input = AmendInput.safeParse(amend.input);
-    const last = [...ctx.effective].reverse().find((g) => g.action.type !== "createSession");
-    if (!input.success || !last) return notUnderstood(transcript, "No hay nada que corregir.");
-    const action = correctNumber(last.action, input.data.value, input.data.part);
-    if (!action) return notUnderstood(transcript, "No sé qué cantidad corregir.");
-    return { kind: "amend", transcript, groupId: last.id, action, summaryEs: summaryEs(action, ctx) };
-  }
+  if (meta("amendLast")) return notUnderstood(transcript, CORRECT_BY_UNDO_ES);
 
   const actions: Action[] = [];
   for (const call of calls) {
@@ -138,6 +120,18 @@ export function resolveResponse(reply: ModelReply, ctx: ResolveContext, transcri
     summaryEs: proposalSummaryEs(result.action, ctx, result.events),
     flows: moneyFlows(result.events),
   };
+}
+
+/**
+ * `undo` with no target or the newest entry is a plain undo; an older entry is an undo back to
+ * it. The id is never trusted: it must name an active, non-setup entry (contracts/voice-undo.md).
+ */
+function resolveUndo(groupId: unknown, ctx: ResolveContext, transcript: string): VoiceResult {
+  const newest = [...ctx.effective].reverse().find((g) => !isSetup(g));
+  if (groupId === null || groupId === undefined || groupId === newest?.id) return { kind: "undo", transcript };
+  const range = typeof groupId === "string" ? undoRangeIn(ctx.effective, groupId) : undefined;
+  if (!range) return notUnderstood(transcript, "No encontré esa entrada. Usá el historial.");
+  return { kind: "undoTo", transcript, groupId: range.targetId, range };
 }
 
 const PROVIDER_ERRORS_ES: Readonly<Record<ProviderErrorKind, string>> = {

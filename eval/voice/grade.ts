@@ -5,6 +5,7 @@ import type { ProviderId } from "../../src/voice/providers";
 import { CACHE_TTL_S } from "../../src/voice/providers/gemini";
 import type { ModelReply, ReplyStop, TokenUsage } from "../../src/voice/reply";
 import { costOf, priceFor, storageCostUsd, type PricePeriod } from "./prices";
+import { isSetup } from "../../src/domain/ledger/undo";
 import { resolveResponse, type ResolveContext } from "../../src/voice/resolve";
 
 /**
@@ -39,7 +40,8 @@ export const ExpectSchema = z.discriminatedUnion("kind", [
     player: z.string().nullable().optional(),
     company: z.string().nullable().optional(),
   }),
-  z.object({ kind: z.literal("undo") }),
+  /** groupId: null (or absent) = the newest entry; an id = undo back to that entry (feature 010). */
+  z.object({ kind: z.literal("undo"), groupId: z.string().nullable().optional() }),
   z.object({ kind: z.literal("amend"), value: z.number().int(), part: z.string().nullable().optional() }),
   z.object({ kind: z.literal("notUnderstood") }),
 ]);
@@ -181,8 +183,14 @@ export function gradeResponse(reply: ModelReply, c: EvalCase, ctx: ResolveContex
       if (exp.company !== undefined && input["company"] !== exp.company) return fail("compañía distinta");
       return ok;
     }
-    case "undo":
-      return result.kind === "undo" ? ok : fail(`se esperaba deshacer, llegó ${result.kind}`);
+    case "undo": {
+      // The app treats a null target and the newest entry's id alike: both undo the newest entry.
+      const newest = [...ctx.effective].reverse().find((g) => !isSetup(g))?.id;
+      const target = exp.groupId ?? newest;
+      if (target === newest) return result.kind === "undo" ? ok : fail(`se esperaba deshacer, llegó ${result.kind}`);
+      if (result.kind !== "undoTo") return fail(`se esperaba deshacer hasta ${target}, llegó ${result.kind}`);
+      return result.groupId === target ? ok : fail(`deshacer hasta ${result.groupId}, se esperaba ${target}`);
+    }
     case "amend": {
       const input = reply.calls.find((t) => t.name === "amendLast")?.input;
       if (!input || result.kind === "clarification" || result.kind === "query") return fail(`se esperaba corrección, llegó ${result.kind}`);

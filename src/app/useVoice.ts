@@ -44,7 +44,7 @@ export function useVoice(): { controller: VoiceController; phase: VoicePhase; av
   const deps = useContext(VoiceDepsContext);
   const store = useContext(SessionContext);
   const { settings: repo } = useServices();
-  const { dispatch, revert, amend } = useDispatch();
+  const { dispatch, undoLast, undoTo } = useDispatch();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [online, setOnline] = useState(deps.online());
 
@@ -109,8 +109,8 @@ export function useVoice(): { controller: VoiceController; phase: VoicePhase; av
       },
       effects: {
         dispatch: (action, options) => dispatch(action, options),
-        revert: () => revert(),
-        amend: (groupId, action) => amend(groupId, action, { confirmed: true }),
+        undoLast: () => undoLast(),
+        undoTo: (groupId, options) => undoTo(groupId, options),
       },
       ...(import.meta.env.DEV ? { log: (m: string) => console.info(m) } : {}),
     });

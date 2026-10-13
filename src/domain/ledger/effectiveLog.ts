@@ -26,12 +26,15 @@ interface Track {
   readonly group: GroupEntry;
   readonly versions: Version[];
   reverted: boolean;
+  /** Seq of the entry that reverted the group. */
+  undoneBy?: number;
 }
 
 /**
- * Walks the log in seq order (research R3):
- * - `revert` pops the latest amendment if there is one, otherwise marks the group reverted;
- * - `amend` pushes a new version (ignored for a reverted group; the store refuses it anyway).
+ * Walks the log in seq order (research R3, feature 010 R1):
+ * - `undo` marks every listed group reverted, whatever its versions;
+ * - legacy `revert` pops the latest amendment if there is one, otherwise marks the group reverted;
+ * - legacy `amend` pushes a new version (ignored for a reverted group).
  */
 function track(log: readonly LogEntry[]): Map<GroupId, Track> {
   const groups = new Map<GroupId, Track>();
@@ -45,16 +48,28 @@ function track(log: readonly LogEntry[]): Map<GroupId, Track> {
       });
       continue;
     }
+    if (entry.kind === "undo") {
+      for (const id of entry.groupIds) {
+        const t = groups.get(id);
+        if (t && !t.reverted) markReverted(t, entry.seq);
+      }
+      continue;
+    }
     const t = groups.get(entry.groupId);
     if (!t) continue;
     if (entry.kind === "revert") {
       if (t.versions.length > 1) t.versions.pop();
-      else t.reverted = true;
+      else if (!t.reverted) markReverted(t, entry.seq);
     } else if (!t.reverted) {
       t.versions.push({ action: entry.action, events: entry.events, touches: entry.touches });
     }
   }
   return groups;
+}
+
+function markReverted(t: Track, seq: number): void {
+  t.reverted = true;
+  t.undoneBy = seq;
 }
 
 export function effectiveLog(log: readonly LogEntry[]): EffectiveGroup[] {
@@ -81,6 +96,8 @@ export interface GroupHistory {
   readonly status: GroupStatus;
   /** Every version, original first. */
   readonly versions: readonly Version[];
+  /** Seq of the `undo` (or legacy `revert`) entry that reverted the group. */
+  readonly undoneBy?: number;
 }
 
 /** For History (FR-013): every group with its status and versions. */
@@ -89,6 +106,7 @@ export function groupHistory(log: readonly LogEntry[]): GroupHistory[] {
     group: t.group,
     status: t.reverted ? "reverted" : t.versions.length > 1 ? "amended" : "active",
     versions: [...t.versions],
+    ...(t.undoneBy !== undefined ? { undoneBy: t.undoneBy } : {}),
   }));
 }
 

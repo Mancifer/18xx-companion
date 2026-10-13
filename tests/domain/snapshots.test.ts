@@ -52,6 +52,18 @@ describe("snapshots (research R3)", () => {
     expect(replayFromSnapshot(miniGame, after, kept[0] as Snapshot)).toEqual(replay(miniGame, miniPlayers, after));
   });
 
+  it("an undo entry invalidates snapshots from its oldest group on (R4)", () => {
+    const log = longLog(130);
+    const snaps = snapshotsFor(miniGame, miniPlayers, log);
+    const shallow: LogEntry = { kind: "undo", seq: 131, at: AT, groupIds: ["g130", "g120", "g101"] };
+    expect(snaps.filter((s) => !invalidatedBy(log, shallow, s)).map((s) => s.seq)).toEqual([50, 100]);
+    const deep: LogEntry = { kind: "undo", seq: 131, at: AT, groupIds: ["g130", "g100"] };
+    const kept = snaps.filter((s) => !invalidatedBy(log, deep, s));
+    expect(kept.map((s) => s.seq)).toEqual([50]);
+    const after = [...log, deep];
+    expect(replayFromSnapshot(miniGame, after, kept[0] as Snapshot)).toEqual(replay(miniGame, miniPlayers, after));
+  });
+
   it("a new group never invalidates snapshots", () => {
     const log = longLog(60);
     const [snap] = snapshotsFor(miniGame, miniPlayers, log);

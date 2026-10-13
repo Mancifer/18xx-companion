@@ -4,6 +4,7 @@ import { getBuiltInGame } from "../../src/domain/games";
 import type { GameDefinition } from "../../src/domain/games/schema";
 import type { Player } from "../../src/domain/types";
 import { touchesOf, type GroupEntry, type LogEntry } from "../../src/domain/ledger/entries";
+import { entryBreakdown } from "../../src/domain/ledger/breakdown";
 import { replay } from "../../src/domain/ledger/replay";
 import { replayFromSnapshot, snapshotsFor } from "../../src/domain/ledger/snapshots";
 import { openCompanionDb } from "../../src/persistence/db";
@@ -105,12 +106,46 @@ describe("performance (T163)", () => {
         const result = await store.dispatch(payout);
         times.push(performance.now() - t);
         expect(result.ok).toBe(true);
-        await store.revert(); // back to the same position for the next run
+        await store.undoLast(); // back to the same position for the next run
       }
       expect(median(times)).toBeLessThan(100);
     } finally {
       db.close();
     }
+  });
+
+  it("undoes back to the first entry of a 300-group game in under 500 ms (feature 010, SC-004)", async () => {
+    const short = log.slice(0, 300);
+    const first = short[1] as GroupEntry;
+    const times: number[] = [];
+    for (let run = 0; run < 3; run++) {
+      const db = await openCompanionDb(freshDbName());
+      try {
+        const repo = new SessionRepo(db);
+        const meta = makeMeta({ game, players, entryCount: short.length });
+        await repo.importSession(meta, short);
+        for (const snapshot of snapshotsFor(game, players, short)) await repo.putSnapshot(meta.id, snapshot);
+        const store = (await SessionStore.open(repo, meta.id))!;
+        const t = performance.now();
+        const result = await store.undoTo(first.id, { confirmed: true });
+        times.push(performance.now() - t);
+        expect(result.ok && result.undone.length).toBe(299);
+        expect(store.getSnapshot().effective).toHaveLength(1);
+      } finally {
+        db.close();
+      }
+    }
+    expect(median(times)).toBeLessThan(500);
+  });
+
+  it("expands the first entry of a 300-group game in under 50 ms, active and undone (plan performance goals)", () => {
+    const short = log.slice(0, 300);
+    const first = short[1] as GroupEntry;
+    expect(timeIt(() => entryBreakdown(game, players, short, first.id))).toBeLessThan(50);
+    const ids = short.slice(1).map((e) => (e as GroupEntry).id).reverse();
+    const undone: LogEntry[] = [...short, { kind: "undo", seq: 301, at: "2026-10-12T20:00:00.000Z", groupIds: ids }];
+    expect(entryBreakdown(game, players, undone, first.id)?.status).toBe("reverted");
+    expect(timeIt(() => entryBreakdown(game, players, undone, first.id))).toBeLessThan(50);
   });
 });
 

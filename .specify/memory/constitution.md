@@ -1,18 +1,18 @@
 <!--
 Sync Impact Report
-- Version change: 1.0.0 → 1.1.0 (MINOR: materially expanded guidance; command resolution is no
-  longer Claude-only)
+- Version change: 1.1.0 → 2.0.0 (MAJOR: principles I and IV redefined; amend and out-of-order
+  undo retired)
 - Modified principles:
-  - VI. Test-First Domain Logic: provider changes also require eval re-runs
-  - VII. Local-First Simplicity: one device-only API key per AI provider
-- Modified sections:
-  - Platform & Technology Constraints: "Claude Messages API" replaced by pluggable AI resolvers
-    with shared tools, validation, caching order, error mapping, per-provider keys, and an
-    eval gate before a provider/model is offered
+  - I. Event-Sourced Ledger: undo is a ledger entry marking groups reverted, newest first; past
+    entries are never edited in place (amend retired); legacy entries stay readable
+  - IV. Propose, Confirm, Undo: one tap undoes only the latest action; older actions are reached
+    by a confirmed "undo back to here"; undo only in order
 - Added sections: none
 - Removed sections: none
+- Rationale: out-of-order undo and amend left later entries computed from a game that no longer
+  existed (bug undo-stale-market-move); feature 010-reliable-play-history
 - Templates: plan/spec/tasks templates read the constitution at runtime; no edits needed
-- Follow-up TODOs: none (feature 005-gemini-flash-provider plan should cite v1.1.0)
+- Follow-up TODOs: none (feature 010 plan should cite v2.0.0)
 -->
 # 18xx Companion Constitution
 
@@ -27,8 +27,10 @@ All session state MUST be derived by reducing an append-only log of events.
 - The primitive event vocabulary (money transfer, share transfer, market move, company status,
   train transfer, turn advance, note) MUST stay small. High-level actions expand into groups of
   primitive events; one user intent produces exactly one event group.
-- Events are never deleted or rewritten. Undo marks a group as reverted; amend reverts and
-  appends a corrected event in the same group.
+- Events are never deleted or rewritten. Undo is itself a ledger entry that marks groups as
+  reverted, newest first. Past entries are never edited in place: the only way to change the
+  past is to undo back to it and record the actions again. Entries written by older versions
+  (including legacy amends) MUST stay readable and replay to the same state.
 - Any transfer of money or shares between two holders MUST be expressible as a single primitive
   event, so future features (mergers, conversions, closures) compose from existing transfers.
 
@@ -66,7 +68,12 @@ Rationale: physical play is the source of truth; the app supports it rather than
 - Model output MUST be structured tool calls validated against current state before display.
   Free model text MUST NOT change state, and queries MUST be answered from app state, never from
   model text.
-- Every applied action MUST be undoable in one tap. Undo and amend operate on whole event groups.
+- The latest applied action MUST be undoable in one tap, without confirmation.
+- Any older action MUST be reachable by undoing back to it (that entry and every later one) in
+  one step, after one confirmation that shows how many entries will be undone.
+- Undo operates on whole event groups and only in order, newest first. No group may stay active
+  after an undone one, so later entries are never left computed from a game that no longer
+  exists.
 - When the AI is unavailable (no network, no key, refusal, invalid output), the app MUST degrade
   to touch input with the transcript shown, never to an error dead end.
 
@@ -154,4 +161,4 @@ Rationale: fewer moving parts means fewer failure points mid-game.
 - Compliance is reviewed at plan time (Constitution Check) and at review time. Unjustified
   complexity or principle violations block merging.
 
-**Version**: 1.1.0 | **Ratified**: 2026-10-07 | **Last Amended**: 2026-10-10
+**Version**: 2.0.0 | **Ratified**: 2026-10-07 | **Last Amended**: 2026-10-12

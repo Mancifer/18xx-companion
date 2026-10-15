@@ -39,6 +39,8 @@ the table. When the app and the table disagree, the table wins: every value can 
 - Company grid: treasury, share price, president, shares in IPO/pool, trains (optional).
 - Bank tracking with chip breakdown for every bank transaction, using configurable chip
   denominations and colors.
+- An OR income summary: what each player takes from or pays to the bank at the end of the ORs
+  (feature 012).
 - Share ownership tracking (player, IPO/treasury, pool).
 - Automated dividends: full payout, withhold, and half-pay where the game allows it, or
   revenue split into fixed-destination parts (21Moon), with
@@ -472,6 +474,24 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
    "Reabrir partida" (finished only) asks for confirmation and goes back to the Table; opened from
    Home it also offers "Ver mesa", and "Volver" returns to Home. On phones Dinero and Acciones stack
    under the player's name.
+10. **Ingresos de las ORs** (OR income summary, read-only): what each player settles with the bank
+    at the end of the ORs. It assumes one table rule: during the ORs players don't move their own
+    chips. The company's chips still move, and every change to a player's cash is settled at the
+    end. For each player it shows:
+    - their cash when the operating phase started ("Al empezar") and now ("Ahora");
+    - the difference in words and with a glyph: "↑ Cobra del banco $X", "↓ Paga al banco $X" or
+      "Nada que liquidar". It counts dividends, private income, money put into a company, share
+      sales and corrections alike;
+    - the chips for that amount.
+
+    A bankrupt player shows "Fuera de la partida". Tapping a row lists the entries behind the
+    amount under "OR x.y" headings, labeled with their History titles. They add up to the amount.
+
+    The operating phase runs from the first OR started after another round until the next round
+    starts, and ORs played back to back count as one phase. The summary is offered only then: as
+    the first round control (one tap) and in the menu (two taps). Once the last OR is over, the
+    control becomes primary, next to the button that starts the next round, which keeps its own
+    single tap. It is derived from the log, so it follows every undo and records nothing.
 
 ### 9.2 Touch & accessibility
 

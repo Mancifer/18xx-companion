@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { reduceAll } from "../../src/domain/events/reduce";
+import { cashOf, initialState } from "../../src/domain/events/state";
+import type { PrimitiveEvent } from "../../src/domain/events/types";
 import { applyOptions, builtInGames, getBuiltInGame } from "../../src/domain/games";
+import { operatingPhase } from "../../src/domain/ledger/operatingPhase";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { FLOW, NAMES, candidates, rng } from "../helpers/randomWalk";
 
@@ -12,12 +16,44 @@ import { FLOW, NAMES, candidates, rng } from "../helpers/randomWalk";
 const STEPS = 250;
 const SEEDS = [1, 2, 3];
 
+/**
+ * Feature 012 (G1, G2): when an operating phase is current, each player's movements add up to
+ * their amount, and their start cash is their cash in a replay up to the opening turnAdvance.
+ */
+function checkIncome(s: TestSession, where: string): boolean {
+  const phase = operatingPhase(s.game, s.players, s.groups, s.state);
+  if (!phase) return false;
+  const events: PrimitiveEvent[] = [];
+  for (const g of s.groups) {
+    if (g.id !== phase.startGroupId) {
+      events.push(...g.events);
+      continue;
+    }
+    // Up to and including the turnAdvance that opened the phase (the first one into an OR).
+    let state = reduceAll(initialState(s.game, s.players), events);
+    for (const e of g.events) {
+      const opens = e.t === "turnAdvance" && e.round === "OR" && state.turn.round !== "OR";
+      state = reduceAll(state, [e]);
+      if (opens) break;
+    }
+    for (const p of phase.players) {
+      const sum = p.movements.reduce((t, m) => t + m.amount, 0);
+      if (sum !== p.delta) throw new Error(`${where}: ${p.player} movements ${sum} ≠ delta ${p.delta}`);
+      const start = cashOf(state, `player:${p.player}`);
+      if (start !== p.startCash) throw new Error(`${where}: ${p.player} start cash ${p.startCash} ≠ replay ${start}`);
+    }
+    return true;
+  }
+  throw new Error(`${where}: start group ${phase.startGroupId} not in the log`);
+}
+
 function play(gameIndex: number, seed: number) {
   const game = builtInGames[gameIndex]!;
   const rand = rng(seed * 7919 + gameIndex);
   const count = Math.min(game.playerCount.max, Math.max(game.playerCount.min, 4));
   const s = TestSession.start(game, makePlayers(NAMES.slice(0, count)));
   const applied: string[] = [];
+  let phases = 0;
   for (let step = 0; step < STEPS; step++) {
     const next = [...candidates(s, rand), ...FLOW].find((a) => s.tryDo(a).kind === "ok");
     if (!next) break;
@@ -27,14 +63,17 @@ function play(gameIndex: number, seed: number) {
     if (violations.length > 0) {
       throw new Error(`${game.id} seed ${seed} step ${step} after ${JSON.stringify(next)}: ${JSON.stringify(violations)}`);
     }
+    if (checkIncome(s, `${game.id} seed ${seed} step ${step}`)) phases++;
   }
-  return { s, applied };
+  return { s, applied, phases };
 }
 
 describe("random games keep the invariants (SC-002)", () => {
   const cases = builtInGames.flatMap((g, gi) => SEEDS.map((seed) => [g.id, seed, gi] as const));
   it.each(cases)("%s, seed %i", (_id, seed, gi) => {
-    const { applied } = play(gi, seed);
+    const { applied, phases } = play(gi, seed);
+    // The OR income summary (feature 012) was checked inside an operating phase.
+    expect(phases).toBeGreaterThan(0);
     // The walk must actually reach the interesting parts of a game, not stall in setup.
     expect(applied.length).toBeGreaterThan(STEPS / 2);
     expect(applied).toContain("runAndPayout");

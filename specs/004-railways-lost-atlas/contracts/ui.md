@@ -43,7 +43,7 @@ This is one tap per transition, the same as feature 003.
   - "Sede (+…)" for Headquarters, which opens the keypad
 - **Landmarks chips** (expansion only): "Formación rocosa (+2)", "Acantilado", "Cañón". A chip is disabled, with a "Ya usada" label, once its counter is set; a long press still allows a repeat, which shows a warning.
 - **Train purchase**: 7/∞ shows two prices (7: ₳750, ∞: ₳1.000) plus "∞ entregando…", which lists the company's non-rusted trains.
-- **Forced purchase**: when the company has no train and its treasury is below the cheapest train, the purchase card says "Compra forzada". It shows the president's contribution and lets the table add share sales (company and count rows) before confirming.
+- **Forced purchase**: when the company has no train and its treasury is below the cheapest train, the purchase card says "Compra forzada". It names the president and shows their contribution, their cash, the proceeds of the sales so far and what is still missing. Below that it lists every share the president holds (company, percentage, current price), each with a −/+ count to sell that starts at 0 and stops at what they hold. The table sets the counts before confirming. If the president holds no shares, the card says so.
 - **Over-limit banner**: on the Table and in the Operate sheet. It lists the companies over their limit; tapping one opens "Elegir tren al pool".
 - **Resourceful trains**: rusted trains show an "Oxidado · última carrera" tag and a "Retirar" button.
 

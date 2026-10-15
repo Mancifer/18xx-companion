@@ -590,6 +590,21 @@ export function undoneEs(groups: readonly Summarized[], ctx: SummaryContext): st
   return groups.length === 1 ? `Deshecho: ${line(newest)}` : `Deshechas ${groups.length} entradas: desde ${line(oldest)} hasta ${line(newest)}`;
 }
 
+/** The OR income summary (feature 012, contracts/operating-phase.md). Money comes formatted. */
+export const INCOME_ES = {
+  title: "Ingresos de las ORs",
+  take: (money: string) => `Cobra del banco ${money}`,
+  pay: (money: string) => `Paga al banco ${money}`,
+  none: "Nada que liquidar",
+  allSettled: "Nadie tiene nada que liquidar.",
+  out: "Fuera de la partida",
+  rule: "Durante las ORs los jugadores no tocan sus fichas: al final cada uno cobra o paga la diferencia al banco.",
+  since: (or: string) => `Desde el inicio de la OR ${or}`,
+  startCash: "Al empezar",
+  cashNow: "Ahora",
+  orHeading: (set: number, index: number) => `OR ${set}.${index}`,
+} as const;
+
 /** The range confirmation (feature 010, contracts/history-ui.md). Uruguayan voseo (FR-020). */
 export const UNDO_RANGE_ES = {
   title: (count: number) => `¿Deshacer ${count} entradas?`,

@@ -542,7 +542,7 @@ function TrainView({ ctx, company, title, back, onClose, run }: ViewProps) {
  * the stack. The president puts in the difference, selling shares first if they need to.
  */
 function ForcedPurchaseCard({ ctx, company, run }: { ctx: ActionContext; company: CompanyId; run: (action: unknown) => Promise<void> }) {
-  const [sales, setSales] = useState<{ company: CompanyId; count: number }[]>([]);
+  const [counts, setCounts] = useState<Partial<Record<CompanyId, number>>>({});
   const ref = `company:${company}` as const;
   const president = presidentOf(ctx.state, company);
   const top = trainStack(ctx.game, ctx.state)[0];
@@ -553,41 +553,63 @@ function ForcedPurchaseCard({ ctx, company, run }: { ctx: ActionContext; company
   if (cash >= cost) return null;
   const money = (n: number) => formatMoney(n, ctx.game);
   const presidentRef = `player:${president}` as const;
-  const sellable = ctx.game.companies.filter(
-    (c) => unitsOf(ctx.state, presidentRef, c.id) > 0 && priceOf(ctx.game, ctx.state, c.id) !== undefined,
-  );
-  const proceeds = sales.reduce((sum, s) => sum + (priceOf(ctx.game, ctx.state, s.company) ?? 0) * s.count, 0);
+  const presidentName = ctx.players.find((p) => p.id === president)?.name ?? president;
+  const presidentCash = cashOf(ctx.state, presidentRef);
+  // Every share the president could sell, so the table need not look up their portfolio.
+  const holdings = ctx.game.companies.flatMap((c) => {
+    const units = unitsOf(ctx.state, presidentRef, c.id);
+    const price = priceOf(ctx.game, ctx.state, c.id);
+    return units > 0 && price !== undefined ? [{ company: c, units, price }] : [];
+  });
+  const sales = holdings.flatMap((h) => {
+    const count = counts[h.company.id] ?? 0;
+    return count > 0 ? [{ company: h.company.id, count }] : [];
+  });
+  const proceeds = holdings.reduce((sum, h) => sum + h.price * (counts[h.company.id] ?? 0), 0);
   const shortfall = cost - cash;
-  const missing = shortfall - (cashOf(ctx.state, presidentRef) + proceeds);
-  const setSale = (i: number, sale: { company: CompanyId; count: number }) => setSales((all) => all.map((s, j) => (j === i ? sale : s)));
+  const missing = shortfall - (presidentCash + proceeds);
+  const setCount = (id: CompanyId, count: number) => setCounts((all) => ({ ...all, [id]: count }));
   return (
     <fieldset className="forced-purchase stack" aria-label="Compra forzada">
       <legend>Compra forzada</legend>
       <p>
-        El presidente pone {money(shortfall)}
+        {presidentName} (presidente) pone {money(shortfall)} · tiene {money(presidentCash)}
+        {proceeds > 0 ? <> + {money(proceeds)} por ventas</> : null}
         {missing > 0 ? <span className="toast-warning"> · le faltan {money(missing)}</span> : null}
       </p>
-      {sales.map((s, i) => (
-        <div key={i} className="row">
-          <select aria-label="Compañía vendida" value={s.company} onChange={(e) => setSale(i, { ...s, company: e.target.value })}>
-            {sellable.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.shortName}
-              </option>
-            ))}
-          </select>
-          <button aria-label="Menos" onClick={() => setSale(i, { ...s, count: Math.max(1, s.count - 1) })}>
-            −
-          </button>
-          <span className="money stepper-value">{s.count}</span>
-          <button aria-label="Más" onClick={() => setSale(i, { ...s, count: s.count + 1 })}>
-            +
-          </button>
-        </div>
-      ))}
-      {sellable[0] ? (
-        <button onClick={() => setSales((all) => [...all, { company: sellable[0]?.id ?? "", count: 1 }])}>Añadir venta</button>
-      ) : null}
+      {holdings.length > 0 ? (
+        <ul className="forced-sales stack" aria-label={`Acciones de ${presidentName}`}>
+          {holdings.map((h) => {
+            const count = counts[h.company.id] ?? 0;
+            return (
+              <li key={h.company.id} className="row">
+                <span>
+                  <CompanyBadge company={h.company} size="sm" /> {(h.units * 100) / h.company.shareCount}% · {money(h.price)}
+                </span>
+                <button
+                  aria-label={`Vender una ${h.company.shortName} menos`}
+                  disabled={count === 0}
+                  onClick={() => setCount(h.company.id, count - 1)}
+                >
+                  −
+                </button>
+                <span className="money stepper-value" aria-label={`${h.company.shortName} a vender`}>
+                  {count}
+                </span>
+                <button
+                  aria-label={`Vender una ${h.company.shortName} más`}
+                  disabled={count >= h.units}
+                  onClick={() => setCount(h.company.id, count + 1)}
+                >
+                  +
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p>{presidentName} no tiene acciones para vender.</p>
+      )}
       <button
         className="primary"
         onClick={() => void run({ type: "forcedTrainPurchase", company, trainType: train.type, variant: null, from: "bank", sales })}

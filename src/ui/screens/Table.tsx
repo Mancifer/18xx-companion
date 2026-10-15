@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAppActions } from "../../app/AppProvider";
 import { useDispatch, useSession } from "../../app/useSession";
 import { useVoice } from "../../app/useVoice";
@@ -7,6 +7,8 @@ import { isAvailable } from "../../domain/actions/availability";
 import type { ActionContext } from "../../domain/actions/context";
 import { counterOf } from "../../domain/events/state";
 import { formatMoney } from "../../domain/i18n/format";
+import { INCOME_ES } from "../../domain/i18n/es";
+import { operatingPhase } from "../../domain/ledger/operatingPhase";
 import { cycleCount, endTriggers, type EndTrigger } from "../../domain/mechanics/endTriggers";
 import { overLimitCompanies, trainStack } from "../../domain/mechanics/phases";
 import { exportEvents, exportPreview, mergerRoundDue } from "../../domain/mechanics/schedule";
@@ -40,6 +42,7 @@ import { PrivatesSheet } from "../sheets/PrivatesSheet";
 import { ConfirmSheet, CounterSheet } from "../sheets/StatusSheets";
 import { StockSheet } from "../sheets/StockSheet";
 import { ChipsSheet } from "../sheets/ChipsSheet";
+import { IncomeSheet } from "../sheets/IncomeSheet";
 import { TrainCorrectionSheet } from "../sheets/TrainCorrectionSheet";
 import { TurnSheet } from "../sheets/TurnSheet";
 
@@ -55,6 +58,7 @@ export type Open =
   | { kind: "menu" }
   | { kind: "turn" }
   | { kind: "chips" }
+  | { kind: "income" }
   | { kind: "confirm"; title: string; body: string; confirmLabel: string; action: unknown; scoreAfter?: boolean }
   | { kind: "counter"; subject: HolderRef; key: string }
   | { kind: "trainCorrection"; company: CompanyId }
@@ -138,6 +142,8 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
   // FR-037: offer private income once per OR, until it has been paid in this OR.
   const offerIncome =
     round === "OR" && ownedPrivates && !currentORGroups(effective).some((g) => g.action.type === "privateIncome");
+  // Feature 012: what each player settles with the bank, offered only during the ORs.
+  const phase = useMemo(() => operatingPhase(meta.game, meta.players, effective, state), [meta.game, meta.players, effective, state]);
 
   const companyActions = (id: CompanyId): ReactNode => {
     const status = state.companies[id]?.status;
@@ -275,6 +281,11 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
         </button>
       ))}
       <div className="round-controls row">
+        {phase ? (
+          <button className={phase.over ? "primary" : undefined} onClick={() => setOpen({ kind: "income" })}>
+            {INCOME_ES.title}
+          </button>
+        ) : null}
         {round === "OR" && current ? (
           <button className="primary" onClick={() => setOpen({ kind: "company", id: current, view: "operate" })}>
             Operar {companyName(current)}
@@ -385,6 +396,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
       {open?.kind === "endGame" ? <EndGameSheet ending={ending} onClose={close} /> : null}
       {open?.kind === "turn" ? <TurnSheet onClose={close} /> : null}
       {open?.kind === "chips" ? <ChipsSheet onClose={close} /> : null}
+      {open?.kind === "income" ? <IncomeSheet onClose={close} /> : null}
       {open?.kind === "privates" ? <PrivatesSheet onClose={close} /> : null}
       {open?.kind === "exchange" ? <ExchangeSheet player={open.player} onClose={close} /> : null}
       {open?.kind === "company" && open.view === "details" ? (
@@ -407,6 +419,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
             <button onClick={() => go({ name: "history" })}>Historial</button>
             <button onClick={() => go({ name: "market" })}>Mercado</button>
             <button onClick={() => setOpen({ kind: "chips" })}>Fichas</button>
+            {phase ? <button onClick={() => setOpen({ kind: "income" })}>{INCOME_ES.title}</button> : null}
             {!finished ? <button onClick={() => setOpen({ kind: "endGame" })}>Terminar partida</button> : null}
             <button onClick={showResults}>Clasificación</button>
             {finished ? <button onClick={showResults}>Resultados</button> : null}

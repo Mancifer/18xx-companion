@@ -284,10 +284,25 @@ describe("Trains in RotLA (US6)", () => {
     await user.click(within(dialog).getByRole("button", { name: "Comprar tren" }));
     const trains = await screen.findByRole("dialog");
     const card = within(trains).getByRole("group", { name: "Compra forzada" });
-    expect(within(card).getByText(/El presidente pone \$30/)).toBeTruthy();
-    expect(within(card).getByRole("button", { name: "Añadir venta" })).toBeTruthy();
+    expect(within(card).getByText(/Ana \(presidente\) pone \$30/)).toBeTruthy();
+    expect(within(card).getByRole("list", { name: "Acciones de Ana" })).toBeTruthy();
     await user.click(within(card).getByRole("button", { name: /^Comprar el 2/ }));
     expect(await screen.findByText(/Compra forzada: EXP compra un 2 al banco/, { selector: ".toast-summary" })).toBeTruthy();
+  });
+
+  it("Compra forzada lists the president's shares, each with its own count to sell", async () => {
+    const pay = { type: "payCost", company: "EXP", amount: 50, reason: null };
+    const { user, dialog } = await operate([launch("EXP"), launch("TUN"), startOR, turnTo("EXP"), pay], "EXP");
+    await user.click(within(dialog).getByRole("button", { name: "Comprar tren" }));
+    const card = within(await screen.findByRole("dialog")).getByRole("group", { name: "Compra forzada" });
+    const shares = within(card).getByRole("list", { name: "Acciones de Ana" });
+    expect(within(shares).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(card).getByRole("button", { name: "Vender una TUN menos" })).toHaveProperty("disabled", true);
+    await user.click(within(card).getByRole("button", { name: "Vender una TUN más" }));
+    expect(within(card).getByLabelText("TUN a vender").textContent).toBe("1");
+    expect(within(card).getByText(/por ventas/)).toBeTruthy();
+    await user.click(within(card).getByRole("button", { name: /^Comprar el 2/ }));
+    expect(await screen.findByText(/el presidente vende 1 TUN/, { selector: ".toast-summary" })).toBeTruthy();
   });
 
   it("a Resourceful rusted train shows 'Oxidado · última carrera' and Retirar", async () => {

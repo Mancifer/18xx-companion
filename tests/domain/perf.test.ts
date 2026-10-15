@@ -5,7 +5,8 @@ import type { GameDefinition } from "../../src/domain/games/schema";
 import type { Player } from "../../src/domain/types";
 import { touchesOf, type GroupEntry, type LogEntry } from "../../src/domain/ledger/entries";
 import { entryBreakdown } from "../../src/domain/ledger/breakdown";
-import { groupHistory } from "../../src/domain/ledger/effectiveLog";
+import { effectiveLog, groupHistory } from "../../src/domain/ledger/effectiveLog";
+import { operatingPhase } from "../../src/domain/ledger/operatingPhase";
 import { roundSections } from "../../src/domain/ledger/rounds";
 import { replay } from "../../src/domain/ledger/replay";
 import { replayFromSnapshot, snapshotsFor } from "../../src/domain/ledger/snapshots";
@@ -154,6 +155,13 @@ describe("performance (T163)", () => {
     const history = groupHistory(log.slice(0, 300));
     expect(roundSections(game, history).length).toBeGreaterThan(1);
     expect(timeIt(() => roundSections(game, history))).toBeLessThan(20);
+  });
+
+  it("computes the OR income summary of a 300-group game in under 20 ms (feature 012, G6)", () => {
+    const short = log.slice(0, 300);
+    const effective = effectiveLog(short);
+    const state = replay(game, players, short).state;
+    expect(timeIt(() => operatingPhase(game, players, effective, state))).toBeLessThan(20);
   });
 });
 

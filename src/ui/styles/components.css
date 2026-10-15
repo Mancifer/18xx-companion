@@ -923,6 +923,16 @@ button[aria-pressed="true"] {
   color: var(--warn);
 }
 
+.forced-sales {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.forced-sales li > span:first-child {
+  flex: 1;
+}
+
 .ability-chips {
   flex-wrap: wrap;
 }
@@ -1178,4 +1188,126 @@ button[role="radio"][aria-checked="true"] {
   font-weight: 600;
   color: var(--text-muted);
   border-top: 2px dashed var(--border);
+}
+
+/* The OR income summary (feature 012). The words and the ↑/↓ glyph carry the direction; color
+   only sets it apart. */
+.income-rule {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.income-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* One card per player: the li carries the border, the toggle inside has none. */
+.income-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.income-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: var(--tap);
+  padding: var(--space-3);
+  text-align: left;
+}
+
+button.income-toggle {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+}
+
+.income-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.income-name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-weight: 600;
+}
+
+/* The amount: a soft pill; the glyph and the words carry the direction, color only sets it apart. */
+.income-amount {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.income-take {
+  color: var(--ok);
+  background: var(--ok-bg);
+}
+
+.income-pay {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.income-amount--none {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.income-balances {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.income-movements {
+  padding: var(--space-2) var(--space-3) var(--space-3);
+  border-top: 1px solid var(--border);
+  font-size: var(--text-sm);
+}
+
+.income-or {
+  margin: var(--space-2) 0 var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.income-movements ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.income-movement {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+  padding: var(--space-1) 0;
+  overflow-wrap: anywhere;
+}
+
+.income-movement-amount {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
 }

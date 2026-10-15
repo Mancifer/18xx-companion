@@ -48,14 +48,16 @@ function trainSource(a: BuyTrain): HolderRef {
 function trainToBuy(ctx: ActionContext, a: BuyTrain): AssetId | undefined {
   const def = trainDef(ctx.game, a.trainType);
   if (!def) return undefined;
-  if (a.from === "bank" && def.count === "unlimited") {
-    // Unlimited types have no pre-made assets: the next number comes into play.
-    const highest = Object.keys(ctx.state.assets)
-      .filter((asset) => assetKind(asset) === "train" && trainTypeOf(asset) === a.trainType)
-      .reduce((max, asset) => Math.max(max, trainNumber(asset)), 0);
-    return `train:${a.trainType}:${highest + 1}`;
-  }
+  if (a.from === "bank" && def.count === "unlimited") return nextTrainAsset(ctx.state, a.trainType);
   return trainsHeldBy(ctx.state, trainSource(a), a.trainType)[0];
+}
+
+/** Unlimited types have no pre-made assets: the next number comes into play. */
+export function nextTrainAsset(state: SessionState, trainType: string): AssetId {
+  const highest = Object.keys(state.assets)
+    .filter((asset) => assetKind(asset) === "train" && trainTypeOf(asset) === trainType)
+    .reduce((max, asset) => Math.max(max, trainNumber(asset)), 0);
+  return `train:${trainType}:${highest + 1}`;
 }
 
 type PricedPurchase = Pick<BuyTrain, "trainType" | "variant" | "from" | "price" | "tradeIn">;

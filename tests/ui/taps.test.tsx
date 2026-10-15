@@ -139,3 +139,70 @@ describe("taps to common actions (FR-100)", () => {
     expect(t.taps).toBe(1);
   });
 });
+
+describe("taps from the player sheet (feature 011, FR-007, SC-001)", () => {
+  /** The players pane is shown first (on a tablet both panes are on screen); taps count from there. */
+  const tile = async (user: User, id: string) => {
+    await user.click(screen.getByRole("tab", { name: "Jugadores" }));
+    return screen.getByTestId(`cash-${id}`).closest("button")!;
+  };
+  const dialog = () => screen.findByRole("dialog");
+
+  it("SR quick sell of 1: the tile, then Vender 1 PRR = 2 taps", async () => {
+    const { user } = await openSeededTable({ actions: [startSR, par("p1", "PRR", 100), buy("p2", "PRR", 2)] });
+    const start = await tile(user, "p2");
+    const t = counting(user);
+    await t.tap(start);
+    await t.tap(within(await dialog()).getByRole("button", { name: /^Vender 1 PRR/ }));
+    expect(await screen.findByText(/Bruno vende 1 PRR/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(t.taps).toBe(2);
+  });
+
+  it("Vender acciones with one holding = 3 taps", async () => {
+    const { user } = await openSeededTable({ actions: [startSR, par("p1", "PRR", 100), buy("p2", "PRR", 2)] });
+    const start = await tile(user, "p2");
+    const t = counting(user);
+    await t.tap(start);
+    await t.tap(within(await dialog()).getByRole("button", { name: "Vender acciones" }));
+    await t.tap(within(await dialog()).getByRole("button", { name: /^Vender 1 · cobra/ }));
+    expect(await screen.findByText(/Bruno vende 1 PRR/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(t.taps).toBe(3);
+  });
+
+  it("Vender acciones with two holdings = 4 taps", async () => {
+    const { user } = await openSeededTable({
+      actions: [startSR, par("p1", "PRR", 100), par("p3", "NYC", 90), buy("p2", "PRR", 2), buy("p2", "NYC", 1)],
+    });
+    const start = await tile(user, "p2");
+    const t = counting(user);
+    await t.tap(start);
+    await t.tap(within(await dialog()).getByRole("button", { name: "Vender acciones" }));
+    await t.tap(within(await dialog()).getByRole("button", { name: /NYC 10%/ }));
+    await t.tap(within(await dialog()).getByRole("button", { name: /^Vender 1 · cobra/ }));
+    expect(await screen.findByText(/Bruno vende 1 NYC/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(t.taps).toBe(4);
+  });
+
+  it("Comprar acción with several open companies = 4 taps", async () => {
+    const { user } = await openSeededTable({ actions: [startSR, par("p1", "PRR", 100), par("p3", "NYC", 90)] });
+    const start = await tile(user, "p2");
+    const t = counting(user);
+    await t.tap(start);
+    await t.tap(within(await dialog()).getByRole("button", { name: "Comprar acción" }));
+    await t.tap(within(await dialog()).getByRole("button", { name: /PRR/ }));
+    await t.tap(within(await dialog()).getByRole("button", { name: /^IPO / }));
+    expect(await screen.findByText(/Bruno compra 1 PRR de la IPO/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(t.taps).toBe(4);
+  });
+
+  it("Comprar acción with only one company = 3 taps", async () => {
+    const { user } = await openSeededTable({ actions: [startSR, par("p1", "PRR", 100)] });
+    const start = await tile(user, "p2");
+    const t = counting(user);
+    await t.tap(start);
+    await t.tap(within(await dialog()).getByRole("button", { name: "Comprar acción" }));
+    await t.tap(within(await dialog()).getByRole("button", { name: /^IPO / }));
+    expect(await screen.findByText(/Bruno compra 1 PRR de la IPO/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(t.taps).toBe(3);
+  });
+});

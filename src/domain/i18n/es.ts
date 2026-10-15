@@ -1,17 +1,17 @@
 import type { ActionContext } from "../actions/context";
 import { ActionSchema, type Action, type ActionOf, type ActionType } from "../actions/schemas";
-import type { TurnState } from "../events/state";
-import type { CompanyStatus, EventOf, PrimitiveEvent } from "../events/types";
+import { counterOf, type SessionState, type TurnState } from "../events/state";
+import type { CompanyStatus, EventOf, PrimitiveEvent, Round } from "../events/types";
 import type { BalanceChange, Movement } from "../ledger/breakdown";
 import { launchPrice, priceAt, priceOf } from "../mechanics/market";
-import { RUSTED } from "../mechanics/phases";
+import { countedTrains, RUSTED, trainLimitFor, trainNumber, trainsHeldBy } from "../mechanics/phases";
 import { mergePreview } from "../mechanics/custom/mergers";
 import { cycleCount } from "../mechanics/endTriggers";
 import type { ExportPreview } from "../mechanics/schedule";
 import { displayName, effectiveTraits } from "../mechanics/traits";
 import { perShareAmount } from "../mechanics/payout";
 import type { EndTriggerType, GameDefinition } from "../games/schema";
-import { parseHolder, type HolderRef, type Player } from "../types";
+import { parseHolder, trainTypeOf, type CompanyId, type HolderRef, type Player } from "../types";
 import { formatMoney } from "./format";
 
 export { formatMoney } from "./format";
@@ -77,9 +77,62 @@ export function cycleRoundLabel(
   return `Ciclo ${Math.max(1, turn.srNumber)} de ${cycles} · ${round}`;
 }
 
+/** History's round icons (feature 011, FR-020): text always goes with them. */
+export const ROUND_ICON: Readonly<Record<Round | "SETUP", string>> = {
+  PRIVATES: "📜",
+  SR: "💼",
+  OR: "🚂",
+  MR: "🔀",
+  CR: "🏛",
+  SETUP: "⚙",
+};
+
+/**
+ * A round's full title for History's sections: "Ronda de operaciones 2.1", "Ronda de acciones 3";
+ * in games played in cycles, "Ciclo 2 · Ronda de operaciones 1/2" (matching `cycleRoundLabel`).
+ */
+export function roundTitleEs(game: GameDefinition, turn: Pick<TurnState, "round" | "srNumber" | "orSet" | "orIndex" | "orsInSet">): string {
+  const cycle = cycleCount(game) !== undefined && turn.round !== "PRIVATES" && turn.round !== "CR" ? `Ciclo ${Math.max(1, turn.srNumber)} · ` : undefined;
+  switch (turn.round) {
+    case "PRIVATES":
+      return "Privadas";
+    case "SR":
+      return cycle ? `${cycle}Ronda de acciones` : `Ronda de acciones ${turn.srNumber}`;
+    case "OR":
+      return cycle ? `${cycle}Ronda de operaciones ${turn.orIndex}/${turn.orsInSet}` : `Ronda de operaciones ${turn.orSet}.${turn.orIndex}`;
+    case "MR":
+      return cycle ? `${cycle}Ronda de fusiones` : `Ronda de fusiones ${turn.srNumber}`;
+    case "CR":
+      return `Ronda corporativa ${turn.srNumber}`;
+  }
+}
+
 /** The phase's display name: its color ("Verde") when the definition gives one, else its id. */
 export function phaseName(game: GameDefinition, id: string): string {
   return game.phases.find((p) => p.id === id)?.color ?? id;
+}
+
+/**
+ * A company's trains for the operating sheet (feature 011, contracts/ui.md §2): "Trenes 2/4 · 2, 3",
+ * "(oxidado)" on a rusted train kept for a last run, "Sin trenes", "· sobre el límite". The count is
+ * what the limit counts (the over-limit banner's helpers), so the two never disagree. `warn` pairs a
+ * warning style with text that already says the state.
+ */
+export function trainsLineEs(game: GameDefinition, state: SessionState, company: CompanyId): { text: string; warn: boolean } {
+  const ref = `company:${company}` as const;
+  const order = (asset: string) => game.trains.findIndex((t) => t.type === trainTypeOf(asset));
+  const held = trainsHeldBy(state, ref).sort((a, b) => order(a) - order(b) || trainNumber(a) - trainNumber(b));
+  if (held.length === 0) return { text: "Sin trenes", warn: true };
+  const types = held.map((asset) => {
+    const type = trainTypeOf(asset);
+    const label = game.trains.find((t) => t.type === type)?.displayName ?? type;
+    return counterOf(state, ref, `${RUSTED}${asset}`) > 0 ? `${label} (oxidado)` : label;
+  });
+  const count = countedTrains(game, state, company).length;
+  const limit = trainLimitFor(game, state, company);
+  const over = count > limit;
+  const head = Number.isFinite(limit) ? `Trenes ${count}/${limit}` : `Trenes ${count}`;
+  return { text: `${head} · ${types.join(", ")}${over ? " · sobre el límite" : ""}`, warn: over };
 }
 
 export type SummaryContext = Pick<ActionContext, "game" | "players"> & Partial<Pick<ActionContext, "state">>;
@@ -285,8 +338,22 @@ const summaries: SummaryMap = {
   startCR: () => "Empieza la ronda corporativa",
   endCR: () => "Fin de la ronda corporativa",
 
+  correctTrain: (a, ctx, events) => {
+    const moved = events?.find((e) => e.t === "assetTransfer" && e.asset.startsWith("train:"));
+    const type = trainTypeOf(moved?.t === "assetTransfer" ? moved.asset : a.train.includes(":") ? a.train : `train:${a.train}:0`);
+    const co = companyName(a.company, ctx);
+    // With events, the money is what was recorded (the list price when amount was null).
+    const paid = events ? (singleTransfer(events)?.amount ?? 0) : (a.amount ?? 0);
+    const money = paid > 0 ? formatMoney(paid, ctx.game) : undefined;
+    if (a.op === "add") return `Corrección: la ${co} recibe un ${type} de la oferta${money ? ` y paga ${money}` : ""}`;
+    if (a.to === "pool") return `Corrección: el ${type} de la ${co} va al pool${money ? ` y recibe ${money}` : ""}`;
+    if (a.to === "removed") return `Corrección: el ${type} de la ${co} queda fuera de juego${money ? ` y recibe ${money}` : ""}`;
+    const refund = events ? money : a.amount === null ? "el precio de lista" : money;
+    return `Corrección: la ${co} devuelve un ${type} a la oferta${refund ? ` y recibe ${refund}` : ""}`;
+  },
+
   // Turns and market (US7)
-  nextCompany: () => "Siguiente compañía",
+  nextCompany: (_a, ctx, events) => roundEndEs(events, ctx) ?? "Siguiente compañía",
   setPhase: (a) => `Fase fijada a mano: ${a.phase}`,
   setTurn: (a, ctx) => {
     const parts = [
@@ -484,6 +551,31 @@ function noRunSummary(events: readonly PrimitiveEvent[], ctx: SummaryContext): s
   return moved ? `${companyName(company.id, ctx)} no corrió` : undefined;
 }
 
+/** The OR that a nextCompany group started, if it started one (feature 011, data-model §3). */
+function startedOR(events: readonly PrimitiveEvent[] | undefined): EventOf<"turnAdvance"> | undefined {
+  const e = events?.find((x) => x.t === "turnAdvance" && x.round === "OR" && x.orSet !== undefined && x.orIndex !== undefined);
+  return e?.t === "turnAdvance" ? e : undefined;
+}
+
+/**
+ * The title of a nextCompany group that ends an OR: "Fin de la OR 2.1 · empieza la OR 2.2", or
+ * "Fin de las rondas de operaciones" when the set is complete. The round after a set is not named:
+ * it is an SR or, in RotLA from green on, an MR (FR-022).
+ */
+function roundEndEs(events: readonly PrimitiveEvent[] | undefined, ctx: SummaryContext): string | undefined {
+  const or = startedOR(events);
+  if (or) {
+    const [set, index] = [or.orSet ?? 0, or.orIndex ?? 0];
+    if (cycleCount(ctx.game) !== undefined) {
+      const of = or.orsInSet ?? index;
+      return `Fin de RO ${index - 1}/${of} · empieza RO ${index}/${of}`;
+    }
+    return `Fin de la OR ${set}.${index - 1} · empieza la OR ${set}.${index}`;
+  }
+  const done = events?.some((e) => e.t === "turnAdvance" && e.company === null && e.round === undefined);
+  return done ? "Fin de las rondas de operaciones" : undefined;
+}
+
 type Summarized = { readonly action: Action; readonly events: readonly PrimitiveEvent[] };
 
 /**
@@ -513,14 +605,19 @@ export const UNDO_RANGE_ES = {
  * One line describing an action, e.g. "Ana paga $100 al banco". With the group's events, the
  * effects follow: "PRR paga $240 ($24/acción) · PRR → $112".
  */
-const SELF_DESCRIBED: ReadonlySet<string> = new Set(["launchCompany", "mergeCompanies"]);
+const SELF_DESCRIBED: ReadonlySet<string> = new Set(["launchCompany", "mergeCompanies", "correctTrain"]);
 
 export function summaryEs(action: Action, ctx: SummaryContext, events?: readonly PrimitiveEvent[]): string {
   const fn = summaries[action.type] as Summarizer<ActionType> | undefined;
-  const base = (events && action.type === "nextCompany" && noRunSummary(events, ctx)) || (fn ? fn(action, ctx, events) : action.type);
+  const title = fn ? fn(action, ctx, events) : action.type;
+  const noRun = events && action.type === "nextCompany" ? noRunSummary(events, ctx) : undefined;
+  // A zero run that ends a round keeps the round-end title (feature 011, US5).
+  const base = noRun ? (roundEndEs(events, ctx) ? `${noRun} · ${title}` : noRun) : title;
   // A launch's or merger's line already says where everything went (History lists each transfer).
-  const effects =
+  let effects =
     events && !SELF_DESCRIBED.has(action.type) && !(action.type === "startSR" && exportedEs(events, ctx)) ? effectsEs(events, ctx) : [];
+  const or = action.type === "nextCompany" ? startedOR(events) : undefined;
+  if (or) effects = effects.filter((e) => e !== `OR ${or.orSet}.${or.orIndex}`); // the title names it
   return effects.length > 0 ? `${base} · ${effects.join(" · ")}` : base;
 }
 

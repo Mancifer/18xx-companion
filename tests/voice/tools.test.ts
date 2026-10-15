@@ -169,7 +169,7 @@ describe("RotLA tools (US10, T086)", () => {
 
   it("1830, 1848 and 21Moon keep exactly their tool lists", () => {
     const common = ["runAndPayout", "buyTrain", "payCost", "bankPays", "privateIncome", "buyPrivateByCompany"];
-    const tail = ["transferMoney", "adjustMoney", "setMarket", "askClarification", "query", "notUnderstood", "undo", "amendLast", "confirmProposal"];
+    const tail = ["transferMoney", "adjustMoney", "correctTrain", "setMarket", "askClarification", "query", "notUnderstood", "undo", "amendLast", "confirmProposal"];
     expect(names(session("1830"))).toEqual([
       ...common,
       ...["parCompany", "buyShare", "sellShares", "buyPrivate", "exchangePrivate", "stockBatch", "startSR", "endSR", "startOR", "nextCompany"],
@@ -304,5 +304,21 @@ describe("Gemini tools (005 T020)", () => {
   it("drops keywords outside the allowlist", () => {
     const [tools] = toGeminiTools([{ name: "x", description: "d", schema: { type: "object", properties: { a: { type: "string", format: "date", pattern: "x" } }, $defs: {} } }]);
     expect(tools.functionDeclarations[0]!.parametersJsonSchema).toEqual({ type: "object", properties: { a: { type: "string" } } });
+  });
+});
+
+describe("correctTrain tool (feature 011, US3)", () => {
+  it("comes right after adjustMoney, with the session's companies and closed op/to enums", () => {
+    expect(ACTION_TOOLS.indexOf("correctTrain")).toBe(ACTION_TOOLS.indexOf("adjustMoney") + 1);
+    const tool = toolNamed("1830", "correctTrain");
+    const p = props(tool.input_schema);
+    expect(enumOf(p["company"])).toEqual(getBuiltInGame("1830").companies.map((c) => c.id));
+    expect(enumOf(p["op"])).toEqual(["remove", "add"]);
+    expect(enumOf(p["to"])).toEqual(["bank", "pool", "removed"]);
+    expect(JSON.stringify(p["to"])).toContain("null");
+    expect(JSON.stringify(p["amount"])).toContain("null");
+    for (const example of ["«la PRR no tenía ese dos, devolvelo al banco»", "«sacale el tres a la B&O, fuera de juego»", "«dale un dos a la NYC sin pagar»"]) {
+      expect(tool.description).toContain(example);
+    }
   });
 });

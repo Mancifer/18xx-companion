@@ -385,3 +385,31 @@ describe("RotLA trains, phases and limits (US6)", () => {
     expect(trainStack(s.game, s.state)[0]).toEqual({ type: "3", displayName: "3", left: 5 });
   });
 });
+
+describe("correctTrain is exempt from the phase and private-closing triggers (feature 011, research R4)", () => {
+  const correctAdd = (company: string, train: string) => ({ type: "correctTrain", company, train, op: "add", to: null, amount: null });
+  const buy = (company: string, trainType: string) => ({ type: "buyTrain", company, trainType, variant: null, from: "bank", seller: null, price: null, tradeIn: null });
+
+  it("adding a 3 in phase 2 starts no phase and rusts nothing", () => {
+    const s = floated(session(g1830), "PRR", { row: 0, col: 6 }, 500, ["train:2:1"]);
+    s.do(correctAdd("PRR", "3"));
+    expect(eventsOf(s.lastEvents, "turnAdvance")).toEqual([]);
+    expect(s.state.turn.phase).toBe("2");
+    expect(s.state.assets["train:2:1"]).toBe("company:PRR");
+  });
+
+  it("the BO private does not close when B&O gets a train by correction", () => {
+    const s = floated(session(g1830), "B&O", { row: 0, col: 6 }, 500);
+    s.apply({ t: "assetTransfer", asset: "private:BO", from: "bank", to: "player:p1" });
+    s.do(correctAdd("B&O", "2"));
+    expect(s.state.assets["private:BO"]).toBe("player:p1");
+  });
+
+  it("buyTrain still triggers both (regression)", () => {
+    const s = floated(session(g1830), "B&O", { row: 0, col: 6 }, 500);
+    s.apply({ t: "assetTransfer", asset: "private:BO", from: "bank", to: "player:p1" });
+    s.do(buy("B&O", "3"));
+    expect(s.state.turn.phase).toBe("3");
+    expect(s.state.assets["private:BO"]).toBe("removed");
+  });
+});

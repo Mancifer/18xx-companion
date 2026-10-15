@@ -131,6 +131,30 @@ describe("voice undo (feature 010, contracts/voice-undo.md)", () => {
   });
 });
 
+describe("correctTrain by voice (feature 011, US3)", () => {
+  const reply = (input: Record<string, unknown>): ModelReply => ({
+    provider: "anthropic",
+    model: "test",
+    calls: [{ name: "correctTrain", input }],
+    stop: "done",
+    rawStop: "end_turn",
+  });
+
+  it("resolves through the same validation as touch, with its summary", () => {
+    const ctx = context();
+    const withTrain = { ...ctx, state: { ...ctx.state, assets: { ...ctx.state.assets, "train:2:1": "company:PRR" as const } } };
+    const r = resolveResponse(reply({ company: "PRR", train: "2", op: "remove", to: "bank", amount: null }), withTrain, "la PRR no tenía ese dos");
+    expect(r.kind).toBe("proposal");
+    if (r.kind !== "proposal") return;
+    expect(r.summaryEs).toMatch(/^Corrección: la PRR devuelve un 2 a la oferta y recibe \$80/);
+  });
+
+  it("an unavailable correction is not a proposal", () => {
+    const r = resolveResponse(reply({ company: "PRR", train: "3", op: "remove", to: "bank", amount: null }), context(), "sacale el tres");
+    expect(r.kind).not.toBe("proposal");
+  });
+});
+
 describe("resolveResponse: not understood", () => {
   it.each(["not-understood", "no-tool", "bad-input", "unknown-entity", "refusal", "max-tokens"])(
     "US5-6: %s → No entendí, with the transcript",

@@ -154,6 +154,22 @@ export const changeTrainSupplyAction = z.object({
   op: z.enum(["add", "remove"]),
 });
 
+/**
+ * A correction of a company's trains (feature 011, contracts/actions.md): not a purchase or a
+ * discard, so it never starts a phase or closes a private.
+ */
+export const correctTrainAction = z.object({
+  type: z.literal("correctTrain"),
+  company: companyId,
+  /** An asset id ("train:2:3") or a train type ("2"). */
+  train: z.string().min(1),
+  op: z.enum(["remove", "add"]),
+  /** remove: where it goes. add: null. */
+  to: z.enum(["bank", "pool", "removed"]).nullable(),
+  /** remove → bank: refund (null = list price, 0 = none). add: payment (null = none). */
+  amount: z.number().int().nonnegative().nullable(),
+});
+
 export const startORAction = z.object({ type: z.literal("startOR") });
 
 /** nationalBank: the BoE pays its phase minimum plus the city values entered as `extra`. */
@@ -398,6 +414,7 @@ export const ActionSchema = z.discriminatedUnion("type", [
   nextCompanyAction,
   setPhaseAction,
   setTurnAction,
+  correctTrainAction,
   setMarketAction,
   endGameAction,
   reopenGameAction,

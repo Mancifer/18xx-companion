@@ -2141,7 +2141,7 @@
       "warnings": [
         {
           "code": "setComplete",
-          "messageEs": "Fin de las rondas de operaciones: empieza la ronda de acciones.",
+          "messageEs": "Fin de las rondas de operaciones.",
           "severity": "info"
         }
       ]

@@ -5,6 +5,8 @@ import type { GameDefinition } from "../../src/domain/games/schema";
 import type { Player } from "../../src/domain/types";
 import { touchesOf, type GroupEntry, type LogEntry } from "../../src/domain/ledger/entries";
 import { entryBreakdown } from "../../src/domain/ledger/breakdown";
+import { groupHistory } from "../../src/domain/ledger/effectiveLog";
+import { roundSections } from "../../src/domain/ledger/rounds";
 import { replay } from "../../src/domain/ledger/replay";
 import { replayFromSnapshot, snapshotsFor } from "../../src/domain/ledger/snapshots";
 import { openCompanionDb } from "../../src/persistence/db";
@@ -146,6 +148,12 @@ describe("performance (T163)", () => {
     const undone: LogEntry[] = [...short, { kind: "undo", seq: 301, at: "2026-10-12T20:00:00.000Z", groupIds: ids }];
     expect(entryBreakdown(game, players, undone, first.id)?.status).toBe("reverted");
     expect(timeIt(() => entryBreakdown(game, players, undone, first.id))).toBeLessThan(50);
+  });
+
+  it("computes History's round sections of a 300-group game in under 20 ms (feature 011, US4)", () => {
+    const history = groupHistory(log.slice(0, 300));
+    expect(roundSections(game, history).length).toBeGreaterThan(1);
+    expect(timeIt(() => roundSections(game, history))).toBeLessThan(20);
   });
 });
 

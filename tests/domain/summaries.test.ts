@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { Action } from "../../src/domain/actions/schemas";
+import type { PrimitiveEvent } from "../../src/domain/events/types";
+import type { HolderRef } from "../../src/domain/types";
 import { applyOptions, getBuiltInGame } from "../../src/domain/games";
 import type { GameDefinition } from "../../src/domain/games/schema";
-import { balanceLineEs, formatMoney, movementLineEs, summaryEs } from "../../src/domain/i18n/es";
+import { balanceLineEs, formatMoney, movementLineEs, summaryEs, trainsLineEs } from "../../src/domain/i18n/es";
+import { trainLimitFor } from "../../src/domain/mechanics/phases";
 import type { Movement } from "../../src/domain/ledger/breakdown";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { FLOW, NAMES, candidates, rng } from "../helpers/randomWalk";
@@ -124,6 +127,64 @@ describe("nextCompany summary (T015)", () => {
     const s = twoInOR().do({ type: "runAndPayout", company: null, parts: [{ part: "revenue", amount: 0 }], mode: "withhold" });
     s.do(next);
     expect(summaryEs(next, s, s.lastEvents)).toBe("Siguiente compañía · turno de NYC");
+  });
+});
+
+describe("nextCompany round-end titles (feature 011, US5)", () => {
+  const next: Action = { type: "nextCompany" };
+  const g1830 = getBuiltInGame("1830");
+  const ctx = { game: g1830, players };
+  const twoORs = () => {
+    const s = TestSession.start(g1830, players).do({ type: "startSR" });
+    seedCompany(s, "PRR", { cell: { row: 0, col: 8 }, holders: { "player:p1": 6 } });
+    s.apply({ t: "turnAdvance", phase: "3" }); // 2 ORs per set
+    return s.do({ type: "startOR" });
+  };
+
+  it("a new OR in the set: Fin de la OR S.(I−1) · empieza la OR S.I", () => {
+    const events = [{ t: "turnAdvance", round: "OR", orSet: 2, orIndex: 2, orsInSet: 2, operatingOrder: ["NYC"], company: "NYC" }] as const;
+    expect(summaryEs(next, ctx, events)).toBe("Fin de la OR 2.1 · empieza la OR 2.2 · turno de NYC");
+  });
+
+  it("the set complete: Fin de las rondas de operaciones, naming no next round", () => {
+    expect(summaryEs(next, ctx, [{ t: "turnAdvance", company: null }])).toBe("Fin de las rondas de operaciones");
+  });
+
+  it("a plain turn change, or no events, stays Siguiente compañía", () => {
+    expect(summaryEs(next, ctx, [{ t: "turnAdvance", company: "NYC" }])).toBe("Siguiente compañía · turno de NYC");
+    expect(summaryEs(next, ctx)).toBe("Siguiente compañía");
+  });
+
+  it("a zero run that ends the OR keeps both: PRR no corrió · Fin de la OR …", () => {
+    const s = twoORs();
+    s.do(next);
+    expect(summaryEs(next, s, s.lastEvents)).toMatch(/^PRR no corrió · Fin de la OR 1\.1 · empieza la OR 1\.2 · PRR → \$/);
+  });
+
+  it("RotLA mid-set end uses the cycle wording", () => {
+    const s = rotlaSession();
+    seedRotla(s, "CON", { price: 100, holders: { "player:p1": 10 } });
+    s.do({ type: "startSR" }).do({ type: "startOR" });
+    s.do({ type: "runAndPayout", company: null, parts: [{ part: "revenue", amount: 0 }], mode: "withhold" });
+    s.do(next);
+    expect(summaryEs(next, s, s.lastEvents)).toMatch(/^Fin de RO 1\/2 · empieza RO 2\/2/);
+  });
+
+  it("RotLA in green, ending OR n.2 (a merger round follows): no stock-round wording (US5-2)", () => {
+    const s = rotlaSession();
+    seedRotla(s, "CON", { price: 100, holders: { "player:p1": 10 } });
+    s.do({ type: "startSR" });
+    s.apply({ t: "turnAdvance", phase: "green" });
+    s.do({ type: "startOR" }).do(next).do(next);
+    expect(s.state.turn.currentCompany).toBeUndefined();
+    const line = summaryEs(next, s, s.lastEvents);
+    expect(line).toMatch(/Fin de las rondas de operaciones/);
+    expect(line).not.toMatch(/acciones/);
+  });
+
+  it("the setComplete warning names no next round (FR-022)", () => {
+    const s = twoORs().do(next).do(next);
+    expect(s.lastWarnings.find((w) => w.code === "setComplete")?.messageEs).toBe("Fin de las rondas de operaciones.");
   });
 });
 
@@ -388,5 +449,79 @@ describe("breakdown lines (feature 010, contracts/history-ui.md)", () => {
     expect(balanceLineEs({ holder: "player:p1", before: 480, after: 720, delta: 240 }, ctx)).toBe("Ana: $480 → $720 (+$240)");
     expect(balanceLineEs({ holder: "company:PRR", before: 500, after: 420, delta: -80 }, ctx)).toBe("PRR: $500 → $420 (−$80)");
     expect(balanceLineEs({ holder: "bank", before: null, after: null, delta: -240 }, ctx)).toBe("Banco: −$240");
+  });
+});
+
+describe("trainsLineEs (feature 011, US2, contracts/ui.md §2)", () => {
+  const g1830 = getBuiltInGame("1830");
+  const prr = (trains: readonly string[], game: GameDefinition = g1830) =>
+    seedCompany(TestSession.start(game, players), "PRR", { cell: { row: 0, col: 6 }, holders: { "player:p1": 6 }, trains });
+
+  it("count/limit and types", () => {
+    const s = prr(["train:2:1", "train:3:1"]);
+    expect(trainsLineEs(s.game, s.state, "PRR")).toEqual({ text: "Trenes 2/4 · 2, 3", warn: false });
+  });
+
+  it("a rusted kept train is marked and not counted", () => {
+    const s = prr(["train:2:1", "train:3:1"]);
+    s.apply({ t: "counterChange", subject: "company:PRR", key: "rusted:train:2:1", delta: 1 });
+    expect(trainsLineEs(s.game, s.state, "PRR").text).toBe("Trenes 1/4 · 2 (oxidado), 3");
+  });
+
+  it("no trains: Sin trenes, with the warning style", () => {
+    const s = prr([]);
+    expect(trainsLineEs(s.game, s.state, "PRR")).toEqual({ text: "Sin trenes", warn: true });
+  });
+
+  it("over the limit says so, with the warning style", () => {
+    const s = prr(["train:2:1", "train:3:1", "train:3:2"]);
+    s.apply({ t: "turnAdvance", phase: "5" });
+    expect(trainsLineEs(s.game, s.state, "PRR")).toEqual({ text: "Trenes 3/2 · 2, 3, 3 · sobre el límite", warn: true });
+  });
+
+  it("no limit in the phase: the count only", () => {
+    const unlimited = { ...g1830, phases: g1830.phases.map((p) => ({ ...p, trainLimit: undefined })) } as unknown as GameDefinition;
+    const s = prr(["train:2:1", "train:3:1"], unlimited);
+    expect(trainsLineEs(s.game, s.state, "PRR").text).toBe("Trenes 2 · 2, 3");
+  });
+
+  it("1848: a 2E is listed but not counted", () => {
+    const g1848 = getBuiltInGame("1848");
+    const s = seedCompany(TestSession.start(g1848, players), "QR", {
+      cell: { row: 0, col: 6 },
+      holders: { "player:p1": 6 },
+      trains: ["train:2:1", "train:2E:1"],
+    });
+    const limit = trainLimitFor(s.game, s.state, "QR");
+    expect(trainsLineEs(s.game, s.state, "QR").text).toBe(`Trenes 1/${limit} · 2, 2E`);
+  });
+});
+
+describe("correctTrain summaries (feature 011, contracts/actions.md)", () => {
+  const ctx = { game: getBuiltInGame("1830"), players };
+  const act = (op: "remove" | "add", to: "bank" | "pool" | "removed" | null, amount: number | null): Action =>
+    ({ type: "correctTrain", company: "PRR", train: "2", op, to, amount });
+  const asset = (from: HolderRef, to: HolderRef): PrimitiveEvent => ({ t: "assetTransfer", asset: "train:2:2", from, to });
+  const money = (from: HolderRef, to: HolderRef, amount: number): PrimitiveEvent => ({ t: "moneyTransfer", from, to, amount });
+
+  it("remove → bank, with and without a refund (the refund read from the events)", () => {
+    expect(summaryEs(act("remove", "bank", null), ctx, [asset("company:PRR", "bank"), money("bank", "company:PRR", 80)])).toBe(
+      "Corrección: la PRR devuelve un 2 a la oferta y recibe $80",
+    );
+    expect(summaryEs(act("remove", "bank", 0), ctx, [asset("company:PRR", "bank")])).toBe("Corrección: la PRR devuelve un 2 a la oferta");
+  });
+
+  it("remove → pool and → removed", () => {
+    expect(summaryEs(act("remove", "pool", null), ctx, [asset("company:PRR", "pool")])).toBe("Corrección: el 2 de la PRR va al pool");
+    expect(summaryEs(act("remove", "removed", null), ctx, [asset("company:PRR", "removed")])).toBe(
+      "Corrección: el 2 de la PRR queda fuera de juego",
+    );
+  });
+
+  it("add, with and without a payment", () => {
+    expect(summaryEs(act("add", null, null), ctx, [asset("bank", "company:PRR")])).toBe("Corrección: la PRR recibe un 2 de la oferta");
+    expect(summaryEs(act("add", null, 80), ctx, [asset("bank", "company:PRR"), money("company:PRR", "bank", 80)])).toBe(
+      "Corrección: la PRR recibe un 2 de la oferta y paga $80",
+    );
   });
 });

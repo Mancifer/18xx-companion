@@ -40,6 +40,7 @@ import { PrivatesSheet } from "../sheets/PrivatesSheet";
 import { ConfirmSheet, CounterSheet } from "../sheets/StatusSheets";
 import { StockSheet } from "../sheets/StockSheet";
 import { ChipsSheet } from "../sheets/ChipsSheet";
+import { TrainCorrectionSheet } from "../sheets/TrainCorrectionSheet";
 import { TurnSheet } from "../sheets/TurnSheet";
 
 export type Open =
@@ -56,6 +57,7 @@ export type Open =
   | { kind: "chips" }
   | { kind: "confirm"; title: string; body: string; confirmLabel: string; action: unknown; scoreAfter?: boolean }
   | { kind: "counter"; subject: HolderRef; key: string }
+  | { kind: "trainCorrection"; company: CompanyId }
   | null;
 
 /** The Companies tab's sections, in display order. */
@@ -148,6 +150,9 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
           <button onClick={() => setOpen({ kind: "company", id, view: "operate" })}>Operar…</button>
         )}
         <button onClick={() => setOpen({ kind: "company", id, view: "stock" })}>Acciones…</button>
+        {meta.game.trains.length > 0 ? (
+          <button onClick={() => setOpen({ kind: "trainCorrection", company: id })}>Corregir trenes…</button>
+        ) : null}
         {status !== "receivership" ? (
           <button
             onClick={() =>
@@ -198,14 +203,20 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
     );
   };
 
+  /** The player's game actions, under "Jugada" with selling and buying (feature 011). */
+  const playerGameActions = (id: PlayerId): ReactNode => {
+    const ref = `player:${id}` as const;
+    const exchangeable = meta.game.privates.some((p) => p.exchange && state.assets[`private:${p.id}`] === ref);
+    return exchangeable ? <button onClick={() => setOpen({ kind: "exchange", player: id })}>Canjear privada…</button> : null;
+  };
+
+  /** The player's adjustments, under "Ajustes"; bankruptcy last. */
   const playerActions = (id: PlayerId): ReactNode => {
     const ref = `player:${id}` as const;
     const name = meta.players.find((p) => p.id === id)?.name ?? id;
     const debt = counterOf(state, ref, "debt");
-    const exchangeable = meta.game.privates.some((p) => p.exchange && state.assets[`private:${p.id}`] === ref);
     return (
       <>
-        {exchangeable ? <button onClick={() => setOpen({ kind: "exchange", player: id })}>Canjear privada…</button> : null}
         <button onClick={() => setOpen({ kind: "counter", subject: ref, key: "debt" })}>
           Ajustar deuda{debt > 0 ? ` (${formatMoney(debt, meta.game)})` : ""}
         </button>
@@ -346,7 +357,9 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
         </section>
       </div>
 
-      {open?.kind === "player" ? <PlayerSheet playerId={open.id} onClose={close} extraActions={playerActions(open.id)} /> : null}
+      {open?.kind === "player" ? (
+        <PlayerSheet playerId={open.id} onClose={close} gameActions={playerGameActions(open.id)} extraActions={playerActions(open.id)} />
+      ) : null}
       {open?.kind === "company" && open.view === "operate" ? (
         <OperateSheet
           companyId={open.id}
@@ -354,8 +367,10 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
           initialView={open.discard ? "discard" : "run"}
           onClose={close}
           onDetails={() => setOpen({ kind: "company", id: open.id, view: "details" })}
+          onCorrectTrains={() => setOpen({ kind: "trainCorrection", company: open.id })}
         />
       ) : null}
+      {open?.kind === "trainCorrection" ? <TrainCorrectionSheet companyId={open.company} onClose={close} /> : null}
       {open?.kind === "company" && open.view === "stock" ? (
         <StockSheet
           companyId={open.id}

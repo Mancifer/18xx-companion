@@ -287,7 +287,7 @@ exports[`recorded Claude responses baseline (T002) > next-company 1`] = `
   ],
   "flows": [],
   "kind": "proposal",
-  "summaryEs": "PRR no corrió · PRR → $90 · OR 1.2 · turno de PRR",
+  "summaryEs": "PRR no corrió · Fin de la OR 1.1 · empieza la OR 1.2 · PRR → $90 · turno de PRR",
   "transcript": "orden",
   "warnings": [
     {

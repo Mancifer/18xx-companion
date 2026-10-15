@@ -56,6 +56,7 @@ export const ACTION_TOOLS: readonly ActionType[] = [
   "endGame",
   "transferMoney",
   "adjustMoney",
+  "correctTrain",
   "setMarket",
 ];
 
@@ -106,6 +107,8 @@ const DESCRIPTIONS: Readonly<Record<string, string>> = {
   endGame: "Terminar la partida (fin del juego). Sin argumentos.",
   transferMoney: "Pago directo entre el banco, jugadores y compañías. «Ana le paga 50 a Bruno» · «Carla paga 100 al banco».",
   adjustMoney: "Corregir el dinero de alguien: sumar/restar (delta) o fijar (setTo). «Ana tiene 520» · «súmale 20 a Bruno».",
+  correctTrain:
+    "Corregir los trenes de una compañía por un error de registro (no es una compra ni un descarte). remove: el tren va a la oferta (bank, con devolución del precio de lista salvo amount), al pool o fuera de juego (removed). add: dar un tren de la oferta (amount = lo que paga, null = nada). «la PRR no tenía ese dos, devolvelo al banco» · «sacale el tres a la B&O, fuera de juego» · «dale un dos a la NYC sin pagar».",
   setMarket: "Mover a mano la ficha de una compañía en el mercado. «pon la PRR en 90».",
   askClarification:
     "Pregunta al usuario cuando la orden es ambigua (dos jugadores parecidos, falta la compañía). Da de 2 a 6 opciones. «Ana compra una» (¿Ana o Anabel? ¿qué compañía?).",

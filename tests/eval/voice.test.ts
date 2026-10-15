@@ -122,7 +122,7 @@ describe("seed cases (T136)", () => {
     const count = (cat: string) => cases.filter((c) => c.category === cat).length;
     expect(Object.fromEntries(CATEGORIES.map((c) => [c, count(c)]))).toEqual({
       payout: 16,
-      trains: 13,
+      trains: 16, // + 3 correctTrain cases (feature 011)
       costs: 7,
       stock: 18,
       loans: 3,

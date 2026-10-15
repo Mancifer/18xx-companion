@@ -128,7 +128,7 @@ function withRoundEnded(state: SessionState): SessionState {
   return state.turn.roundEnded ? state : { ...state, turn: { ...state.turn, roundEnded: true } };
 }
 
-function advanceTurn(state: SessionState, e: Extract<PrimitiveEvent, { t: "turnAdvance" }>): SessionState {
+export function advanceTurn(state: SessionState, e: Extract<PrimitiveEvent, { t: "turnAdvance" }>): SessionState {
   const prev = state.turn;
   const next: TurnState = {
     ...prev,

@@ -249,6 +249,17 @@ button[aria-pressed="true"] {
   font-weight: 600;
 }
 
+/* The player sheet's "Jugada" and "Ajustes" (feature 011): two labeled groups, set apart. */
+.menu-section + .menu-section {
+  margin-top: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
+.menu-section button {
+  min-height: var(--tap);
+}
+
 .holders {
   list-style: none;
   margin: 0;
@@ -1120,4 +1131,51 @@ button[role="radio"][aria-checked="true"] {
   border-color: var(--accent);
   color: var(--accent-text);
   font-weight: 700;
+}
+
+/* The operating sheet's trains line (feature 011, US2). The text always says the state. */
+.trains-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  font-weight: 600;
+}
+
+.trains-line.warn {
+  color: var(--warn);
+  background: var(--warn-bg);
+  border-left: 4px solid var(--warn);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.trains-line button {
+  margin-left: auto;
+}
+
+/* History's round sections (feature 011, US4): a header band and a start band per round. The
+   icon and the text carry the round; the bands only set it apart. */
+.round-section {
+  margin-bottom: var(--space-4);
+}
+
+.round-header {
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-left: 6px solid var(--accent);
+  border-radius: var(--radius-sm);
+  overflow-wrap: anywhere;
+}
+
+.round-start {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-1) var(--space-3);
+  font-weight: 600;
+  color: var(--text-muted);
+  border-top: 2px dashed var(--border);
 }

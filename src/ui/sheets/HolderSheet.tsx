@@ -12,19 +12,22 @@ type Mode = "menu" | "pay" | "receive" | "set" | "shares";
 
 /**
  * Manual adjustments for one holder (FR-024): pay, receive from the bank, set a value, and
- * move shares. Each confirmation dispatches exactly one action.
+ * move shares. Each confirmation dispatches exactly one action. With `gameActions` (the player
+ * sheet, feature 011), those come first under "Jugada" and the adjustments follow under "Ajustes".
  */
 export function HolderSheet({
   holder,
   title,
   onClose,
   info,
+  gameActions,
   extraActions,
 }: {
   holder: HolderRef;
   title: ReactNode;
   onClose: () => void;
   info?: ReactNode;
+  gameActions?: ReactNode;
   extraActions?: ReactNode;
 }) {
   const { meta, state } = useSession();
@@ -100,16 +103,33 @@ export function HolderSheet({
     return <SharesForm holder={holder} title={title} onClose={onClose} onDone={run} ctx={ctx} />;
   }
 
+  const adjustments = (
+    <div className="choice-grid">
+      <button onClick={() => setMode("pay")}>Pagar…</button>
+      <button onClick={() => setMode("receive")}>Cobrar del banco</button>
+      <button onClick={() => setMode("set")}>Fijar dinero</button>
+      <button onClick={() => setMode("shares")}>Mover acciones</button>
+      {extraActions}
+    </div>
+  );
+
   return (
     <Sheet title={title} onClose={onClose}>
       {info}
-      <div className="choice-grid">
-        <button onClick={() => setMode("pay")}>Pagar…</button>
-        <button onClick={() => setMode("receive")}>Cobrar del banco</button>
-        <button onClick={() => setMode("set")}>Fijar dinero</button>
-        <button onClick={() => setMode("shares")}>Mover acciones</button>
-        {extraActions}
-      </div>
+      {gameActions !== undefined ? (
+        <>
+          <fieldset className="choice-fieldset menu-section">
+            <legend className="muted">Jugada</legend>
+            <div className="choice-grid">{gameActions}</div>
+          </fieldset>
+          <fieldset className="choice-fieldset menu-section">
+            <legend className="muted">Ajustes</legend>
+            {adjustments}
+          </fieldset>
+        </>
+      ) : (
+        adjustments
+      )}
     </Sheet>
   );
 }

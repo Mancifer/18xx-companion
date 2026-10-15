@@ -6,6 +6,7 @@ import { balanceLineEs, movementLineEs, summaryEs, UNDO_RANGE_ES, type SummaryCo
 import { entryBreakdown } from "../../domain/ledger/breakdown";
 import { groupHistory, type GroupHistory } from "../../domain/ledger/effectiveLog";
 import type { EntrySource, LogEntry } from "../../domain/ledger/entries";
+import { roundSections } from "../../domain/ledger/rounds";
 import { isSetup, newestUndoable, type UndoRange } from "../../domain/ledger/undo";
 import { UndoRangeSheet } from "../components/UndoRangeSheet";
 import { UndoToast } from "../components/UndoToast";
@@ -24,7 +25,7 @@ function time(iso: string): string {
 }
 
 /**
- * Every entry, newest first (FR-013): undone entries struck through, legacy corrected ones with
+ * Every entry, newest first, in round sections (FR-013, feature 011): undone entries struck through, legacy corrected ones with
  * the original and the latest version, and the first entry after which an invariant broke
  * highlighted (FR-015). Undo only runs in order (feature 010): the newest entry has "Deshacer"
  * on its row; any older active entry has "Deshacer hasta acá" in its panel, with a confirmation.
@@ -36,7 +37,10 @@ export function History({ extraActions }: { extraActions?: ReactNode }) {
   const { go } = useNav();
   const exportSession = useExportSession();
   const [confirming, setConfirming] = useState<UndoRange | null>(null);
-  const history = useMemo(() => [...groupHistory(log)].sort((a, b) => b.group.seq - a.group.seq), [log]);
+  const history = useMemo(() => groupHistory(log), [log]);
+  const byId = useMemo(() => new Map(history.map((h) => [h.group.id, h])), [history]);
+  // Round sections, newest first (feature 011, US4); each lists its entries newest first.
+  const sections = useMemo(() => [...roundSections(meta.game, history)].reverse(), [meta.game, history]);
   const newestId = useMemo(() => newestUndoable(log)?.id, [log]);
   const badGroups = new Set(violations.map((v) => v.firstBadGroupId));
   const ctx = { game: meta.game, players: meta.players };
@@ -63,24 +67,34 @@ export function History({ extraActions }: { extraActions?: ReactNode }) {
           </div>
         ) : null}
         {history.length === 0 ? <p className="muted">Todavía no hay entradas.</p> : null}
-        <ol className="history-list">
-          {history.map((h) => {
-            const undoable = h.status !== "reverted" && !isSetup(h.group);
-            return (
-              <HistoryItem
-                key={h.group.id}
-                item={h}
-                bad={badGroups.has(h.group.id)}
-                autoEnd={autoEndGroups.includes(h.group.id)}
-                summary={(a, events) => summaryEs(a, ctx, events)}
-                log={log}
-                ctx={ctx}
-                onUndo={h.group.id === newestId ? () => void undoLast() : undefined}
-                onUndoBackTo={undoable && h.group.id !== newestId ? () => void undoBackTo(h.group.id) : undefined}
-              />
-            );
-          })}
-        </ol>
+        {sections.map((section) => (
+          <section key={`${section.key}@${section.groupIds[0] ?? ""}`} className="round-section" aria-label={section.title}>
+            <h2 className="round-header">
+              {section.icon} {section.title} · {section.finished ? "terminada" : "en curso"}
+            </h2>
+            <ol className="history-list">
+              {[...section.groupIds].reverse().map((id) => {
+                const h = byId.get(id);
+                if (!h) return null;
+                const undoable = h.status !== "reverted" && !isSetup(h.group);
+                return (
+                  <HistoryItem
+                    key={h.group.id}
+                    item={h}
+                    bad={badGroups.has(h.group.id)}
+                    autoEnd={autoEndGroups.includes(h.group.id)}
+                    summary={(a, events) => summaryEs(a, ctx, events)}
+                    log={log}
+                    ctx={ctx}
+                    onUndo={h.group.id === newestId ? () => void undoLast() : undefined}
+                    onUndoBackTo={undoable && h.group.id !== newestId ? () => void undoBackTo(h.group.id) : undefined}
+                  />
+                );
+              })}
+            </ol>
+            <p className="round-start">Inicio · {section.title}</p>
+          </section>
+        ))}
       </div>
       {confirming ? (
         <UndoRangeSheet

@@ -216,6 +216,7 @@ The event vocabulary is small. Higher-level actions expand into groups of primit
 | Operating | `privateIncome()` | bank → owners, at the start of each OR |
 | Operating | `buyPrivateByCompany(company, private, price)` | company → owner, private → company |
 | Operating | `discardTrain(company, train)` / `changeTrainSupply(type, add\|remove)` | train to the pool (1830) or out of the game; reserve trains in and out of the supply (21Moon) |
+| Correction | `correctTrain(company, train, op, to?, amount?)` | a train recorded by mistake goes back to the bank (buyable again; the list price is refunded unless `amount` says otherwise), to the pool (only in games that discard trains there) or out of the game, or the company is given a train from the bank (optionally paying). Not a purchase or a discard: it never starts a phase, rusts or closes a private (`CORRECTION_ACTIONS`); warnings flag the phase's starting train, a type no longer on sale, a refund with no return to the supply, a broken bank or short cash. Touch and voice |
 | Operating | `nationalPayout(extra)` | 1848 Bank of England dividend: phase minimum plus city values |
 | Status | `enterReceivership` / `declareBankruptcy` / `closeCompany` / `adjustCounter` | the matching mechanic's bookkeeping (1848 takeover, bankruptcy cleanup), or a plain status or counter change |
 | Stock | `parCompany(player, company, price)` | shares + money + status |
@@ -368,6 +369,9 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
 | "deshacer" / "deshacé hasta la compra del tren de la EXP" | undo the latest entry / undo back to that entry (the snapshot lists the last 15 entries with ids; the same confirmation as touch) |
 | "no, eran 260" | `amendLast`: nothing changes; the app explains how to undo back to the entry and record it again |
 | "¿cuánto tiene Ana?" | query |
+| "la PRR no tenía ese dos, devolvelo al banco" | `correctTrain(PRR, "2", remove, bank)` (list price refunded) |
+| "sacale el tres a la B&O, fuera de juego" | `correctTrain(B&O, "3", remove, removed)` |
+| "dale un dos a la NYC sin pagar" | `correctTrain(NYC, "2", add)` |
 | "siguiente compañía" | `nextCompany()` (with no run recorded, the card warns that it counts as "no corrió" and shows the price drop) |
 
 ## 9. UI
@@ -415,14 +419,27 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
      When the game ends while the Table is shown (confirmed, by voice, or on its own) the results
      open; a finished game shows a "Partida completa · Ver resultados" banner and still accepts
      entries.
-   - **Player grid**: large tiles with name, cash, and share summary. Tap opens a detail sheet;
-     ± gestures allow quick adjustments.
+   - **Player grid**: large tiles with name, cash, and share summary. Tap opens the player's
+     sheet in two labeled groups. "Jugada" holds the game actions: in an SR, one "Vender 1 PRR ·
+     $67" button per holding with a price (two taps from the Table), then "Vender acciones"
+     (company, stepper, "Vender N · cobra $X") and "Comprar acción" (open companies, stepper, then
+     one tap on "IPO $p", "Pool $p" or "Tesorería $p", each enabled only when available, with the
+     reason otherwise), plus "Canjear privada…" when the player holds an exchangeable private
+     (first outside the SR). "Ajustes" holds Pagar…, Cobrar del banco, Fijar dinero, Mover
+     acciones, Ajustar deuda and Declarar quiebra. Sales and buys are the same `sellShares` and
+     `buyShare` as the company card's.
    - **Company grid** (tab or second row): treasury, price, president, trains. On phones the
      stock and corporate rounds open on this tab, so a buy or sell stays two taps. In an OR, the
      current company's card opens its turn; other cards open their details, where "Operar fuera
      de turno…" records actions out of order, marked "fuera de turno" in History (never blocked).
+     The details sheet's "Corregir trenes…" opens the train correction view ("Corregir trenes ·
+     PRR"): "Quitar el 2" per held train, then "Al banco (oferta) · devolver $80" (a "devolver"
+     toggle and an "editar…" keypad), "Al pool" (only where discarded trains go to the pool) or
+     "Fuera de juego"; and "Dar un tren" with the stack's types and an optional payment.
    - Floating **mic button** (push-to-talk) and **undo** button.
-4. **Operate sheet** (the operating turn): a summary of what the company recorded this OR,
+4. **Operate sheet** (the operating turn): under the title, the trains line ("Trenes 2/4 · 2, 3",
+   "(oxidado)" on a rusted train kept for a last run, "Sin trenes", "· sobre el límite"; the last
+   two in a warning style) with a "Corregir…" link to the train correction view; a summary of what the company recorded this OR,
    revenue keypad with Pay / Withhold / Half and "No corrió" (a zero run, with the game's withhold
    move), buy-train picker, pay-cost and the other operating actions. The turn stays open across
    actions and keeps typed revenue while buying trains; "Terminar turno" is enabled once a run or
@@ -431,7 +448,14 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
    from the table), a share-count stepper, par prices for unstarted companies, issue and company
    trades in the corporate round, and a batch sheet for end-of-round statements.
 6. **Confirmation card**: summary, flows, chips, Confirm / Edit / Cancel.
-7. **History**: grouped ledger, newest first, undone entries included. One tap on an entry
+7. **History**: grouped ledger, newest first, undone entries included, split into round
+   sections, newest first. Each section has a header band with an icon and the round's title
+   ("💼 Ronda de acciones 2 · en curso", "🚂 Ronda de operaciones 1.1 · terminada"; in RotLA
+   "Ciclo 2 · Ronda de operaciones 1/2") and ends with an "Inicio · <title>" band. Sections are
+   derived from the active entries' turn changes, so an undone round start opens nothing and
+   stays in the earlier section. A `nextCompany` that ends an OR is titled "Fin de la OR 2.1 ·
+   empieza la OR 2.2", and one that ends the set "Fin de las rondas de operaciones" (the next
+   round, an SR or a RotLA merger round, is not named), also in the undo toast and older sessions. One tap on an entry
    expands it: "Movimientos" (every money, share, train, private, price and status movement) and
    "Saldos" (each affected holder's balance before → after, the bank's amount only when it is
    unlimited), plus the transcript and warnings. Summaries with a single money movement show its

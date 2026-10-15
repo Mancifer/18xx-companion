@@ -7,12 +7,17 @@ import { presidencyTrigger } from "../mechanics/presidency";
 import { assetKind, parseHolder } from "../types";
 import type { Trigger, TriggerContext } from "./context";
 
+/** Corrections of what was recorded (feature 011): never a purchase, so they trigger no phase or closing. */
+export const CORRECTION_ACTIONS: ReadonlySet<string> = new Set(["correctTrain"]);
+
 /**
  * Phase change (FR-035): the first train of a type to leave the bank starts its phase, with the
  * phase's effects in the same group. A train removed from the bank also counts as sold (1848
- * §5.4.4), except when the table changes the supply on purpose (21Moon P2).
+ * §5.4.4), except when the table changes the supply on purpose (21Moon P2). A correction
+ * (`CORRECTION_ACTIONS`) never starts a phase (FR-016).
  */
 export const phaseTrigger: Trigger = (ctx) => {
+  if (CORRECTION_ACTIONS.has(ctx.action.type)) return [];
   const countRemoved = ctx.action.type !== "changeTrainSupply";
   for (const type of trainsLeavingBank(ctx.events, countRemoved)) {
     const phases = phasesTriggeredBy(ctx.game, ctx.state, type);
@@ -24,9 +29,11 @@ export const phaseTrigger: Trigger = (ctx) => {
 /**
  * Private closings declared as data (`closesOn`): when a given company gets a train, or when a
  * company buys the private. Phase closings run with the phase change; exchanges and scheduled
- * closings with their own actions.
+ * closings with their own actions. A correction (`CORRECTION_ACTIONS`) is not a purchase and
+ * closes nothing.
  */
 export const privateClosingTrigger: Trigger = (ctx) => {
+  if (CORRECTION_ACTIONS.has(ctx.action.type)) return [];
   const events: PrimitiveEvent[] = [];
   for (const p of ctx.game.privates) {
     const asset = `private:${p.id}`;

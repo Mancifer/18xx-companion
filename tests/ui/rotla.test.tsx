@@ -134,6 +134,25 @@ describe("Stock round in RotLA (US3)", () => {
   });
 });
 
+describe("Buying from the player sheet in RotLA (feature 011, US1)", () => {
+  it("offers Tesorería and the buy pays the company treasury", async () => {
+    const { user } = await openSeededTable({
+      game: "rotla",
+      players: three,
+      actions: [{ type: "launchCompany", player: "p1", company: "EXP", bid: 160, price: null }],
+    });
+    await user.click(screen.getByRole("tab", { name: "Jugadores" }));
+    await user.click(screen.getByTestId("cash-p2").closest("button")!);
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Comprar acción" }));
+    const view = await screen.findByRole("dialog");
+    expect(within(view).queryByRole("button", { name: /^IPO / })).toBeNull();
+    await user.click(within(view).getByRole("button", { name: /^Tesorería \$/ }));
+    expect(await screen.findByText(/Bruno compra 1 EXP de la tesorería/, { selector: ".toast-summary" })).toBeTruthy();
+    await user.click(screen.getByRole("tab", { name: "Compañías" }));
+    expect(screen.getByTestId("treasury-EXP").textContent).toContain("$240");
+  });
+});
+
 describe("Stock sheet buy sources in RotLA (bug rotla-buy-default-treasury)", () => {
   it("never shows an IPO button, even once the treasury is sold out", async () => {
     const buy = (buyer: string) => ({ type: "buyShare", buyer: `player:${buyer}`, company: "EXP", source: "treasury", count: 1 });

@@ -17,6 +17,7 @@ import { turnActivity } from "../../domain/queries";
 import { overLimitCompanies, RUSTED, trainsHeldBy, trainStack } from "../../domain/mechanics/phases";
 import { effectiveTraits } from "../../domain/mechanics/traits";
 import { trainTypeOf, type CompanyId } from "../../domain/types";
+import { TrainsLine } from "../components/TrainsLine";
 import { CompanyBadge } from "../components/CompanyBadge";
 import { Keypad } from "../components/Keypad";
 import { Sheet } from "../components/Sheet";
@@ -46,6 +47,7 @@ export function OperateSheet({
   initialView = "run",
   onClose,
   onDetails,
+  onCorrectTrains,
 }: {
   companyId: CompanyId;
   /** Opened deliberately for a company whose turn it is not (FR-012). */
@@ -54,6 +56,8 @@ export function OperateSheet({
   initialView?: OperateView;
   onClose: () => void;
   onDetails?: () => void;
+  /** Opens the train correction view (feature 011, US3) from the trains line. */
+  onCorrectTrains?: () => void;
 }) {
   const { meta, state, effective } = useSession();
   const { dispatch } = useDispatch();
@@ -189,6 +193,7 @@ export function OperateSheet({
 
   return (
     <Sheet title={title} onClose={onClose}>
+      <TrainsLine company={companyId} onCorrect={onCorrectTrains} />
       {outOfTurn && turn.currentCompany ? (
         <p className="out-of-turn" role="note">
           Fuera de turno: le toca a {meta.game.companies.find((c) => c.id === turn.currentCompany)?.shortName ?? turn.currentCompany}. Lo

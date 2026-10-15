@@ -113,7 +113,7 @@ export const flowHandlers: HandlerMap = {
         if (missing.run) warnings.push(...(runAndPayout.validate?.(ctx, missing.run) ?? []));
       }
       if (nextCompanyEvents(ctx).setComplete) {
-        warnings.push(warning("setComplete", "Fin de las rondas de operaciones: empieza la ronda de acciones.", "info"));
+        warnings.push(warning("setComplete", "Fin de las rondas de operaciones.", "info"));
       }
       return warnings;
     },

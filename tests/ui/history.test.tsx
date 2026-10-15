@@ -248,3 +248,59 @@ describe("History: a reopened game (feature 007, US4-3)", () => {
     expect(screen.getAllByText("Fin de la partida (automático)")).toHaveLength(2);
   });
 });
+
+describe("History: round-end titles (feature 011, US5)", () => {
+  const par = { type: "parCompany", player: "p1", company: "PRR", price: 100 };
+  const buy = (buyer: string) => ({ type: "buyShare", buyer, company: "PRR", source: "ipo", count: null });
+  const withhold = { type: "runAndPayout", company: null, parts: [{ part: "revenue", amount: 0 }], mode: "withhold" };
+
+  it("names the end of OR 1.1 and the end of the set, in History and in the undo toast (FR-022, FR-023)", async () => {
+    const { user } = await openSeededTable({
+      actions: [{ type: "startSR" }, par, buy("player:p2"), buy("player:p3"), buy("player:p4"), buy("player:p2"), { type: "setPhase", phase: "3" }, { type: "startOR" }, withhold, { type: "nextCompany" }, withhold],
+    });
+    await user.click(screen.getByRole("tab", { name: "Compañías" }));
+    await user.click(screen.getByTestId("treasury-PRR").closest("button")!);
+    const sheet = await screen.findByRole("dialog");
+    await user.click(within(sheet).getByRole("button", { name: /^Terminar turno/ }));
+    const toast = (await screen.findAllByText(/Fin de las rondas de operaciones/))[0]!.closest(".toast")!;
+    expect(toast.textContent).not.toMatch(/Siguiente compañía|empieza la ronda de acciones/);
+
+    await openMenuItem(user, "Historial");
+    expect(item(/^.*Fin de la OR 1\.1 · empieza la OR 1\.2/)).toBeTruthy();
+    expect(item(/Fin de las rondas de operaciones/)).toBeTruthy();
+  });
+});
+
+describe("History: round sections (feature 011, US4)", () => {
+  const par = { type: "parCompany", player: "p1", company: "PRR", price: 100 };
+  const buy = (buyer: string) => ({ type: "buyShare", buyer, company: "PRR", source: "ipo", count: 2 });
+  const sr1ToSr2 = [{ type: "startSR" }, par, buy("player:p1"), buy("player:p2"), { type: "startOR" }, { type: "nextCompany" }, { type: "startSR" }, pay("player:p1", "bank", 10)];
+  const sections = () => screen.getAllByRole("region");
+
+  it("shows the rounds newest first, with headers, start bands and entries newest first", async () => {
+    const { user } = await openSeededTable({ actions: sr1ToSr2 });
+    await openMenuItem(user, "Historial");
+    const titles = sections().map((s) => s.getAttribute("aria-label"));
+    expect(titles.slice(0, 3)).toEqual(["Ronda de acciones 2", "Ronda de operaciones 1.1", "Ronda de acciones 1"]);
+    const [sr2, or11, sr1] = sections();
+    expect(sr2!.querySelector(".round-header")?.textContent).toBe("💼 Ronda de acciones 2 · en curso");
+    expect(or11!.querySelector(".round-header")?.textContent).toBe("🚂 Ronda de operaciones 1.1 · terminada");
+    expect(sr1!.querySelector(".round-header")?.textContent).toBe("💼 Ronda de acciones 1 · terminada");
+    expect(sr2!.querySelector(".round-start")?.textContent).toBe("Inicio · Ronda de acciones 2");
+    const sr2Items = within(sr2!).getAllByRole("listitem").map((li) => li.textContent);
+    expect(sr2Items[0]).toContain("Ana paga $10 al banco");
+    expect(sr2Items.at(-1)).toContain("Empieza la ronda de acciones");
+    expect(within(sr2!).getByRole("button", { name: "Deshacer" })).toBeTruthy();
+  });
+
+  it("undoing the start of SR 2 removes its section; the undone entry stays struck through in OR 1.1", async () => {
+    const { user } = await openSeededTable({ actions: sr1ToSr2.slice(0, -1) });
+    await openMenuItem(user, "Historial");
+    await user.click(within(item(/Empieza la ronda de acciones/)).getByRole("button", { name: "Deshacer" }));
+    await within(item(/Empieza la ronda de acciones/)).findByText("deshecha");
+    expect(screen.queryByRole("region", { name: "Ronda de acciones 2" })).toBeNull();
+    const or11 = screen.getByRole("region", { name: "Ronda de operaciones 1.1" });
+    expect(or11.querySelector(".round-header")?.textContent).toContain("en curso");
+    expect(within(or11).getByText(/Empieza la ronda de acciones/, { selector: "s" })).toBeTruthy();
+  });
+});

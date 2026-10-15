@@ -303,3 +303,32 @@ describe("operating order (US3)", () => {
     expect(within(sheet).getAllByRole("button", { name: /^IPO / }).length).toBeGreaterThan(0);
   });
 });
+
+describe("trains line in the operating sheet (feature 011, US2)", () => {
+  const floated = [shares("PRR", "player:p1", 6, true), startOR];
+
+  it("shows Sin trenes under the title", async () => {
+    const { user } = await openSeededTable({ actions: floated });
+    const dialog = await openCompany(user, "PRR");
+    expect(within(dialog).getByTestId("trains-line").textContent).toMatch(/^Sin trenes/);
+  });
+
+  it("after buying a 2: Trenes 1/4 · 2", async () => {
+    const { user } = await openSeededTable({ actions: [...floated, buyTrain("PRR", "2")] });
+    const dialog = await openCompany(user, "PRR");
+    expect(within(dialog).getByTestId("trains-line").textContent).toMatch(/^Trenes 1\/4 · 2/);
+  });
+
+  it("over the limit: sobre el límite, next to the existing over-limit button", async () => {
+    const buy = (player: string) => ({ type: "buyShare", buyer: `player:${player}`, company: "PRR", source: "ipo", count: 2 });
+    const realFloat = [{ type: "startSR" }, { type: "parCompany", player: "p1", company: "PRR", price: 100 }, buy("p1"), buy("p2"), { type: "endSR" }, startOR];
+    const { user } = await openSeededTable({
+      actions: [...realFloat, buyTrain("PRR", "2"), buyTrain("PRR", "2"), buyTrain("PRR", "3"), { type: "setPhase", phase: "5" }],
+    });
+    const dialog = await openCompany(user, "PRR");
+    const line = within(dialog).getByTestId("trains-line");
+    expect(line.textContent).toMatch(/sobre el límite/);
+    expect(line.classList.contains("warn")).toBe(true);
+    expect(within(dialog).getByRole("button", { name: /Elegir cuál va al pool/ })).toBeTruthy();
+  });
+});

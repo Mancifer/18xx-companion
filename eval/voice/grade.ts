@@ -104,6 +104,16 @@ export function normalizeAction(action: Json, ctx: ResolveContext): Json {
       if (out["variant"] === null) out["variant"] = type?.variants[0]?.name ?? null;
       break;
     }
+    case "correctTrain": {
+      // A train asset id grades as its type; a null amount is the list price (remove → bank) or no money.
+      const train = typeof out["train"] === "string" ? out["train"] : "";
+      if (train.includes(":")) out["train"] = train.split(":")[1] ?? train;
+      if (out["amount"] === null || out["amount"] === undefined) {
+        const cost = ctx.game.trains.find((t) => t.type === out["train"])?.variants[0]?.cost ?? 0;
+        out["amount"] = out["op"] === "remove" && out["to"] === "bank" ? cost : 0;
+      }
+      break;
+    }
     case "stockBatch":
       if (Array.isArray(out["items"])) out["items"] = (out["items"] as Json[]).map((i) => normalizeAction(i, ctx));
       break;

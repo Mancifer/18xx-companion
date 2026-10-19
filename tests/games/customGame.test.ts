@@ -78,7 +78,7 @@ describe("custom games (FR-007, contracts/game-definition.md rule 4)", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.definition.companies.find((c) => c.id === "INT")).toMatchObject({ name: "Internacional", altName: "Intercontinental" });
-    expect(getBuiltInGame("rotla").companies.find((c) => c.id === "INT")?.altName).toBe("International II");
+    expect(getBuiltInGame("rotla").companies.find((c) => c.id === "INT")?.altName).toBe("Inc.");
   });
 
   it("rejects an edit that fails validation (starting cash × max players > bank)", () => {

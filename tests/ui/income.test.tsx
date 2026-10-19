@@ -166,3 +166,15 @@ describe("US4: offered only during the ORs, highlighted when they are over", () 
     expect(incomeButton()).toBeNull();
   });
 });
+
+describe("company badges in the movements (feature 013, US1)", () => {
+  it("a dividend's label shows the company as its badge", async () => {
+    const { dialog, user } = await openIncome({ actions: [...inOR, pay("PRR", 100)] });
+    const ana = row(dialog, "p1");
+    await user.click(within(ana).getByRole("button", { expanded: false }));
+    const label = ana.querySelector(".income-movement")!;
+    const badge = [...label.querySelectorAll<HTMLElement>(".company-badge")].find((b) => b.textContent === "PRR");
+    expect(badge).toBeTruthy();
+    expect(label.textContent).toMatch(/^PRR paga \$100/);
+  });
+});

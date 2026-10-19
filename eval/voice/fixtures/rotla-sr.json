@@ -565,9 +565,10 @@
                   "kind": "public",
                   "tier": "major",
                   "start": "merger",
-                  "altName": "Authority II",
+                  "altName": "Alliance",
                   "altAliases": [
-                    "authority dos"
+                    "alliance",
+                    "alianza"
                   ]
                 },
                 {
@@ -597,9 +598,10 @@
                   "kind": "public",
                   "tier": "major",
                   "start": "merger",
-                  "altName": "League II",
+                  "altName": "LLC",
                   "altAliases": [
-                    "league dos"
+                    "llc",
+                    "ele ele ce"
                   ]
                 }
               ],
@@ -1208,9 +1210,11 @@
           "kind": "public",
           "tier": "major",
           "start": "merger",
-          "altName": "International II",
+          "altName": "Inc.",
           "altAliases": [
-            "international dos"
+            "inc",
+            "ink",
+            "incorporated"
           ]
         },
         {
@@ -1240,9 +1244,10 @@
           "kind": "public",
           "tier": "major",
           "start": "merger",
-          "altName": "Federation II",
+          "altName": "Firm",
           "altAliases": [
-            "federation dos"
+            "firm",
+            "firma"
           ]
         },
         {
@@ -1272,9 +1277,10 @@
           "kind": "public",
           "tier": "major",
           "start": "merger",
-          "altName": "Experiment II",
+          "altName": "Enterprise",
           "altAliases": [
-            "experiment dos"
+            "enterprise",
+            "empresa"
           ]
         }
       ],
@@ -1843,7 +1849,7 @@
       "verification": {
         "bank": "verified",
         "startingCash": "verified",
-        "companies": "unverified",
+        "companies": "verified",
         "currency": "verified",
         "capitalization": "verified",
         "ipoPrice": "verified",

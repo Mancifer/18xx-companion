@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
-import { holderName } from "../../domain/i18n/es";
 import { formatMoney } from "../../domain/i18n/format";
 import { parPricesFor } from "../../domain/mechanics/market";
 import { purchasablePrivates } from "../../domain/queries";
+import { HolderName } from "../components/CompanyBadge";
 import { Keypad } from "../components/Keypad";
 import { Sheet } from "../components/Sheet";
 
@@ -40,7 +40,9 @@ export function PrivatesSheet({ onClose }: { onClose: () => void }) {
               }}
             >
               {p.name} · {formatMoney(p.cost, meta.game)}
-              <span className="muted reason">{holderName(holder, meta.game, meta.players)}</span>
+              <span className="muted reason">
+                <HolderName holder={holder} game={meta.game} players={meta.players} />
+              </span>
             </button>
           );
         })}

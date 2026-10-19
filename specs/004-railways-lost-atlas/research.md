@@ -385,8 +385,6 @@ copy (spec Dependencies; memory feature-004-rotla):
 
 | Field | Placeholder | Source of the guess |
 |---|---|---|
-| Major second identities | Consortium/Conglomerate, System/Syndicate, Union/Unlimited (inferred); International, Federation and Experiment get `altName: "<name> II"` (the user decided on placeholders; no data found; a future spec may update them) | fwtwr.com, 18xx.cat initials |
-| Second identities of the expansion majors | `altName: "Authority II"`, `"League II"` | none (L p.3 says each has 2 identity options) |
 | Over-limit train after a merger | pool (B p.16 general rule; B p.18 says "the bank") | conflicting wording |
 
 **Resolved by the user (2026-10-09)**:
@@ -399,6 +397,14 @@ copy (spec Dependencies; memory feature-004-rotla):
 - **Expansion majors**: Authority (light gray or white) and League (dark gray or gray).
 - **Base major colors**: Consortium red, Union orange, System yellow, International light blue or cyan, Federation green, Experiment purple.
 - **Expansion minor colors**: Twin Cities light blue, Circus purple, Coupling cyan, Manufacturing mustard.
+
+**Resolved by the user (2026-10-15, feature 013)**: the majors' second identities, from the user's
+copy. They replace the placeholders that used to be listed in the table above (`"<name> II"`, and
+the inferred base pairs), and `verification.companies` is now `verified`:
+
+- **Base majors**: Consortium / Conglomerate, Union / Unlimited, System / Syndicate,
+  International / Inc., Federation / Firm, Experiment / Enterprise.
+- **Expansion majors**: Authority / Alliance, League / LLC.
 
 **The 6–7 player mode is out of scope** (user, 2026-10-09). Its extra trains come from the Landmarks expansion: "3 Train Cards (for 6-7 Player Variant)" (L p.3), shown as one 4-train and two 2-trains, each marked with a 6+ or 7+ player icon (L p.13). Which card has which mark needs the physical copy. A future spec can add the mode with `countByPlayers` (as for the base game's 4+ cards), a `startingCash` of 265/225 and 5 cycles, and raise `playerCount.max` to 7.
 

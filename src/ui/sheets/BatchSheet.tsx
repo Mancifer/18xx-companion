@@ -10,6 +10,7 @@ import { parPricesFor } from "../../domain/mechanics/market";
 import type { CompanyId } from "../../domain/types";
 import { CompanyBadge } from "../components/CompanyBadge";
 import { Keypad } from "../components/Keypad";
+import { RichText } from "../components/RichText";
 import { Sheet } from "../components/Sheet";
 
 type Item = ActionOf<"stockBatch">["items"][number];
@@ -35,7 +36,7 @@ export function BatchSheet({ onClose }: { onClose: () => void }) {
   const [editing, setEditing] = useState<number | null>(null);
   const ctx: ActionContext = { game: meta.game, players: meta.players, state };
   const prices = batchItemPrices(ctx, items, assumed);
-  const summaryCtx = { game: meta.game, players: meta.players, state };
+  const summaryCtx = { game: meta.game, players: meta.players, state, marks: true as const };
   const batch = { type: "stockBatch", items, assumedPrices: assumed } as const;
   const ok = items.length > 0 ? availabilityOf(ctx, "stockBatch", batch as never) : { ok: false as const, reasonEs: "" };
 
@@ -119,7 +120,9 @@ export function BatchSheet({ onClose }: { onClose: () => void }) {
       <ol className="batch-rows">
         {items.map((item, i) => (
           <li key={i} className="batch-row">
-            <span>{summaryEs(item, summaryCtx)}</span>
+            <span>
+              <RichText text={summaryEs(item, summaryCtx)} />
+            </span>
             <button className="money" aria-label={`Precio de la fila ${i + 1}`} onClick={() => setEditing(i)}>
               {prices[i] !== undefined ? formatMoney(prices[i], meta.game) : "—"}
               {assumed[i] !== null && assumed[i] !== undefined ? " ✎" : ""}

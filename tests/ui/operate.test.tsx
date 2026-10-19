@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { cashText, openSeededTable } from "./helpers";
+import { byLine, cashText, openSeededTable } from "./helpers";
 
 type User = ReturnType<typeof userEvent.setup>;
 
@@ -85,7 +85,7 @@ describe("OperateSheet (US3)", () => {
     await user.click(within(dialog).getByRole("button", { name: /Puerto espacial/ }));
     await typeOn(user, dialog, "40");
     await user.click(within(dialog).getByRole("button", { name: "Confirmar" }));
-    expect(await screen.findByText(/VH: base local ₡60, puerto espacial ₡40/)).toBeTruthy();
+    expect(await screen.findByText(byLine(/VH: base local ₡60, puerto espacial ₡40/))).toBeTruthy();
     expect(cashText("p1")).toBe("₡548");
   });
 
@@ -97,7 +97,7 @@ describe("OperateSheet (US3)", () => {
     const dialog = await openCompany(user, "PRR"); // tap 1
     await typeOn(user, dialog, "240"); // revenue entry
     await user.click(within(dialog).getByRole("button", { name: "Pagar" })); // tap 2
-    expect(await screen.findByText(/PRR paga \$240/)).toBeTruthy();
+    expect(await screen.findByText(byLine(/PRR paga \$240/))).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
     await user.click(screen.getByRole("tab", { name: "Jugadores" }));
     expect(cashText("p1")).toBe("$744");
@@ -193,7 +193,7 @@ describe("revenue and trains in one turn (US2)", () => {
     await buyBankTrain(user, "2");
     const dialog = await screen.findByRole("dialog");
     expect(keypadValue(dialog)).toContain("80");
-    expect(within(dialog).getByText(/PRR compra un 2 al banco/)).toBeTruthy();
+    expect(within(dialog).getByText(byLine(/PRR compra un 2 al banco/))).toBeTruthy();
     expect(within(dialog).getByRole("button", { name: "Pagar" })).toBeTruthy();
   });
 
@@ -207,7 +207,7 @@ describe("revenue and trains in one turn (US2)", () => {
     const after = await screen.findByRole("dialog");
     expect(within(after).getByText("✓ Operación registrada")).toBeTruthy();
     expect(within(after).queryByTestId("keypad-value")).toBeNull();
-    expect(within(after).getByText(/PRR paga \$80/)).toBeTruthy();
+    expect(within(after).getByText(byLine(/PRR paga \$80/))).toBeTruthy();
   });
 
   it("21Moon: both typed parts survive a train purchase", async () => {
@@ -239,17 +239,17 @@ describe("revenue and trains in one turn (US2)", () => {
     let view = await screen.findByRole("dialog");
     await typeOn(user, view, "40");
     await user.click(within(view).getByRole("button", { name: /^Pagar \$40/ }));
-    await screen.findByText(/PRR paga \$40/, { selector: ".turn-summary li" });
+    await screen.findByText(byLine(/PRR paga \$40/), { selector: ".turn-summary li" });
     await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Cobro del banco" }));
     view = await screen.findByRole("dialog");
     await typeOn(user, view, "10");
     await user.type(within(view).getByPlaceholderText("obligatorio"), "subvención");
     await user.click(within(view).getByRole("button", { name: /^Cobrar \$10/ }));
-    await screen.findByText(/El banco paga \$10 a PRR/, { selector: ".turn-summary li" });
+    await screen.findByText(byLine(/El banco paga \$10 a PRR/), { selector: ".turn-summary li" });
     const after = await screen.findByRole("dialog");
     expect(keypadValue(after)).toContain("80");
-    expect(within(after).getByText(/PRR paga \$40/)).toBeTruthy();
-    expect(within(after).getByText(/El banco paga \$10 a PRR/)).toBeTruthy();
+    expect(within(after).getByText(byLine(/PRR paga \$40/))).toBeTruthy();
+    expect(within(after).getByText(byLine(/El banco paga \$10 a PRR/))).toBeTruthy();
   });
 
   it("closing the sheet drops typed revenue but keeps what was recorded, and the company stays current", async () => {
@@ -259,7 +259,7 @@ describe("revenue and trains in one turn (US2)", () => {
     await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Cerrar" }));
     const dialog = await openTurn(user, "PRR");
     expect(keypadValue(dialog)).not.toContain("80");
-    expect(within(dialog).getByText(/PRR compra un 2 al banco/)).toBeTruthy();
+    expect(within(dialog).getByText(byLine(/PRR compra un 2 al banco/))).toBeTruthy();
   });
 });
 
@@ -279,7 +279,7 @@ describe("operating order (US3)", () => {
     const details = await openCompany(user, "NYC");
     await user.click(within(details).getByRole("button", { name: "Operar fuera de turno…" }));
     const sheet = await screen.findByRole("dialog");
-    expect(within(sheet).getByText("Fuera de turno: le toca a PRR. Lo que registres quedará marcado en el historial.")).toBeTruthy();
+    expect(within(sheet).getByText(byLine("Fuera de turno: le toca a PRR. Lo que registres quedará marcado en el historial."))).toBeTruthy();
     expect(within(sheet).queryByRole("button", { name: "No corrió" })).toBeNull();
     expect(within(sheet).queryByRole("button", { name: /^Terminar turno/ })).toBeNull();
     expect(within(sheet).getByRole("button", { name: "Pagar" })).toBeTruthy();
@@ -293,7 +293,7 @@ describe("operating order (US3)", () => {
 
   it("the round controls name the next company (FR-010)", async () => {
     await openSeededTable({ actions: floatedPair });
-    expect(screen.getByText("Después: NYC")).toBeTruthy();
+    expect(screen.getByText(byLine("Después: NYC"))).toBeTruthy();
   });
 
   it("outside an OR a company card opens the stock sheet", async () => {
@@ -313,10 +313,14 @@ describe("trains line in the operating sheet (feature 011, US2)", () => {
     expect(within(dialog).getByTestId("trains-line").textContent).toMatch(/^Sin trenes/);
   });
 
-  it("after buying a 2: Trenes 1/4 · 2", async () => {
+  it("after buying a 2: Trenes 1/4 and one train card (feature 013)", async () => {
     const { user } = await openSeededTable({ actions: [...floated, buyTrain("PRR", "2")] });
     const dialog = await openCompany(user, "PRR");
-    expect(within(dialog).getByTestId("trains-line").textContent).toMatch(/^Trenes 1\/4 · 2/);
+    const line = within(dialog).getByTestId("trains-line");
+    expect(line.textContent).toMatch(/^Trenes 1\/4/);
+    const cards = within(within(line).getByRole("list", { name: "Trenes" })).getAllByRole("listitem");
+    expect(cards.map((c) => c.textContent)).toEqual(["2"]);
+    expect(within(line).getByRole("button", { name: "Corregir…" })).toBeTruthy();
   });
 
   it("over the limit: sobre el límite, next to the existing over-limit button", async () => {
@@ -329,6 +333,61 @@ describe("trains line in the operating sheet (feature 011, US2)", () => {
     const line = within(dialog).getByTestId("trains-line");
     expect(line.textContent).toMatch(/sobre el límite/);
     expect(line.classList.contains("warn")).toBe(true);
+    expect(within(line).getAllByRole("listitem").map((c) => c.textContent)).toEqual(["2", "2", "3"]);
     expect(within(dialog).getByRole("button", { name: /Elegir cuál va al pool/ })).toBeTruthy();
+  });
+
+  it("the company card shows its trains as cards, in type order (feature 013)", async () => {
+    await openSeededTable({ actions: [...floated, buyTrain("PRR", "3"), buyTrain("PRR", "2")] });
+    const card = screen.getByTestId("treasury-PRR").closest("button")!;
+    // Inside a button the list roles are presentational: the cards are read as the button's text.
+    const cards = [...card.querySelectorAll(".train-cards .train-card")];
+    expect(cards.map((c) => c.textContent)).toEqual(["2", "3"]);
+    expect(card.textContent).not.toContain("Trenes:");
+  });
+
+  it("a rusted train kept for a last run says oxidado on its card (feature 013, FR-008)", async () => {
+    const rust = { type: "adjustCounter", subject: "company:PRR", key: "rusted:train:2:1", delta: 1 };
+    await openSeededTable({ actions: [...floated, buyTrain("PRR", "2"), rust] });
+    const card = screen.getByTestId("treasury-PRR").closest("button")!;
+    const [train] = card.querySelectorAll(".train-card");
+    expect(train!.textContent).toBe("2oxidado");
+    expect(train!.classList.contains("rusted")).toBe(true);
+  });
+});
+
+describe("company badges in the operating sheet (feature 013, US1)", () => {
+  const badgeOf = (el: Element | null, short: string) =>
+    [...(el?.querySelectorAll<HTMLElement>(".company-badge") ?? [])].find((b) => b.textContent === short);
+
+  it("this turn's entries show the company as its badge", async () => {
+    const { user } = await openSeededTable({ actions: floatedPair });
+    const dialog = await openTurn(user, "PRR");
+    await typeOn(user, dialog, "80");
+    await buyBankTrain(user, "2");
+    const after = await screen.findByRole("dialog");
+    const entry = [...after.querySelectorAll(".turn-summary li")].find((li) => /PRR compra un 2/.test(li.textContent));
+    expect(badgeOf(entry ?? null, "PRR")).toBeTruthy();
+  });
+
+  it("the out-of-turn notice shows the current company as its badge", async () => {
+    const { user } = await openSeededTable({ actions: floatedPair });
+    const details = await openCompany(user, "NYC");
+    await user.click(within(details).getByRole("button", { name: "Operar fuera de turno…" }));
+    const note = (await screen.findByRole("dialog")).querySelector(".out-of-turn")!;
+    expect(badgeOf(note, "PRR")).toBeTruthy();
+    expect(note.textContent).toBe("Fuera de turno: le toca a PRR. Lo que registres quedará marcado en el historial.");
+  });
+
+  it("the undo toast shows the company as its badge", async () => {
+    const { user } = await openSeededTable({ actions: floatedPair });
+    const dialog = await openTurn(user, "PRR");
+    await typeOn(user, dialog, "40");
+    await user.click(within(dialog).getByRole("button", { name: "Pagar costo" }));
+    const cost = await screen.findByRole("dialog");
+    await typeOn(user, cost, "40");
+    await user.click(within(cost).getByRole("button", { name: /^Pagar \$40/ }));
+    const toast = await screen.findByText((_, el) => el?.classList.contains("toast-summary") === true && /PRR paga \$40/.test(el.textContent));
+    expect(badgeOf(toast, "PRR")).toBeTruthy();
   });
 });

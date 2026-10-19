@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { cashText, openSeededTable } from "./helpers";
+import { byLine, cashText, openSeededTable } from "./helpers";
 
 /** Feature 011, US1: selling and buying from the player sheet (contracts/ui.md §1). */
 
@@ -25,7 +25,7 @@ async function openPlayer(user: User, id: string): Promise<HTMLElement> {
   return screen.findByRole("dialog");
 }
 
-const toastText = async (text: RegExp) => (await screen.findByText(text, { selector: ".toast-summary" })).closest(".toast")!.textContent;
+const toastText = async (text: RegExp) => (await screen.findByText(byLine(text), { selector: ".toast-summary" })).closest(".toast")!.textContent;
 
 describe("player sheet sections (FR-001, FR-003)", () => {
   it("shows Jugada before Ajustes, with every adjustment under Ajustes", async () => {
@@ -131,5 +131,31 @@ describe("Comprar acción view (FR-006)", () => {
     await user.click(within(dialog).getByRole("button", { name: "Comprar acción" }));
     const view = await screen.findByRole("dialog");
     expect(within(view).getByRole("button", { name: "IPO $100" })).toBeTruthy();
+  });
+});
+
+describe("Ajustes show companies as badges (bug pay-modal-company-colors, feature 013 FR-001)", () => {
+  const badge = (el: HTMLElement) => el.querySelector<HTMLElement>(".company-badge");
+
+  it("Pagar… lists company targets as badges and names the badge in the confirm button", async () => {
+    const { user } = await openSeededTable();
+    await user.click(within(await openPlayer(user, "p1")).getByRole("button", { name: "Pagar…" }));
+    const dialog = await screen.findByRole("dialog");
+    const prr = within(dialog).getByRole("button", { name: "PRR" });
+    expect(badge(prr)?.textContent).toBe("PRR");
+    expect(badge(within(dialog).getByRole("button", { name: "el banco" }))).toBeNull();
+    await user.click(prr);
+    for (const d of "30") await user.click(within(dialog).getByRole("button", { name: new RegExp(`^${d}$`) }));
+    const confirm = within(dialog).getByRole("button", { name: /^Pagar \$30 a PRR$/ });
+    expect(badge(confirm)?.textContent).toBe("PRR");
+  });
+
+  it("Mover acciones lists company holders as badges with their units", async () => {
+    const { user } = await openSeededTable();
+    await user.click(within(await openPlayer(user, "p1")).getByRole("button", { name: "Mover acciones" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.click(within(dialog).getAllByRole("button", { name: /^PRR/ })[0]!);
+    const ipo = within(dialog).getByRole("button", { name: /^la IPO de PRR \(\d+\)$/ });
+    expect(badge(ipo)?.textContent).toBe("PRR");
   });
 });

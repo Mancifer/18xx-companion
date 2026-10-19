@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { openSeededTable } from "./helpers";
+import { byLine, openSeededTable } from "./helpers";
 
 /**
  * T161 (FR-100, SC-006): taps from the Table, as it opens, to the applied state. Typing the
@@ -48,7 +48,7 @@ describe("taps to common actions (FR-100)", () => {
     const dialog = await screen.findByRole("dialog");
     for (const d of "240") await user.click(within(dialog).getByRole("button", { name: new RegExp(`^${d}$`) }));
     await t.tap(within(dialog).getByRole("button", { name: "Pagar" }));
-    expect(await screen.findByText(/PRR paga \$240/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/PRR paga \$240/), { selector: ".toast-summary" })).toBeTruthy();
     expect(t.taps).toBeLessThanOrEqual(2);
   });
 
@@ -58,7 +58,7 @@ describe("taps to common actions (FR-100)", () => {
     const t = counting(user);
     await t.tap(card("PRR"));
     await t.tap(within(await screen.findByRole("dialog")).getByRole("button", { name: "IPO Bruno" }));
-    expect(await screen.findByText(/Bruno compra 1 PRR de la IPO/)).toBeTruthy();
+    expect(await screen.findByText(byLine(/Bruno compra 1 PRR de la IPO/))).toBeTruthy();
     expect(t.taps).toBeLessThanOrEqual(2);
   });
 
@@ -68,7 +68,7 @@ describe("taps to common actions (FR-100)", () => {
     const t = counting(user);
     await t.tap(card("PRR"));
     await t.tap(within(await screen.findByRole("dialog")).getByRole("button", { name: "Vender Bruno" }));
-    expect(await screen.findByText(/Bruno vende 1 PRR/)).toBeTruthy();
+    expect(await screen.findByText(byLine(/Bruno vende 1 PRR/))).toBeTruthy();
     expect(t.taps).toBeLessThanOrEqual(2);
   });
 
@@ -132,7 +132,7 @@ describe("taps to common actions (FR-100)", () => {
     const { user } = await openSeededTable({ actions: [startSR, par("p1", "PRR", 100)] });
     await user.click(card("PRR"));
     await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "IPO Bruno" }));
-    await screen.findByText(/Bruno compra 1 PRR de la IPO/);
+    await screen.findByText(byLine(/Bruno compra 1 PRR de la IPO/));
     const t = counting(user);
     await t.tap(screen.getByRole("button", { name: "Deshacer" }));
     expect(await screen.findByText(/Deshecho/)).toBeTruthy();
@@ -154,7 +154,7 @@ describe("taps from the player sheet (feature 011, FR-007, SC-001)", () => {
     const t = counting(user);
     await t.tap(start);
     await t.tap(within(await dialog()).getByRole("button", { name: /^Vender 1 PRR/ }));
-    expect(await screen.findByText(/Bruno vende 1 PRR/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/Bruno vende 1 PRR/), { selector: ".toast-summary" })).toBeTruthy();
     expect(t.taps).toBe(2);
   });
 
@@ -165,7 +165,7 @@ describe("taps from the player sheet (feature 011, FR-007, SC-001)", () => {
     await t.tap(start);
     await t.tap(within(await dialog()).getByRole("button", { name: "Vender acciones" }));
     await t.tap(within(await dialog()).getByRole("button", { name: /^Vender 1 · cobra/ }));
-    expect(await screen.findByText(/Bruno vende 1 PRR/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/Bruno vende 1 PRR/), { selector: ".toast-summary" })).toBeTruthy();
     expect(t.taps).toBe(3);
   });
 
@@ -179,7 +179,7 @@ describe("taps from the player sheet (feature 011, FR-007, SC-001)", () => {
     await t.tap(within(await dialog()).getByRole("button", { name: "Vender acciones" }));
     await t.tap(within(await dialog()).getByRole("button", { name: /NYC 10%/ }));
     await t.tap(within(await dialog()).getByRole("button", { name: /^Vender 1 · cobra/ }));
-    expect(await screen.findByText(/Bruno vende 1 NYC/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/Bruno vende 1 NYC/), { selector: ".toast-summary" })).toBeTruthy();
     expect(t.taps).toBe(4);
   });
 
@@ -191,7 +191,7 @@ describe("taps from the player sheet (feature 011, FR-007, SC-001)", () => {
     await t.tap(within(await dialog()).getByRole("button", { name: "Comprar acción" }));
     await t.tap(within(await dialog()).getByRole("button", { name: /PRR/ }));
     await t.tap(within(await dialog()).getByRole("button", { name: /^IPO / }));
-    expect(await screen.findByText(/Bruno compra 1 PRR de la IPO/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/Bruno compra 1 PRR de la IPO/), { selector: ".toast-summary" })).toBeTruthy();
     expect(t.taps).toBe(4);
   });
 
@@ -202,7 +202,31 @@ describe("taps from the player sheet (feature 011, FR-007, SC-001)", () => {
     await t.tap(start);
     await t.tap(within(await dialog()).getByRole("button", { name: "Comprar acción" }));
     await t.tap(within(await dialog()).getByRole("button", { name: /^IPO / }));
-    expect(await screen.findByText(/Bruno compra 1 PRR de la IPO/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/Bruno compra 1 PRR de la IPO/), { selector: ".toast-summary" })).toBeTruthy();
     expect(t.taps).toBe(3);
+  });
+});
+
+describe("company badges on the Table (feature 013, US1)", () => {
+  const prrBadge = (el: Element) => [...el.querySelectorAll(".company-badge")].find((b) => b.textContent === "PRR");
+  const floated = [startSR, par("p1", "PRR", 100), buy("p1", "PRR", 2), buy("p2", "PRR", 2), { type: "endSR" }];
+
+  it("the close confirmation's title shows the badge; its name stays Cerrar PRR", async () => {
+    const { user } = await openSeededTable({ actions: [...floated, startSR] });
+    await user.click(screen.getByTestId("treasury-PRR").closest("button")!);
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Detalles y ajustes…" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Cerrar compañía" }));
+    const confirm = await screen.findByRole("dialog", { name: "Cerrar PRR" });
+    expect(prrBadge(confirm)).toBeTruthy();
+  });
+
+  it("the Operar button and the next-company line show badges; the button's name is unchanged", async () => {
+    const nyc = [startSR, par("p3", "NYC", 90), buy("p3", "NYC", 2), buy("p4", "NYC", 2), { type: "endSR" }];
+    await openSeededTable({ actions: [...floated.slice(0, -1), ...nyc.slice(1), startOR] });
+    const operate = screen.getByRole("button", { name: "Operar PRR" });
+    expect(prrBadge(operate)).toBeTruthy();
+    const next = document.querySelector(".round-next")!;
+    expect(next.textContent).toBe("Después: NYC");
+    expect([...next.querySelectorAll(".company-badge")].map((b) => b.textContent)).toEqual(["NYC"]);
   });
 });

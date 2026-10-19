@@ -6,8 +6,9 @@ import { floatPending } from "../../domain/mechanics/capitalization";
 import { floatConditionConfig } from "../../domain/mechanics/custom/manualFloatCondition";
 import { priceOf } from "../../domain/mechanics/market";
 import { displayName } from "../../domain/mechanics/traits";
-import { trainTypeOf, type CompanyId } from "../../domain/types";
+import type { CompanyId } from "../../domain/types";
 import { CompanyBadge } from "./CompanyBadge";
+import { TrainCards } from "./TrainCards";
 
 /** Treasury, price, president and status of one company (US1). */
 export function CompanyCard({
@@ -27,7 +28,7 @@ export function CompanyCard({
   const name = displayName(meta.game, state, companyId);
   const president = presidentOf(state, companyId);
   const presidentName = meta.players.find((p) => p.id === president)?.name;
-  const trains = assetsHeldBy(state, `company:${companyId}`, "train").map(trainTypeOf);
+  const hasTrains = assetsHeldBy(state, `company:${companyId}`, "train").length > 0;
   const loans = assetsHeldBy(state, `company:${companyId}`, "loan").length;
   const condition = floatConditionConfig(meta.game);
   const pendingCondition =
@@ -64,10 +65,10 @@ export function CompanyCard({
         {def.kind === "national" || !presidentName ? "Sin presidente" : `Pres.: ${presidentName}`}
       </span>
       {pendingCondition ? <span className="badge warn">{condition.question}</span> : null}
-      {trains.length > 0 || loans > 0 ? (
-        <span className="company-meta">
-          {trains.length > 0 ? `Trenes: ${trains.join(" · ")}` : null}
-          {loans > 0 ? `${trains.length > 0 ? " · " : ""}Préstamos: ${loans}` : null}
+      {hasTrains || loans > 0 ? (
+        <span className="company-meta company-trains">
+          {hasTrains ? <TrainCards company={companyId} size="sm" /> : null}
+          {loans > 0 ? <span>Préstamos: {loans}</span> : null}
         </span>
       ) : null}
     </button>

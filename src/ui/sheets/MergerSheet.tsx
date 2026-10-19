@@ -59,7 +59,7 @@ export function MergerSheet({ onClose }: { onClose: () => void }) {
               setIdentity("primary");
             }}
           >
-            {c.shortName} · {c.name}
+            <CompanyBadge company={c} size="sm" /> {c.name}
             {c.altName ? ` / ${c.altName}` : ""}
           </button>
         ))}

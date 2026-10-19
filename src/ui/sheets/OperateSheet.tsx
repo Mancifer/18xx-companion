@@ -18,7 +18,8 @@ import { overLimitCompanies, RUSTED, trainsHeldBy, trainStack } from "../../doma
 import { effectiveTraits } from "../../domain/mechanics/traits";
 import { trainTypeOf, type CompanyId } from "../../domain/types";
 import { TrainsLine } from "../components/TrainsLine";
-import { CompanyBadge } from "../components/CompanyBadge";
+import { CompanyBadge, CompanyName } from "../components/CompanyBadge";
+import { RichText } from "../components/RichText";
 import { Keypad } from "../components/Keypad";
 import { Sheet } from "../components/Sheet";
 
@@ -196,8 +197,8 @@ export function OperateSheet({
       <TrainsLine company={companyId} onCorrect={onCorrectTrains} />
       {outOfTurn && turn.currentCompany ? (
         <p className="out-of-turn" role="note">
-          Fuera de turno: le toca a {meta.game.companies.find((c) => c.id === turn.currentCompany)?.shortName ?? turn.currentCompany}. Lo
-          que registres quedará marcado en el historial.
+          Fuera de turno: le toca a <CompanyName game={meta.game} id={turn.currentCompany} />. Lo que registres quedará marcado en el
+          historial.
         </p>
       ) : null}
       {overLimit ? (
@@ -213,7 +214,9 @@ export function OperateSheet({
           ) : (
             <ul>
               {activity.groups.map((g) => (
-                <li key={g.id}>{summaryEs(g.action, ctx, g.events)}</li>
+                <li key={g.id}>
+                  <RichText text={summaryEs(g.action, { ...ctx, marks: true }, g.events)} />
+                </li>
               ))}
             </ul>
           )}
@@ -272,7 +275,7 @@ export function OperateSheet({
       {inTurn ? (
         <div className="stack">
           <button className="primary big" disabled={!activity.canFinish} onClick={() => void finish()}>
-            Terminar turno → siguiente: {nextLabel(meta.game, state, companyId)}
+            Terminar turno → siguiente: <NextLabel game={meta.game} state={state} company={companyId} />
           </button>
           {activity.canFinish ? null : <p className="muted">Registra lo que corrió o «No corrió» primero</p>}
         </div>
@@ -282,10 +285,10 @@ export function OperateSheet({
 }
 
 /** Who operates after this company: the next one in order, a new OR in the set, or the set's end. */
-function nextLabel(game: GameDefinition, state: SessionState, company: CompanyId): string {
+function NextLabel({ game, state, company }: { game: GameDefinition; state: SessionState; company: CompanyId }) {
   const next = operatingOrder(game, state).find((id) => id !== company && !state.turn.operatedThisOR.includes(id));
-  if (next) return game.companies.find((c) => c.id === next)?.shortName ?? next;
-  return state.turn.orIndex < state.turn.orsInSet ? `OR ${state.turn.orSet}.${state.turn.orIndex + 1}` : "fin del set";
+  if (next) return <CompanyName game={game} id={next} />;
+  return <>{state.turn.orIndex < state.turn.orsInSet ? `OR ${state.turn.orSet}.${state.turn.orIndex + 1}` : "fin del set"}</>;
 }
 
 function RevenueEntry({

@@ -13,6 +13,7 @@ coverage/
 test-results/
 playwright-report/
 eval/voice/candidates/
+eval/voice/results/
 
 # OS / editor
 .DS_Store

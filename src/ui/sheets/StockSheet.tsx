@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
 import { availabilityOf } from "../../domain/actions/availability";
 import type { ActionContext } from "../../domain/actions/context";
-import { sharePrice } from "../../domain/actions/expand/stock";
+import { shareSources, type ShareSource } from "../../domain/actions/expand/stock";
 import { cashOf, isPlayerBankrupt, presidencyHolder, unitsOf } from "../../domain/events/state";
 import { formatMoney } from "../../domain/i18n/format";
 import { floatPending } from "../../domain/mechanics/capitalization";
@@ -10,9 +10,11 @@ import { isEnabled } from "../../domain/mechanics/custom";
 import { floatConditionConfig } from "../../domain/mechanics/custom/manualFloatCondition";
 import { parPricesFor, priceOf } from "../../domain/mechanics/market";
 import type { CompanyId, HolderRef } from "../../domain/types";
-import { CompanyBadge } from "../components/CompanyBadge";
+import { CompanyBadge, CompanyName } from "../components/CompanyBadge";
 import { Sheet } from "../components/Sheet";
 import { LaunchSheet } from "./LaunchSheet";
+
+const SOURCE_LABEL: Readonly<Record<ShareSource["source"], string>> = { ipo: "IPO", treasury: "Tesorería", pool: "Pool" };
 
 /**
  * Stock round by touch (US4, T113). From the company card, one tap on "IPO", "Pool" or "Vender"
@@ -124,14 +126,11 @@ export function StockSheet({
       </button>
     );
   };
-  const ipoPrice = sharePrice(meta.game, state, companyId, "ipo");
-  // A company holding its own shares sells them from its treasury (RotLA); the IPO button stays
-  // unless the IPO is empty and the treasury is where the shares are. Games that buy from the
-  // treasury by default (RotLA) never show it.
+  // Where shares can be bought (feature 013, US3): the IPO button follows the IPO tile; a company
+  // holding its own shares sells them from its treasury (RotLA).
+  const sources = shareSources(ctx, companyId);
   const treasuryShares = unitsOf(state, `company:${companyId}`, companyId);
-  const showIpo =
-    meta.game.defaultBuySource !== "treasury" && (unitsOf(state, `ipo:${companyId}`, companyId) > 0 || treasuryShares === 0);
-  const poolPrice = sharePrice(meta.game, state, companyId, "pool");
+  const showIpo = sources.some((s) => s.source === "ipo");
 
   return (
     <Sheet title={title} onClose={onClose}>
@@ -144,12 +143,20 @@ export function StockSheet({
           </button>
         </div>
       ) : null}
+      <ul className="share-sources" aria-label="Acciones disponibles">
+        {sources.map((s) => (
+          <li key={s.source} className={s.units === 0 ? "share-source empty" : "share-source"} data-testid={`source-${s.source}`}>
+            <span className="share-source-label">{SOURCE_LABEL[s.source]}</span>
+            <span className="share-source-units">
+              {s.units}
+              {s.units === 0 ? " agotada" : ""}
+            </span>
+            <span className="share-source-price">{s.price !== undefined ? `a ${money(s.price)}` : "—"}</span>
+          </li>
+        ))}
+      </ul>
       <div className="row">
-        <span className="muted">
-          IPO {unitsOf(state, `ipo:${companyId}`, companyId)} · Pool {unitsOf(state, "pool", companyId)}
-          {treasuryShares > 0 ? ` · Tesorería ${treasuryShares}` : ""}
-          {ipoPrice !== undefined ? ` · IPO a ${money(ipoPrice)}` : ""}
-        </span>
+        <span className="muted">Cantidad</span>
         <span className="spacer" />
         <button aria-label="Menos" onClick={() => setCount((n) => Math.max(1, n - 1))}>
           −
@@ -167,7 +174,7 @@ export function StockSheet({
           return (
             <li key={h} className="trader-row">
               <span className="trader-name">
-                {traderName(h)}
+                {h.startsWith("company:") ? <CompanyName game={meta.game} id={h.slice("company:".length)} size="sm" /> : traderName(h)}
                 <span className="muted">
                   {" "}
                   {(units * 100) / record.shareCount}%{presidencyHolder(state, companyId) === h ? "★" : ""} ·{" "}
@@ -184,7 +191,6 @@ export function StockSheet({
           );
         })}
       </ul>
-      {poolPrice !== undefined ? <p className="muted">Pool a {money(poolPrice)}</p> : null}
       {isEnabled(meta.game, "corporateRound") && state.turn.round === "CR" ? (
         <div className="row">
           <button aria-label="Menos a emitir" onClick={() => setIssue((n) => Math.max(1, n - 1))}>
@@ -229,7 +235,7 @@ function SwapRow({ companyId, run }: { companyId: CompanyId; run: (action: unkno
               })
             }
           >
-            1 {companyId} por 1 {c.shortName}
+            1 <CompanyName game={meta.game} id={companyId} /> por 1 <CompanyBadge company={c} size="inline" />
           </button>
         ))}
       </div>

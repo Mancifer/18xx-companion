@@ -13,6 +13,7 @@ import { perShareAmount } from "../mechanics/payout";
 import type { EndTriggerType, GameDefinition } from "../games/schema";
 import { parseHolder, trainTypeOf, type CompanyId, type HolderRef, type Player } from "../types";
 import { formatMoney } from "./format";
+import { markMention } from "./mentions";
 
 export { formatMoney } from "./format";
 
@@ -119,33 +120,75 @@ export function phaseName(game: GameDefinition, id: string): string {
  * warning style with text that already says the state.
  */
 export function trainsLineEs(game: GameDefinition, state: SessionState, company: CompanyId): { text: string; warn: boolean } {
+  const { cards, count, limit, over } = companyTrains(game, state, company);
+  if (cards.length === 0) return { text: "Sin trenes", warn: true };
+  const types = cards.map((c) => (c.rusted ? `${c.label} (oxidado)` : c.label));
+  return { text: `${trainsHeadEs(count, limit)} · ${types.join(", ")}${over ? " · sobre el límite" : ""}`, warn: over };
+}
+
+/** "Trenes 2/4", or "Trenes 2" when the phase has no limit. */
+export function trainsHeadEs(count: number, limit: number): string {
+  return Number.isFinite(limit) ? `Trenes ${count}/${limit}` : `Trenes ${count}`;
+}
+
+export interface TrainCard {
+  readonly asset: string;
+  readonly label: string;
+  /** Rusted but kept for a last run (RotLA Resourceful): shown, not counted. */
+  readonly rusted: boolean;
+}
+
+/**
+ * A company's trains as cards (feature 013, data-model.md "Train card"): by the definition's
+ * order, then the train number, labelled with the type's display name; with the count and limit
+ * the over-limit banner uses, so the two never disagree.
+ */
+export function companyTrains(
+  game: GameDefinition,
+  state: SessionState,
+  company: CompanyId,
+): { cards: readonly TrainCard[]; count: number; limit: number; over: boolean } {
   const ref = `company:${company}` as const;
   const order = (asset: string) => game.trains.findIndex((t) => t.type === trainTypeOf(asset));
   const held = trainsHeldBy(state, ref).sort((a, b) => order(a) - order(b) || trainNumber(a) - trainNumber(b));
-  if (held.length === 0) return { text: "Sin trenes", warn: true };
-  const types = held.map((asset) => {
+  const cards = held.map((asset) => {
     const type = trainTypeOf(asset);
-    const label = game.trains.find((t) => t.type === type)?.displayName ?? type;
-    return counterOf(state, ref, `${RUSTED}${asset}`) > 0 ? `${label} (oxidado)` : label;
+    return {
+      asset,
+      label: game.trains.find((t) => t.type === type)?.displayName ?? type,
+      rusted: counterOf(state, ref, `${RUSTED}${asset}`) > 0,
+    };
   });
   const count = countedTrains(game, state, company).length;
   const limit = trainLimitFor(game, state, company);
-  const over = count > limit;
-  const head = Number.isFinite(limit) ? `Trenes ${count}/${limit}` : `Trenes ${count}`;
-  return { text: `${head} · ${types.join(", ")}${over ? " · sobre el límite" : ""}`, warn: over };
+  return { cards, count, limit, over: count > limit };
 }
 
-export type SummaryContext = Pick<ActionContext, "game" | "players"> & Partial<Pick<ActionContext, "state">>;
+/**
+ * `marks`: company names come wrapped as mentions, for the screens that render them as badges
+ * (feature 013). Without it the text is plain, as voice, exports and labels need it.
+ */
+export type SummaryContext = Pick<ActionContext, "game" | "players"> &
+  Partial<Pick<ActionContext, "state">> & { readonly marks?: true };
 
 /** With the group's events (History, toasts), a summarizer may read what actually happened. */
 type Summarizer<T extends ActionType> = (a: ActionOf<T>, ctx: SummaryContext, events?: readonly PrimitiveEvent[]) => string;
 type SummaryMap = { [K in ActionType]?: Summarizer<K> };
 
-const name = (h: string, ctx: SummaryContext) => holderName(h as HolderRef, ctx.game, ctx.players);
-const companyName = (id: string, ctx: SummaryContext) => ctx.game.companies.find((c) => c.id === id)?.shortName ?? id;
+/** A known company's words, marked as a mention when the context asks for it (feature 013). */
+const mention = (id: string, text: string, ctx: SummaryContext) =>
+  ctx.marks && ctx.game.companies.some((c) => c.id === id) ? markMention(id, text) : text;
+const companyName = (id: string, ctx: SummaryContext) =>
+  mention(id, ctx.game.companies.find((c) => c.id === id)?.shortName ?? id, ctx);
 /** The full name; a major merged into its second identity goes by that name (FR-005a). */
 const fullName = (id: string, ctx: SummaryContext) =>
-  ctx.state ? displayName(ctx.game, ctx.state, id) : (ctx.game.companies.find((c) => c.id === id)?.name ?? id);
+  mention(id, ctx.state ? displayName(ctx.game, ctx.state, id) : (ctx.game.companies.find((c) => c.id === id)?.name ?? id), ctx);
+const name = (h: string, ctx: SummaryContext) => {
+  const holder = parseHolder(h as HolderRef);
+  if (holder.kind === "company") return companyName(holder.id, ctx);
+  if (holder.kind === "ipo") return `la IPO de ${companyName(holder.id, ctx)}`;
+  return holderName(h as HolderRef, ctx.game, ctx.players);
+};
 
 const summaries: SummaryMap = {
   createSession: (a, ctx) =>
@@ -250,7 +293,7 @@ const summaries: SummaryMap = {
     const shares = def ? def.shareCount - def.presidencyUnits : 0;
     const treasury = a.bid - (def?.traits?.launchFee ?? 0);
     return [
-      `${name(`player:${a.player}`, ctx)} abre ${def?.name ?? a.company} por ${money(a.bid)}`,
+      `${name(`player:${a.player}`, ctx)} abre ${mention(a.company, def?.name ?? a.company, ctx)} por ${money(a.bid)}`,
       ...(price !== undefined ? [`precio ${money(price)}`] : []),
       `tesorería ${money(treasury)}${def?.traits?.launchFee ? ` (${money(def.traits.launchFee)} al banco)` : ""}`,
       `${shares} ${shares === 1 ? "acción" : "acciones"} en tesorería`,
@@ -299,7 +342,7 @@ const summaries: SummaryMap = {
   },
   mergeCompanies: (a, ctx, events) => {
     const def = ctx.game.companies.find((c) => c.id === a.into);
-    const into = a.identity === "alt" ? (def?.altName ?? a.into) : (def?.name ?? a.into);
+    const into = mention(a.into, a.identity === "alt" ? (def?.altName ?? a.into) : (def?.name ?? a.into), ctx);
     const head = `${fullName(a.a, ctx)} + ${fullName(a.b, ctx)} → ${into}`;
     const money = (n: number) => formatMoney(n, ctx.game);
     const player = (id: string | undefined) => ctx.players.find((p) => p.id === id)?.name ?? id ?? "?";

@@ -5,6 +5,7 @@ import { INCOME_ES, summaryEs } from "../../domain/i18n/es";
 import { operatingPhase, type PlayerSettlement, type SettlementMovement } from "../../domain/ledger/operatingPhase";
 import { breakdown } from "../../domain/mechanics/chips";
 import { ChipDiscs } from "../components/ChipStrip";
+import { RichText } from "../components/RichText";
 import { Sheet } from "../components/Sheet";
 
 /**
@@ -94,7 +95,7 @@ function IncomeRow({ settlement: p }: { settlement: PlayerSettlement }) {
 /** The entries behind an amount, under one heading per OR (US3, research R3). */
 function Movements({ movements }: { movements: readonly SettlementMovement[] }) {
   const { meta } = useSession();
-  const ctx = { game: meta.game, players: meta.players };
+  const ctx = { game: meta.game, players: meta.players, marks: true as const };
   const byOR: { key: string; or: SettlementMovement["or"]; items: SettlementMovement[] }[] = [];
   for (const m of movements) {
     const key = `${m.or.orSet}.${m.or.orIndex}`;
@@ -110,7 +111,9 @@ function Movements({ movements }: { movements: readonly SettlementMovement[] }) 
           <ul>
             {section.items.map((m) => (
               <li key={m.groupId} className="income-movement">
-                <span>{summaryEs(m.action, ctx)}</span>
+                <span>
+                  <RichText text={summaryEs(m.action, ctx)} />
+                </span>
                 <span className="income-movement-amount">
                   {m.amount > 0 ? "+" : ""}
                   {formatMoney(m.amount, meta.game)}

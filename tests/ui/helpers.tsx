@@ -64,3 +64,15 @@ export async function openMenuItem(user: ReturnType<typeof userEvent.setup>, ite
   const dialog = await screen.findByRole("dialog");
   await user.click(within(dialog).getByRole("button", { name: item }));
 }
+
+/**
+ * A text matcher for a whole line that may hold company badges (feature 013): the innermost
+ * element whose full text matches, where `getByText`'s default only reads an element's own text.
+ */
+export function byLine(text: string | RegExp) {
+  const matches = (el: Element) => {
+    const content = el.textContent.replace(/\s+/g, " ").trim();
+    return typeof text === "string" ? content === text : text.test(content);
+  };
+  return (_content: string, el: Element | null) => el !== null && matches(el) && ![...el.children].some(matches);
+}

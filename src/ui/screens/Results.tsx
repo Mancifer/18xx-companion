@@ -5,6 +5,7 @@ import { END_TRIGGER_LABELS } from "../../domain/i18n/es";
 import { formatMoney } from "../../domain/i18n/format";
 import type { GameEnd } from "../../domain/mechanics/gameEnd";
 import { finalResults, type PlayerResult } from "../../domain/mechanics/scores";
+import { CompanyName } from "../components/CompanyBadge";
 import { Sheet } from "../components/Sheet";
 import { UndoToast } from "../components/UndoToast";
 import { useNav } from "../nav";
@@ -50,7 +51,6 @@ export function Results({ from }: { from: "table" | "home" }) {
     : finalResults(meta.game, meta.players, state, eliminationOrder);
   const money = (n: number) => formatMoney(n, meta.game);
   const name = (id: string) => meta.players.find((p) => p.id === id)?.name ?? id;
-  const short = (id: string) => meta.game.companies.find((c) => c.id === id)?.shortName ?? id;
 
   /** FR-005a: its own entry; on failure the toast shows the store's message and the results stay. */
   const reopen = async () => {
@@ -138,7 +138,7 @@ export function Results({ from }: { from: "table" | "home" }) {
             .filter((r) => r.tieBreak)
             .map((r) => (
               <p key={r.player} className="muted tie-break">
-                {name(r.player)} · <span>desempate: presidente de {short(r.tieBreak ?? "")}</span>
+                {name(r.player)} · <span>desempate: presidente de <CompanyName game={meta.game} id={r.tieBreak ?? ""} /></span>
               </p>
             ))}
           <div className="results-actions">

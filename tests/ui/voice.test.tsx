@@ -12,7 +12,7 @@ import { geminiReply } from "../../src/voice/providers/gemini";
 import { anthropicReply } from "../../src/voice/providers/anthropic";
 import type { ModelReply } from "../../src/voice/reply";
 import type { RecognizerLike } from "../../src/voice/speech";
-import { cashText, openSeededTable } from "./helpers";
+import { byLine, cashText, openSeededTable } from "./helpers";
 
 /** US5 by touch and voice, with a fake recognizer and recorded model responses (no network). */
 
@@ -99,11 +99,11 @@ describe("voice (US5)", () => {
     await speak(user, "240, paga");
 
     const card = await screen.findByRole("dialog", { name: "Confirmar orden de voz" });
-    expect(within(card).getByText(/PRR paga \$240/)).toBeTruthy();
+    expect(within(card).getByText(byLine(/PRR paga \$240/))).toBeTruthy();
     expect(cashText("p1")).toBe("$0");
 
     await user.click(within(card).getByRole("button", { name: "Confirmar" }));
-    expect(await screen.findByText(/PRR paga \$240/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/PRR paga \$240/), { selector: ".toast-summary" })).toBeTruthy();
     expect(cashText("p1")).toBe("$144");
   });
 
@@ -117,7 +117,7 @@ describe("voice (US5)", () => {
     for (const d of "260") await user.click(within(keypad).getByRole("button", { name: new RegExp(`^${d}$`) }));
     await user.click(within(keypad).getByRole("button", { name: "Listo" }));
     await user.click(within(screen.getByRole("dialog", { name: "Editar orden de voz" })).getByRole("button", { name: "Listo" }));
-    expect(within(screen.getByRole("dialog", { name: "Confirmar orden de voz" })).getByText(/PRR paga \$260/)).toBeTruthy();
+    expect(within(screen.getByRole("dialog", { name: "Confirmar orden de voz" })).getByText(byLine(/PRR paga \$260/))).toBeTruthy();
   });
 
   it("Cancelar drops the proposal", async () => {
@@ -134,7 +134,7 @@ describe("voice (US5)", () => {
     await speak(user, "240, paga");
     await screen.findByRole("dialog", { name: "Confirmar orden de voz" });
     await speak(user, "sí");
-    expect(await screen.findByText(/PRR paga \$240/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/PRR paga \$240/), { selector: ".toast-summary" })).toBeTruthy();
     expect(calls).toHaveLength(1);
     expect(cashText("p1")).toBe("$144");
   });
@@ -234,7 +234,7 @@ describe("voice «siguiente compañía» with no run recorded (T016, FR-009)", (
     await speak(user, "siguiente compañía");
     const card = await screen.findByRole("dialog", { name: "Confirmar orden de voz" });
     expect(within(card).getByText(/No se registró la operación de PRR: cuenta como que no corrió y su acción baja./)).toBeTruthy();
-    expect(within(card).getByText(/PRR no corrió · PRR → \$90/)).toBeTruthy();
+    expect(within(card).getByText(byLine(/PRR no corrió · PRR → \$90/))).toBeTruthy();
     expect(screen.getByRole("button", { name: "Operar PRR" })).toBeTruthy();
 
     await user.click(within(card).getByRole("button", { name: "Confirmar" }));
@@ -292,7 +292,7 @@ describe("voice with a provider choice (005)", () => {
     });
     await speak(user, "240, paga");
     const card = await screen.findByRole("dialog", { name: "Confirmar orden de voz" });
-    expect(within(card).getByText(/PRR paga \$240/)).toBeTruthy();
+    expect(within(card).getByText(byLine(/PRR paga \$240/))).toBeTruthy();
     expect(created.at(-1)).toEqual({ provider: "gemini", apiKey: "AIza-test", model: PROVIDERS.gemini.defaultModel });
     expect(cashText("p1")).toBe("$0");
   });
@@ -366,7 +366,7 @@ describe("voice with a provider choice (005)", () => {
     await waitFor(() => expect(created.at(-1)?.provider).toBe("gemini"));
     act(() => release(recorded("payout")));
     const card = await screen.findByRole("dialog", { name: "Confirmar orden de voz" });
-    expect(within(card).getByText(/PRR paga \$240/)).toBeTruthy();
+    expect(within(card).getByText(byLine(/PRR paga \$240/))).toBeTruthy();
     expect(used).toEqual(["anthropic"]);
   });
 
@@ -389,5 +389,17 @@ describe("voice with a provider choice (005)", () => {
     await speak(user, "240, paga");
     await screen.findByRole("dialog", { name: "Confirmar orden de voz" });
     expect(created.at(-1)).toEqual({ provider: "anthropic", apiKey: "sk-ant-legacy", model: "claude-haiku-4-5" });
+  });
+});
+
+describe("company badges on the confirmation card (feature 013, US1)", () => {
+  it("the proposal's line shows the company as its badge; the text stays the same", async () => {
+    const { user } = await openSeededTable({ actions: OR_SETUP, settings: KEY, voiceDeps: deps({ "240, paga": "payout" }) });
+    await speak(user, "240, paga");
+    const card = await screen.findByRole("dialog", { name: "Confirmar orden de voz" });
+    const summary = card.querySelector(".voice-summary")!;
+    expect([...summary.querySelectorAll(".company-badge")].some((b) => b.textContent === "PRR")).toBe(true);
+    expect(summary.textContent).toMatch(/^PRR paga \$240/);
+    expect(/[\uE000-\uE002]/.test(summary.textContent)).toBe(false);
   });
 });

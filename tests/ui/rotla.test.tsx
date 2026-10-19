@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import { getBuiltInGame } from "../../src/domain/games";
 import { App } from "../../src/ui/App";
 import { freshDbName } from "../helpers/session";
-import { openMenuItem, openSeededTable } from "./helpers";
+import { byLine, openMenuItem, openSeededTable } from "./helpers";
 
 /** RotLA screens (feature 004, contracts/ui.md). */
 
@@ -100,7 +100,7 @@ describe("Launch sheet (US2)", () => {
     expect(within(dialog).getByTestId("launch-preview").textContent).toContain("Precio $100");
 
     await user.click(within(dialog).getByRole("button", { name: "Abrir" }));
-    expect(await screen.findByText(/Ana abre Tunneling por \$200/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/Ana abre Tunneling por \$200/), { selector: ".toast-summary" })).toBeTruthy();
   });
 
   it("an unstarted minor's card opens the Launch sheet in the SR", async () => {
@@ -127,8 +127,11 @@ describe("Stock round in RotLA (US3)", () => {
     await tap(screen.getByTestId("treasury-EXP").closest("button")!);
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).queryByRole("button", { name: "IPO Bruno" })).toBeNull();
+    // Feature 013: the treasury is its own tile, and there is no IPO tile.
+    expect(within(dialog).getByTestId("source-treasury").textContent).toMatch(/^Tesorería/);
+    expect(within(dialog).queryByTestId("source-ipo")).toBeNull();
     await tap(within(dialog).getByRole("button", { name: "Tesorería Bruno" }));
-    expect(await screen.findByText(/Bruno compra 1 EXP de la tesorería/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/Bruno compra 1 EXP de la tesorería/), { selector: ".toast-summary" })).toBeTruthy();
     expect(screen.getByTestId("treasury-EXP").textContent).toContain("$240");
     expect(taps).toBeLessThanOrEqual(2);
   });
@@ -147,7 +150,7 @@ describe("Buying from the player sheet in RotLA (feature 011, US1)", () => {
     const view = await screen.findByRole("dialog");
     expect(within(view).queryByRole("button", { name: /^IPO / })).toBeNull();
     await user.click(within(view).getByRole("button", { name: /^Tesorería \$/ }));
-    expect(await screen.findByText(/Bruno compra 1 EXP de la tesorería/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/Bruno compra 1 EXP de la tesorería/), { selector: ".toast-summary" })).toBeTruthy();
     await user.click(screen.getByRole("tab", { name: "Compañías" }));
     expect(screen.getByTestId("treasury-EXP").textContent).toContain("$240");
   });
@@ -192,16 +195,16 @@ describe("Operate sheet in RotLA (US5)", () => {
     const { user, dialog } = await operate({ game: "rotla", players: three, actions: [launch("EXP"), { type: "startOR" }] }, "EXP");
     expect(within(dialog).getByRole<HTMLButtonElement>("button", { name: /^Recomprar/ }).disabled).toBe(true);
     await user.click(within(dialog).getByRole("button", { name: /^Emitir/ }));
-    expect(await screen.findByText(/EXP emite 1 acción de su tesorería al pool/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/EXP emite 1 acción de su tesorería al pool/), { selector: ".toast-summary" })).toBeTruthy();
     const again = await screen.findByRole("dialog");
     await user.click(within(again).getByRole("button", { name: /^Recomprar/ }));
-    expect(await screen.findByText(/EXP recompra 1 acción del pool/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/EXP recompra 1 acción del pool/), { selector: ".toast-summary" })).toBeTruthy();
   });
 
   it("Montaña records one namedPayment: one group, both lines in one entry", async () => {
     const { user, dialog } = await operate({ game: "rotla", players: three, actions: [launch("TUN"), { type: "startOR" }] }, "TUN");
     await user.click(within(dialog).getByRole("button", { name: "Montaña (−40 / +60)" }));
-    expect(await screen.findByText("Tunneling: montaña −$40 · bonificación +$60", { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine("Tunneling: montaña −$40 · bonificación +$60"), { selector: ".toast-summary" })).toBeTruthy();
     expect(screen.getByTestId("treasury-TUN").textContent).toContain("$160");
   });
 
@@ -224,14 +227,14 @@ describe("Operate sheet in RotLA (US5)", () => {
     const keypad = await screen.findByRole("dialog");
     await typeAmount(user, keypad, 35);
     await user.click(within(keypad).getByRole("button", { name: /^Cobrar/ }));
-    expect(await screen.findByText("Express: sede +$35", { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine("Express: sede +$35"), { selector: ".toast-summary" })).toBeTruthy();
   });
 
   it("the payout still takes ≤ 2 taps after the amount", async () => {
     const { user, dialog } = await operate({ game: "rotla", players: three, actions: [launch("EXP"), { type: "startOR" }] }, "EXP");
     await typeAmount(user, dialog, 90);
     await user.click(within(dialog).getByRole("button", { name: "Pagar" }));
-    expect(await screen.findByText(/EXP paga \$90/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/EXP paga \$90/), { selector: ".toast-summary" })).toBeTruthy();
   });
 
   it("1830 shows neither Emitir nor Recomprar", async () => {
@@ -287,7 +290,7 @@ describe("Trains in RotLA (US6)", () => {
     expect(within(card).getByText(/Ana \(presidente\) pone \$30/)).toBeTruthy();
     expect(within(card).getByRole("list", { name: "Acciones de Ana" })).toBeTruthy();
     await user.click(within(card).getByRole("button", { name: /^Comprar el 2/ }));
-    expect(await screen.findByText(/Compra forzada: EXP compra un 2 al banco/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/Compra forzada: EXP compra un 2 al banco/), { selector: ".toast-summary" })).toBeTruthy();
   });
 
   it("Compra forzada lists the president's shares, each with its own count to sell", async () => {
@@ -302,7 +305,7 @@ describe("Trains in RotLA (US6)", () => {
     expect(within(card).getByLabelText("TUN a vender").textContent).toBe("1");
     expect(within(card).getByText(/por ventas/)).toBeTruthy();
     await user.click(within(card).getByRole("button", { name: /^Comprar el 2/ }));
-    expect(await screen.findByText(/el presidente vende 1 TUN/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/el presidente vende 1 TUN/), { selector: ".toast-summary" })).toBeTruthy();
   });
 
   it("a Resourceful rusted train shows 'Oxidado · última carrera' and Retirar", async () => {
@@ -312,7 +315,7 @@ describe("Trains in RotLA (US6)", () => {
     );
     expect(within(dialog).getByText("2 · Oxidado · última carrera")).toBeTruthy();
     await user.click(within(dialog).getByRole("button", { name: "Retirar el 2" }));
-    expect(await screen.findByText(/RES descarta un 2/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/RES descarta un 2/), { selector: ".toast-summary" })).toBeTruthy();
   });
 
   it("an over-limit banner on the Table opens the discard picker", async () => {
@@ -325,7 +328,7 @@ describe("Trains in RotLA (US6)", () => {
     await user.click(banner);
     const dialog = await screen.findByRole("dialog");
     await user.click(within(dialog).getAllByRole("button", { name: "Descartar un 2" })[0]!);
-    expect(await screen.findByText(/EXP descarta un 2/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/EXP descarta un 2/), { selector: ".toast-summary" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: /3 trenes, límite 2/ })).toBeNull();
   });
 
@@ -364,6 +367,45 @@ describe("Merger sheet (US7)", () => {
     expect(within(identity).getByRole("button", { name: "Unlimited" })).toBeTruthy();
   });
 
+  it("names each major by its badge and both real identities (feature 013, US4)", async () => {
+    const { dialog } = await openMerger();
+    const majors = within(within(dialog).getByRole("group", { name: "Corporación" })).getAllByRole("button", { name: /^[A-Z]{3}/ });
+    const fed = majors.find((b) => b.textContent.includes("Federation"))!;
+    expect(fed.querySelector(".company-badge")?.textContent).toBe("FED");
+    expect(fed.textContent).toContain("Federation / Firm");
+    expect(majors.some((b) => b.textContent.includes("International / Inc."))).toBe(true);
+    expect(majors.some((b) => b.textContent.includes("Experiment / Enterprise"))).toBe(true);
+    expect(dialog.textContent).not.toMatch(/ II\b/);
+  });
+
+  it("a merger into Federation's second identity shows Firm on its card (feature 013, US4)", async () => {
+    await openSeededTable({
+      game: "rotla",
+      players: three,
+      actions: [
+        launch("TUN", "p2", 140),
+        launch("EXP", "p1", 160),
+        toMR,
+        { type: "mergeCompanies", a: "EXP", b: "TUN", into: "FED", identity: "alt" },
+      ],
+    });
+    const card = screen.getByTestId("treasury-FED").closest("button")!;
+    expect(card.querySelector(".company-alt-name")?.textContent).toBe("Firm");
+  });
+
+  it("with Landmarks, Authority / Alliance and League / LLC (feature 013, US4)", async () => {
+    const { user } = await openSeededTable({
+      game: "rotla",
+      players: three,
+      options: { expansion: "landmarks" },
+      actions: [launch("TUN", "p2", 140), launch("EXP", "p1", 160), toMR],
+    });
+    await user.click(screen.getByRole("button", { name: "Fusionar…" }));
+    const majors = within(await screen.findByRole("dialog")).getByRole("group", { name: "Corporación" });
+    expect(majors.textContent).toContain("Authority / Alliance");
+    expect(majors.textContent).toContain("League / LLC");
+  });
+
   it("previews the merger, merges in ≤ 3 taps after the minors, and History lists every transfer", async () => {
     const { user, dialog } = await openMerger();
     const minors = within(dialog).getByRole("group", { name: "Minors" });
@@ -383,7 +425,7 @@ describe("Merger sheet (US7)", () => {
     await tap(within(dialog).getByRole("button", { name: "Fusionar" }));
     expect(taps).toBeLessThanOrEqual(3);
     expect(
-      await screen.findByText("Express + Tunneling → Union · presidente Ana · precio $70 · tesorería $300 · 0 trenes", {
+      await screen.findByText(byLine("Express + Tunneling → Union · presidente Ana · precio $70 · tesorería $300 · 0 trenes"), {
         selector: ".toast-summary",
       }),
     ).toBeTruthy();
@@ -393,8 +435,8 @@ describe("Merger sheet (US7)", () => {
     expect(entries).toHaveLength(1);
     await user.click(entries[0]!.querySelector("summary")!);
     expect(within(entries[0]!).getByText("Movimientos")).toBeTruthy();
-    expect(within(entries[0]!).getByText("2 EXP: Ana → Fuera del juego (presidencia)")).toBeTruthy();
-    expect(within(entries[0]!).getByText("$160: EXP → UNI")).toBeTruthy();
+    expect(within(entries[0]!).getByText(byLine("2 EXP: Ana → Fuera del juego (presidencia)"))).toBeTruthy();
+    expect(within(entries[0]!).getByText(byLine("$160: EXP → UNI"))).toBeTruthy();
   });
 
   it("the Table offers Ronda de fusiones only when it is due", async () => {
@@ -459,7 +501,9 @@ describe("Cycle round controls and the results (US8, feature 007)", () => {
       ["=2", "Bruno", "$300", "$0", "$300"],
       ["=2", "Carla", "$300", "$0", "$300"],
     ]);
-    expect(screen.getByText("desempate: presidente de EXP")).toBeTruthy();
+    // Feature 013: the tie-break names the company with its badge.
+    const tie = screen.getByText((_, el) => el?.tagName === "SPAN" && el.textContent === "desempate: presidente de EXP");
+    expect(tie.querySelector(".company-badge")?.textContent).toBe("EXP");
     expect(screen.queryByRole("dialog", { name: "Puntuación" })).toBeNull();
     await user.click(screen.getByRole("button", { name: "Volver" }));
     await user.click(await screen.findByRole("button", { name: "Ver resultados" }));
@@ -559,7 +603,7 @@ describe("Voice confirmation card in RotLA (US10, T088)", () => {
     });
     await speak(user, "Ana abre Tunneling por 140");
     const card = await screen.findByRole("dialog", { name: "Confirmar orden de voz" });
-    expect(within(card).getByText("Ana abre Tunneling por $140 · precio $70 · tesorería $140 · 3 acciones en tesorería")).toBeTruthy();
+    expect(within(card).getByText(byLine("Ana abre Tunneling por $140 · precio $70 · tesorería $140 · 3 acciones en tesorería"))).toBeTruthy();
     expect(within(card).getByText(/Ana entrega \$140/)).toBeTruthy();
   });
 
@@ -577,7 +621,7 @@ describe("Voice confirmation card in RotLA (US10, T088)", () => {
     });
     await speak(user, "Express y Tunneling se fusionan en Unlimited");
     const card = await screen.findByRole("dialog", { name: "Confirmar orden de voz" });
-    expect(within(card).getByText("Express + Tunneling → Unlimited · presidente Ana · precio $70 · tesorería $300 · 0 trenes")).toBeTruthy();
+    expect(within(card).getByText(byLine("Express + Tunneling → Unlimited · presidente Ana · precio $70 · tesorería $300 · 0 trenes"))).toBeTruthy();
     expect(within(card).getByText(/Empate a 2: preside Ana/)).toBeTruthy();
   });
 });
@@ -604,7 +648,7 @@ describe("Landmarks chips (US11)", () => {
     expect(within(dialog).getByRole("button", { name: /^Acantilado/ })).toBeTruthy();
     expect(within(dialog).getByRole("button", { name: /^Cañón/ })).toBeTruthy();
     await user.click(within(dialog).getByRole("button", { name: "Formación rocosa (+2)" }));
-    expect(await screen.findByText(/EXP: formación rocosa \(\+2\)/, { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine(/EXP: formación rocosa \(\+2\)/), { selector: ".toast-summary" })).toBeTruthy();
     const again = await screen.findByRole("dialog");
     const used = within(again).getByRole("button", { name: /Formación rocosa \(\+2\) · Ya usada/ });
     expect(used.getAttribute("aria-disabled")).toBe("true");
@@ -620,6 +664,6 @@ describe("Landmarks chips (US11)", () => {
     await user.click(within(dialog).getByRole("button", { name: /^Acantilado/ }));
     const pick = await screen.findByRole("dialog");
     await user.click(within(pick).getByRole("button", { name: "Vender el 2" }));
-    expect(await screen.findByText("EXP vende el 2 en el acantilado: +$50", { selector: ".toast-summary" })).toBeTruthy();
+    expect(await screen.findByText(byLine("EXP vende el 2 en el acantilado: +$50"), { selector: ".toast-summary" })).toBeTruthy();
   });
 });

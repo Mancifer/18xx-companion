@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 import { useSession } from "../../app/useSession";
 import { cashOf, holdersOf, presidencyHolder } from "../../domain/events/state";
-import { holderName, statusLabel } from "../../domain/i18n/es";
+import { statusLabel } from "../../domain/i18n/es";
 import { formatMoney } from "../../domain/i18n/format";
 import { priceOf } from "../../domain/mechanics/market";
 import type { CompanyId } from "../../domain/types";
-import { CompanyBadge } from "../components/CompanyBadge";
+import { CompanyBadge, HolderName } from "../components/CompanyBadge";
 import { HolderSheet } from "./HolderSheet";
 
 /** Company details and manual adjustments (FR-024). */
@@ -50,7 +50,7 @@ export function CompanySheet({
             {holders.map(([h, units]) => (
               <li key={h}>
                 <span>
-                  {holderName(h, meta.game, meta.players)}
+                  <HolderName holder={h} game={meta.game} players={meta.players} />
                   {h === president ? " ★" : ""}
                 </span>
                 <span className="money">{(units * 100) / def.shareCount}%</span>

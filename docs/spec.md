@@ -190,6 +190,11 @@ that one undo reverts exactly:
 - Counters record what formed the major (`mergedFrom:<id>`, so it keeps the minors' abilities)
   and which identity it took (`identity`).
 
+Each major has two identities. The first name below is the default and the second is the
+identity it can take in a merger: Consortium / Conglomerate, Union / Unlimited, System / Syndicate,
+International / Inc., Federation / Firm, Experiment / Enterprise, and with Landmarks, Authority /
+Alliance and League / LLC.
+
 Companies can still be `closed` with their remaining assets moved by explicit events, and share
 counts stay a per-company property, for future conversions.
 
@@ -430,7 +435,9 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
      (first outside the SR). "Ajustes" holds Pagar…, Cobrar del banco, Fijar dinero, Mover
      acciones, Ajustar deuda and Declarar quiebra. Sales and buys are the same `sellShares` and
      `buyShare` as the company card's.
-   - **Company grid** (tab or second row): treasury, price, president, trains. On phones the
+   - **Company grid** (tab or second row): treasury, price, president, and the trains as small
+     cards, one per train, like the physical train cards (a rusted one kept for a last run is
+     dashed and says "oxidado"). On phones the
      stock and corporate rounds open on this tab, so a buy or sell stays two taps. In an OR, the
      current company's card opens its turn; other cards open their details, where "Operar fuera
      de turno…" records actions out of order, marked "fuera de turno" in History (never blocked).
@@ -439,15 +446,17 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
      toggle and an "editar…" keypad), "Al pool" (only where discarded trains go to the pool) or
      "Fuera de juego"; and "Dar un tren" with the stack's types and an optional payment.
    - Floating **mic button** (push-to-talk) and **undo** button.
-4. **Operate sheet** (the operating turn): under the title, the trains line ("Trenes 2/4 · 2, 3",
-   "(oxidado)" on a rusted train kept for a last run, "Sin trenes", "· sobre el límite"; the last
-   two in a warning style) with a "Corregir…" link to the train correction view; a summary of what the company recorded this OR,
+4. **Operate sheet** (the operating turn): under the title, the trains line: "Trenes 2/4" and a
+   card per train ("oxidado" on a rusted train kept for a last run), or "Sin trenes"; "sobre el
+   límite" when over the limit. The last two use a warning style. A "Corregir…" link opens the
+   train correction view. Then a summary of what the company recorded this OR,
    revenue keypad with Pay / Withhold / Half and "No corrió" (a zero run, with the game's withhold
    move), buy-train picker, pay-cost and the other operating actions. The turn stays open across
    actions and keeps typed revenue while buying trains; "Terminar turno" is enabled once a run or
    "No corrió" is recorded and hands the turn to the next company in operating order.
-5. **Stock sheet**: from a company card, a row per player with IPO / Pool / Vender (two taps
-   from the table), a share-count stepper, par prices for unstarted companies, issue and company
+5. **Stock sheet**: from a company card, a tile per place shares can be bought ("IPO", "Pool",
+   "Tesorería"), each with the shares left and the price per share, and "agotada" when empty; then
+   a row per player with IPO / Pool / Vender (two taps from the table), a share-count stepper, par prices for unstarted companies, issue and company
    trades in the corporate round, and a batch sheet for end-of-round statements.
 6. **Confirmation card**: summary, flows, chips, Confirm / Edit / Cancel.
 7. **History**: grouped ledger, newest first, undone entries included, split into round
@@ -465,7 +474,9 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
    other active entry.
 8. **Market view**: grid with company tokens stacked by arrival, plus 1-D tracks such as the
    1848 BoE. A token moves by dragging it, or by tapping it and then a cell; each move is a
-   recorded manual override, so cell effects (receivership, closed) still apply.
+   recorded manual override, so cell effects (receivership, closed) still apply. Closed companies
+   are not shown, since they no longer operate; undoing the close brings the token back. Their
+   price can still be corrected through the manual actions.
 9. **Results**: "Resultados" once the game is finished (frozen at the end, with the game, the end
    time and "automático" or the conditions), or "Clasificación provisional" before. A table of
    Puesto, Jugador, Dinero, Acciones and Total, with text markers: "🏆 Ganador" on every rank-1
@@ -497,6 +508,10 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
 
 - Minimum touch target 48 px. Primary actions within thumb reach.
 - High contrast. Company colors always paired with short names (so color is never the only cue).
+- Companies show as their colored badge wherever the app names them: History summaries, movements
+  and balances, the income summary, toasts, the voice confirmation card, sheet titles and buttons.
+  The badge carries the same words the plain text had, so what a screen reader says is unchanged.
+  Voice prompts and replies, exports and accessible labels stay plain text.
 - Screen wake lock while a session is open.
 
 ## 10. Persistence & Data

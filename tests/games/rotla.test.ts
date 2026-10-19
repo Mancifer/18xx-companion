@@ -21,9 +21,9 @@ describe("RotLA definition", () => {
     expect(result.ok ? [] : result.errors).toEqual([]);
   });
 
-  it("has unverified data (the majors' second identities)", () => {
-    expect(hasUnverified(g)).toBe(true);
-    expect(g.verification["companies"]).toBe("unverified");
+  it("is fully verified: the majors' second identities came from the user's copy (feature 013)", () => {
+    expect(hasUnverified(g)).toBe(false);
+    expect(g.verification["companies"]).toBe("verified");
   });
 
   it("has 12 minors and 6 majors with their tiers", () => {
@@ -157,7 +157,7 @@ describe("US1: modes × player counts", () => {
 describe("expansion: landmarks (US11)", () => {
   const ids = (game: ReturnType<typeof rotlaGame>) => game.companies.map((c) => c.id);
 
-  it("adds four minors and two majors with their colors, traits and placeholder identities", () => {
+  it("adds four minors and two majors with their colors, traits and second identities", () => {
     const game = rotlaGame({ expansion: "landmarks" });
     for (const id of ["CIR", "CPL", "MFG", "TWC", "AUT", "LGE"]) expect(ids(game)).toContain(id);
     const def = (id: string) => game.companies.find((c) => c.id === id)!;
@@ -169,8 +169,29 @@ describe("expansion: landmarks (US11)", () => {
       traits: { launchFee: 50, launchAssets: ["train:M2:1"], noLeadoffTrain: true },
     });
     expect(def("CIR")).toMatchObject({ color: "#9c27b0", tier: "minor" });
-    expect(def("AUT")).toMatchObject({ name: "Authority", altName: "Authority II", tier: "major", start: "merger", color: "#e0e0e0" });
-    expect(def("LGE")).toMatchObject({ name: "League", altName: "League II", tier: "major", color: "#424242" });
+    expect(def("AUT")).toMatchObject({ name: "Authority", altName: "Alliance", tier: "major", start: "merger", color: "#e0e0e0" });
+    expect(def("LGE")).toMatchObject({ name: "League", altName: "LLC", tier: "major", color: "#424242" });
+  });
+
+  // Feature 013 (contracts/game-data.md): the user's copy, 2026-10-15.
+  it.each([
+    ["CON", "Consortium", "Conglomerate", ["conglomerate", "conglomerado"], "#e53935"],
+    ["UNI", "Union", "Unlimited", ["unlimited", "ilimitada"], "#ef6c00"],
+    ["SYS", "System", "Syndicate", ["syndicate", "sindicato"], "#fdd835"],
+    ["INT", "International", "Inc.", ["inc", "ink", "incorporated"], "#00bcd4"],
+    ["FED", "Federation", "Firm", ["firm", "firma"], "#43a047"],
+    ["EXM", "Experiment", "Enterprise", ["enterprise", "empresa"], "#7b1fa2"],
+    ["AUT", "Authority", "Alliance", ["alliance", "alianza"], "#e0e0e0"],
+    ["LGE", "League", "LLC", ["llc", "ele ele ce"], "#424242"],
+  ])("%s is %s, or %s as its second identity", (id, name, altName, altAliases, color) => {
+    const game = rotlaGame({ expansion: "landmarks" });
+    expect(game.companies.find((c) => c.id === id)).toMatchObject({ shortName: id, name, altName, altAliases, color });
+  });
+
+  it("the majors are verified, with no placeholder names left", () => {
+    const game = rotlaGame({ expansion: "landmarks" });
+    expect(game.verification.companies).toBe("verified");
+    expect(game.companies.filter((c) => c.altName?.endsWith(" II"))).toEqual([]);
   });
 
   it("adds the special M2 train (cost 0), held by removed at the start, and the landmarks rule", () => {

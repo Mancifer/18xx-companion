@@ -126,7 +126,7 @@ describe("seed cases (T136)", () => {
       costs: 7,
       stock: 18,
       loans: 3,
-      flow: 9, // + 3 endGame cases (feature 007)
+      flow: 11, // + 3 endGame cases (feature 007), + 2 second-identity mergers (feature 013)
       compound: 5,
       corrections: 9, // + 5 undo/correction cases (feature 010)
       queries: 4,

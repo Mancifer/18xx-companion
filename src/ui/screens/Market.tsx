@@ -4,7 +4,7 @@ import type { CompanyDef } from "../../domain/games/schema";
 import { formatMoney } from "../../domain/i18n/format";
 import { currentPhase, trainStack } from "../../domain/mechanics/phases";
 import { cellEquals, type CellRef, type CompanyId } from "../../domain/types";
-import { CompanyBadge } from "../components/CompanyBadge";
+import { CompanyBadge, CompanyName } from "../components/CompanyBadge";
 import { UndoToast } from "../components/UndoToast";
 import { useNav } from "../nav";
 
@@ -25,13 +25,18 @@ export function Market() {
   const { meta, state } = useSession();
   const { dispatch } = useDispatch();
   const { go } = useNav();
-  const [selected, setSelected] = useState<CompanyId | null>(null);
+  const [picked, setPicked] = useState<CompanyId | null>(null);
   const dragging = useRef<CompanyId | null>(null);
   const game = meta.game;
   const phase = currentPhase(game, state);
+  // Feature 013, US5: closed companies don't operate, so the market leaves them out. A view of
+  // the state only: an undo that reopens one brings its token back.
+  const inPlay = (id: CompanyId) => state.companies[id]?.status !== "closed";
+  // A token picked before its company closed (by voice, say) is no longer a selection.
+  const selected = picked !== null && inPlay(picked) ? picked : null;
 
   const place = (company: CompanyId, cell: CellRef) => {
-    setSelected(null);
+    setPicked(null);
     if (cellEquals(state.companies[company]?.position, cell)) return;
     void dispatch({ type: "setMarket", company, cell });
   };
@@ -58,7 +63,7 @@ export function Market() {
 
   const tokensAt = (cell: CellRef): CompanyDef[] =>
     game.companies
-      .filter((c) => cellEquals(state.companies[c.id]?.position, cell))
+      .filter((c) => inPlay(c.id) && cellEquals(state.companies[c.id]?.position, cell))
       .sort((a, b) => (state.companies[a.id]?.stackOrder ?? 0) - (state.companies[b.id]?.stackOrder ?? 0));
 
   const token = (c: CompanyDef) => (
@@ -72,7 +77,7 @@ export function Market() {
       }}
       onClick={(e) => {
         e.stopPropagation();
-        setSelected((s) => (s === c.id ? null : c.id));
+        setPicked((s) => (s === c.id ? null : c.id));
       }}
     >
       <CompanyBadge company={c} size="sm" />
@@ -100,7 +105,9 @@ export function Market() {
   );
 
   const width = Math.max(...game.market.cells.map((r) => r.length));
-  const unplaced = game.companies.filter((c) => !state.companies[c.id]?.position && state.companies[c.id]?.status !== "unstarted");
+  const unplaced = game.companies.filter(
+    (c) => inPlay(c.id) && !state.companies[c.id]?.position && state.companies[c.id]?.status !== "unstarted",
+  );
 
   return (
     <main className="screen">
@@ -113,7 +120,7 @@ export function Market() {
       <div className="screen-body">
         <p className="muted">
           {selected
-            ? `Toca la casilla a la que mover ${game.companies.find((c) => c.id === selected)?.shortName ?? selected}.`
+            ? <>Toca la casilla a la que mover <CompanyName game={game} id={selected} />.</>
             : "Arrastra una ficha, o tócala y después toca una casilla."}
         </p>
         {game.market.shape === "1d" ? (

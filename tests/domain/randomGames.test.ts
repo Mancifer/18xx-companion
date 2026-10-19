@@ -3,6 +3,10 @@ import { reduceAll } from "../../src/domain/events/reduce";
 import { cashOf, initialState } from "../../src/domain/events/state";
 import type { PrimitiveEvent } from "../../src/domain/events/types";
 import { applyOptions, builtInGames, getBuiltInGame } from "../../src/domain/games";
+import { balanceLineEs, movementLineEs, summaryEs } from "../../src/domain/i18n/es";
+import { stripMentions } from "../../src/domain/i18n/mentions";
+import { entryBreakdown } from "../../src/domain/ledger/breakdown";
+import type { LogEntry } from "../../src/domain/ledger/entries";
 import { operatingPhase } from "../../src/domain/ledger/operatingPhase";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { FLOW, NAMES, candidates, rng } from "../helpers/randomWalk";
@@ -47,6 +51,24 @@ function checkIncome(s: TestSession, where: string): boolean {
   throw new Error(`${where}: start group ${phase.startGroupId} not in the log`);
 }
 
+/**
+ * Feature 013: the marked lines History renders strip back to the plain lines, for the newest
+ * group (its summary, its movements and its balances).
+ */
+function checkMentions(s: TestSession, where: string): void {
+  const plain = { game: s.game, players: s.players, state: s.state };
+  const marked = { ...plain, marks: true as const };
+  const same = (what: string, a: string | undefined, b: string | undefined) => {
+    if (stripMentions(a ?? "") !== (b ?? "")) throw new Error(`${where} ${what}: "${stripMentions(a ?? "")}" ≠ "${b ?? ""}"`);
+  };
+  const g = s.groups[s.groups.length - 1]!;
+  same(g.action.type, summaryEs(g.action, marked, g.events), summaryEs(g.action, plain, g.events));
+  const log: LogEntry[] = s.groups.map((e) => ({ kind: "group", ...e, warnings: [] }));
+  const b = entryBreakdown(s.game, s.players, log, g.id);
+  for (const m of b?.movements ?? []) same(`movement ${m.kind}`, movementLineEs(m, marked), movementLineEs(m, plain));
+  for (const x of b?.balances ?? []) same(`balance ${x.holder}`, balanceLineEs(x, marked), balanceLineEs(x, plain));
+}
+
 function play(gameIndex: number, seed: number) {
   const game = builtInGames[gameIndex]!;
   const rand = rng(seed * 7919 + gameIndex);
@@ -64,6 +86,7 @@ function play(gameIndex: number, seed: number) {
       throw new Error(`${game.id} seed ${seed} step ${step} after ${JSON.stringify(next)}: ${JSON.stringify(violations)}`);
     }
     if (checkIncome(s, `${game.id} seed ${seed} step ${step}`)) phases++;
+    if (step % 10 === 0) checkMentions(s, `${game.id} seed ${seed} step ${step}`);
   }
   return { s, applied, phases };
 }
@@ -123,6 +146,7 @@ describe("RotLA random games keep the invariants (SC-005)", () => {
         if (!next) break;
         s.do(next);
         seen.add(next.type);
+        if (seed % 20 === 0 && step % 10 === 0) checkMentions(s, `rotla seed ${seed} step ${step}`);
         const violations = s.violations();
         if (violations.length > 0) {
           throw new Error(`rotla ${JSON.stringify(options)} seed ${seed} step ${step} after ${JSON.stringify(next)}: ${JSON.stringify(violations)}`);

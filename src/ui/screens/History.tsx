@@ -8,6 +8,7 @@ import { groupHistory, type GroupHistory } from "../../domain/ledger/effectiveLo
 import type { EntrySource, LogEntry } from "../../domain/ledger/entries";
 import { roundSections } from "../../domain/ledger/rounds";
 import { isSetup, newestUndoable, type UndoRange } from "../../domain/ledger/undo";
+import { RichText } from "../components/RichText";
 import { UndoRangeSheet } from "../components/UndoRangeSheet";
 import { UndoToast } from "../components/UndoToast";
 import { useNav } from "../nav";
@@ -43,7 +44,8 @@ export function History({ extraActions }: { extraActions?: ReactNode }) {
   const sections = useMemo(() => [...roundSections(meta.game, history)].reverse(), [meta.game, history]);
   const newestId = useMemo(() => newestUndoable(log)?.id, [log]);
   const badGroups = new Set(violations.map((v) => v.firstBadGroupId));
-  const ctx = { game: meta.game, players: meta.players };
+  // Feature 013: company names render as badges.
+  const ctx: SummaryContext = { game: meta.game, players: meta.players, marks: true };
 
   const undoBackTo = async (groupId: string) => {
     const result = await undoTo(groupId);
@@ -152,15 +154,23 @@ function HistoryItem({
           </div>
           {status === "amended" && original && latest ? (
             <div className="history-summary">
-              <s className="muted">{summary(original.action, original.events)}</s>
-              <span>{summary(latest.action, latest.events)}</span>
+              <s className="muted">
+                <RichText text={summary(original.action, original.events)} />
+              </s>
+              <span>
+                <RichText text={summary(latest.action, latest.events)} />
+              </span>
             </div>
           ) : (
             <div className="history-summary">
               {status === "reverted" ? (
-                <s>{summary(group.action, group.events)}</s>
+                <s>
+                  <RichText text={summary(group.action, group.events)} />
+                </s>
               ) : (
-                <span>{summary(group.action, group.events)}</span>
+                <span>
+                  <RichText text={summary(group.action, group.events)} />
+                </span>
               )}
             </div>
           )}
@@ -195,7 +205,7 @@ function Breakdown({ log, groupId, ctx }: { log: readonly LogEntry[]; groupId: s
   if (!breakdown) return null;
   const moves = breakdown.movements.flatMap((m, i) => {
     const line = movementLineEs(m, ctx);
-    return line ? [<li key={i}>{line}</li>] : [];
+    return line ? [<li key={i}><RichText text={line} /></li>] : [];
   });
   return (
     <>
@@ -210,7 +220,9 @@ function Breakdown({ log, groupId, ctx }: { log: readonly LogEntry[]; groupId: s
           <h3>Saldos</h3>
           <ul>
             {breakdown.balances.map((b) => (
-              <li key={b.holder}>{balanceLineEs(b, ctx)}</li>
+              <li key={b.holder}>
+                <RichText text={balanceLineEs(b, ctx)} />
+              </li>
             ))}
           </ul>
         </section>

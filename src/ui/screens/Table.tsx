@@ -20,6 +20,7 @@ import { mechanicConfigOf } from "../../domain/mechanics/custom/config";
 import { CorporateBankruptcyConfig } from "../../domain/mechanics/custom/corporateBankruptcy";
 import { companyGroups, currentORGroups, purchasablePrivates, upcomingCompanies, type CompanyGroup } from "../../domain/queries";
 import type { CompanyId, HolderRef, PlayerId } from "../../domain/types";
+import { CompanyName } from "../components/CompanyBadge";
 import { CompanyCard } from "../components/CompanyCard";
 import { MicButton } from "../components/MicButton";
 import { PlayerTile } from "../components/PlayerTile";
@@ -59,7 +60,7 @@ export type Open =
   | { kind: "turn" }
   | { kind: "chips" }
   | { kind: "income" }
-  | { kind: "confirm"; title: string; body: string; confirmLabel: string; action: unknown; scoreAfter?: boolean }
+  | { kind: "confirm"; title: ReactNode; body: string; confirmLabel: string; action: unknown; scoreAfter?: boolean }
   | { kind: "counter"; subject: HolderRef; key: string }
   | { kind: "trainCorrection"; company: CompanyId }
   | null;
@@ -109,7 +110,6 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
   const close = () => setOpen(null);
   const ctx: ActionContext = { game: meta.game, players: meta.players, state };
   const players = [...meta.players].sort((a, b) => a.seat - b.seat);
-  const companyName = (id: CompanyId) => meta.game.companies.find((c) => c.id === id)?.shortName ?? id;
   // FR-011: in an OR only the current company's card opens its turn; the others show details.
   // With no company operating (the set is over) there is no turn to be out of.
   const companyView = (id: CompanyId) => {
@@ -164,7 +164,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
             onClick={() =>
               setOpen({
                 kind: "confirm",
-                title: `Administración de ${companyName(id)}`,
+                title: <>Administración de <CompanyName game={meta.game} id={id} /></>,
                 body: "La compañía pasa a administración, con los pagos que marque el juego.",
                 confirmLabel: "Entrar en administración",
                 action: { type: "enterReceivership", company: id },
@@ -179,7 +179,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
             onClick={() =>
               setOpen({
                 kind: "confirm",
-                title: `Quiebra de ${companyName(id)}`,
+                title: <>Quiebra de <CompanyName game={meta.game} id={id} /></>,
                 body: "Sus acciones salen del juego, la caja va al banco y sus trenes se retiran.",
                 confirmLabel: "Declarar quiebra",
                 action: { type: "declareBankruptcy", player: null, company: id },
@@ -194,7 +194,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
             onClick={() =>
               setOpen({
                 kind: "confirm",
-                title: `Cerrar ${companyName(id)}`,
+                title: <>Cerrar <CompanyName game={meta.game} id={id} /></>,
                 body: "La compañía queda cerrada; sus bienes se mueven a mano.",
                 confirmLabel: "Cerrar compañía",
                 action: { type: "closeCompany", company: id },
@@ -288,11 +288,19 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
         ) : null}
         {round === "OR" && current ? (
           <button className="primary" onClick={() => setOpen({ kind: "company", id: current, view: "operate" })}>
-            Operar {companyName(current)}
+            Operar <CompanyName game={meta.game} id={current} />
           </button>
         ) : null}
         {round === "OR" && current && upcoming.length > 0 ? (
-          <span className="round-next">Después: {upcoming.map(companyName).join(", ")}</span>
+          <span className="round-next">
+            Después:{" "}
+            {upcoming.map((id, i) => (
+              <span key={id}>
+                {i > 0 ? ", " : null}
+                <CompanyName game={meta.game} id={id} />
+              </span>
+            ))}
+          </span>
         ) : null}
         {offerIncome ? (
           <button className="primary" onClick={() => void dispatch({ type: "privateIncome" })}>

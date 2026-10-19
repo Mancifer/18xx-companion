@@ -1,6 +1,6 @@
 import { screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { cashText, openMenuItem, openSeededTable } from "./helpers";
+import { byLine, cashText, openMenuItem, openSeededTable } from "./helpers";
 
 const pay = (from: string, to: string, amount: number) => ({ type: "transferMoney", from, to, amount });
 
@@ -129,7 +129,7 @@ describe("History: where the money went (feature 010, US3)", () => {
     expect(within(panel).getByText("$20: Banco → Bruno")).toBeTruthy();
     expect(within(panel).getByText("Saldos")).toBeTruthy();
     expect(within(panel).getByText(/^Ana: \$\d+ → \$\d+ \(\+\$50\)$/)).toBeTruthy();
-    expect(within(panel).getByText(/^PRR: \$\d+ → \$\d+$/)).toBeTruthy();
+    expect(within(panel).getByText(byLine(/^PRR: \$\d+ → \$\d+$/))).toBeTruthy();
   });
 
   it("every entry is expandable, omits empty sections, and an undone entry keeps its breakdown", async () => {
@@ -302,5 +302,52 @@ describe("History: round sections (feature 011, US4)", () => {
     const or11 = screen.getByRole("region", { name: "Ronda de operaciones 1.1" });
     expect(or11.querySelector(".round-header")?.textContent).toContain("en curso");
     expect(within(or11).getByText(/Empieza la ronda de acciones/, { selector: "s" })).toBeTruthy();
+  });
+});
+
+describe("History: company badges (feature 013, US1)", () => {
+  const PAYING = [
+    { type: "startSR" },
+    { type: "parCompany", player: "p1", company: "PRR", price: 100 },
+    { type: "buyShare", buyer: "player:p2", company: "PRR", source: "ipo", count: 2 },
+    { type: "buyShare", buyer: "player:p1", company: "PRR", source: "ipo", count: 3 },
+    { type: "endSR" },
+    { type: "startOR" },
+    { type: "runAndPayout", company: "PRR", parts: [{ part: "revenue", amount: 100 }], mode: "full" },
+  ];
+  const badges = (el: Element, short: string) =>
+    [...el.querySelectorAll<HTMLElement>(".company-badge")].filter((b) => b.textContent === short);
+
+  it("summaries show each company as its badge, with the same text as before", async () => {
+    const { user } = await openSeededTable({ actions: PAYING });
+    await openMenuItem(user, "Historial");
+    const entry = item(/Bruno compra 2 PRR/);
+    const summary = entry.querySelector(".history-summary")!;
+    const [badge] = badges(summary, "PRR");
+    expect(badge).toBeTruthy();
+    expect(badge!.style.background).not.toBe("");
+    expect(summary.textContent).toMatch(/^Bruno compra 2 PRR de la IPO/);
+  });
+
+  it("movements and balances show badges once the entry is expanded", async () => {
+    const { user } = await openSeededTable({ actions: [...PAYING, pay("bank", "company:PRR", 50)] });
+    await openMenuItem(user, "Historial");
+    const bought = item(/Bruno compra 2 PRR/);
+    await user.click(bought.querySelector("summary")!);
+    expect(badges(bought.querySelector(".history-moves")!, "PRR").length).toBeGreaterThan(0);
+    const funded = item(/El banco paga \$50 a PRR/);
+    await user.click(funded.querySelector("summary")!);
+    expect(badges(funded.querySelector(".history-balances")!, "PRR").length).toBeGreaterThan(0);
+  });
+
+  it("an undone entry stays struck through, with its badge inside the strike", async () => {
+    const { user } = await openSeededTable({ actions: PAYING });
+    await openMenuItem(user, "Historial");
+    const entry = item(/PRR paga \$100/);
+    await user.click(within(entry).getByRole("button", { name: "Deshacer" }));
+    await within(entry).findByText("deshecha");
+    const struck = entry.querySelector("s")!;
+    expect(badges(struck, "PRR").length).toBeGreaterThan(0);
+    expect(struck.textContent).toMatch(/^PRR paga \$100/);
   });
 });

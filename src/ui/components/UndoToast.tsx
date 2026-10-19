@@ -6,6 +6,8 @@ import { formatMoney } from "../../domain/i18n/format";
 import { moneyFlows } from "../../domain/ledger/flows";
 import type { HolderRef } from "../../domain/types";
 import { ChipStrip, flowLabel } from "./ChipStrip";
+import { HolderName } from "./CompanyBadge";
+import { RichText } from "./RichText";
 import type { GroupEntry } from "../../domain/ledger/entries";
 
 const VISIBLE_MS = 6000;
@@ -30,7 +32,7 @@ export function UndoToast({ extra, undoOnly = false }: { extra?: (group: GroupEn
 
   // History shows its own entries: there only undos and errors need a notice.
   if (!feedback || (undoOnly && feedback.kind === "applied")) return null;
-  const ctx = { game: meta.game, players: meta.players };
+  const ctx = { game: meta.game, players: meta.players, marks: true as const };
 
   if (feedback.kind === "error") {
     return (
@@ -42,7 +44,9 @@ export function UndoToast({ extra, undoOnly = false }: { extra?: (group: GroupEn
   if (feedback.kind === "reverted") {
     return (
       <div className="toast" role="status">
-        <span>{undoneEs(feedback.groups, ctx)}</span>
+        <span>
+          <RichText text={undoneEs(feedback.groups, ctx)} />
+        </span>
       </div>
     );
   }
@@ -58,7 +62,9 @@ export function UndoToast({ extra, undoOnly = false }: { extra?: (group: GroupEn
   const name = (h: HolderRef) => holderName(h, meta.game, meta.players);
   return (
     <div className="toast" role="status">
-      <span className="toast-summary">{summaryEs(group.action, ctx, group.events)}</span>
+      <span className="toast-summary">
+        <RichText text={summaryEs(group.action, ctx, group.events)} />
+      </span>
       {group.warnings.map((w) => (
         <span key={w.code} className="toast-warning">
           ⚠ {w.messageEs}
@@ -70,7 +76,8 @@ export function UndoToast({ extra, undoOnly = false }: { extra?: (group: GroupEn
             e.t === "moneyTransfer"
               ? [
                   <li key={i}>
-                    {name(e.from)} → {name(e.to)}: {formatMoney(e.amount, meta.game)}
+                    <HolderName holder={e.from} game={meta.game} players={meta.players} /> →{" "}
+                    <HolderName holder={e.to} game={meta.game} players={meta.players} />: {formatMoney(e.amount, meta.game)}
                   </li>,
                 ]
               : [],

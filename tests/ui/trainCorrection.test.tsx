@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { openSeededTable } from "./helpers";
+import { byLine, openSeededTable } from "./helpers";
 
 /** Feature 011, US3: the train correction view (contracts/ui.md §3). */
 
@@ -30,7 +30,7 @@ const inOR = (company: string, trains: readonly string[] = ["2", "2"]) => [
 ];
 
 const card = (company: string) => screen.getByTestId(`treasury-${company}`).closest("button")!;
-const summary = (text: RegExp) => screen.findByText(text, { selector: ".toast-summary" });
+const summary = (text: RegExp) => screen.findByText(byLine(text), { selector: ".toast-summary" });
 
 async function openFromDetails(user: User, company = "PRR"): Promise<HTMLElement> {
   await user.click(card(company));

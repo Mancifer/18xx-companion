@@ -1,8 +1,9 @@
 import { useState, type ReactNode } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
-import { COUNTER_LABELS, holderName } from "../../domain/i18n/es";
+import { COUNTER_LABELS } from "../../domain/i18n/es";
 import { formatMoney } from "../../domain/i18n/format";
 import type { HolderRef } from "../../domain/types";
+import { HolderName } from "../components/CompanyBadge";
 import { Keypad } from "../components/Keypad";
 import { Sheet } from "../components/Sheet";
 
@@ -74,7 +75,7 @@ export function CounterSheet({ subject, initialKey = "debt", onClose }: { subjec
   const isMoney = key === "debt";
   const delta = (negative ? -1 : 1) * (amount ?? 0);
   return (
-    <Sheet title={<>Ajustar contador · {holderName(subject, meta.game, meta.players)}</>} onClose={onClose}>
+    <Sheet title={<>Ajustar contador · <HolderName holder={subject} game={meta.game} players={meta.players} /></>} onClose={onClose}>
       <div className="row">
         {KEYS.map((k) => (
           <button key={k} aria-pressed={key === k} onClick={() => setKey(k)}>

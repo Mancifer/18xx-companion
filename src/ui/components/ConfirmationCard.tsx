@@ -1,13 +1,14 @@
 import { useState } from "react";
 import { useSession } from "../../app/useSession";
 import type { Action } from "../../domain/actions/schemas";
-import { holderName } from "../../domain/i18n/es";
+import { holderName, proposalSummaryEs } from "../../domain/i18n/es";
 import { formatMoney } from "../../domain/i18n/format";
 import type { HolderRef } from "../../domain/types";
 import type { VoiceResult } from "../../voice/resolve";
 import { editableFields, getField, setField, type ActionField } from "../actionFields";
 import { ChipStrip, flowLabel } from "./ChipStrip";
 import { Keypad } from "./Keypad";
+import { RichText } from "./RichText";
 
 type Proposal = Extract<VoiceResult, { kind: "proposal" }>;
 
@@ -28,8 +29,10 @@ export function ConfirmationCard({
   onEdit: (action: Action) => void;
   extra?: React.ReactNode;
 }) {
-  const { meta } = useSession();
+  const { meta, state } = useSession();
   const [editing, setEditing] = useState(false);
+  // The same line as proposal.summaryEs, with company badges (feature 013); the voice layer keeps the plain one.
+  const summary = proposalSummaryEs(proposal.action, { game: meta.game, players: meta.players, state, marks: true }, proposal.events);
   const name = (h: HolderRef) => holderName(h, meta.game, meta.players);
   const fields =
     proposal.action.type === "compound"
@@ -50,7 +53,9 @@ export function ConfirmationCard({
   return (
     <section className="voice-card" role="dialog" aria-label="Confirmar orden de voz">
       <p className="muted transcript">«{proposal.transcript}»</p>
-      <p className="voice-summary">{proposal.summaryEs}</p>
+      <p className="voice-summary">
+        <RichText text={summary} />
+      </p>
       {proposal.warnings.map((w) => (
         <p key={w.code} className="toast-warning">
           ⚠ {w.messageEs}

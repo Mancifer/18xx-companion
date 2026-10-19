@@ -42,6 +42,31 @@ export function sharePrice(game: GameDefinition, state: SessionState, company: C
   return market;
 }
 
+export interface ShareSource {
+  readonly source: BuyShare["source"];
+  readonly units: number;
+  readonly price: number | undefined;
+}
+
+/**
+ * Where a company's shares can be bought right now, in display order (feature 013, US3,
+ * data-model.md "Share source"): the IPO unless the game buys from the treasury by default, or the
+ * IPO is empty and the treasury holds shares; the treasury when it holds shares, or always where
+ * it is the default; the pool always. An empty source stays listed, with 0 units.
+ */
+export function shareSources(ctx: Pick<ActionContext, "game" | "state">, company: CompanyId): readonly ShareSource[] {
+  const { game, state } = ctx;
+  const ipo = unitsOf(state, `ipo:${company}`, company);
+  const treasury = unitsOf(state, `company:${company}`, company);
+  const byDefault = game.defaultBuySource === "treasury";
+  const shown: BuyShare["source"][] = [];
+  if (!byDefault && (ipo > 0 || treasury === 0)) shown.push("ipo");
+  if (byDefault || treasury > 0) shown.push("treasury");
+  shown.push("pool");
+  const units = { ipo, treasury, pool: unitsOf(state, "pool", company) };
+  return shown.map((source) => ({ source, units: units[source], price: sharePrice(game, state, company, source) }));
+}
+
 /** Who receives the money: the company for incremental IPO buys and treasury sales, else the Bank. */
 function payee(game: GameDefinition, company: CompanyId, source: BuyShare["source"]): HolderRef {
   if (source === "treasury") return `company:${company}`;

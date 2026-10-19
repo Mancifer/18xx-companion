@@ -6,6 +6,7 @@ import { trainPrice } from "../../domain/actions/expand/operating";
 import { formatMoney } from "../../domain/i18n/format";
 import { trainsHeldBy, trainStack } from "../../domain/mechanics/phases";
 import { trainTypeOf, type AssetId, type CompanyId } from "../../domain/types";
+import { CompanyBadge } from "../components/CompanyBadge";
 import { Keypad } from "../components/Keypad";
 import { Sheet } from "../components/Sheet";
 
@@ -44,7 +45,7 @@ export function TrainCorrectionSheet({ companyId, onClose }: { companyId: Compan
   const refundLabel = pickedType === undefined ? "" : refundOn ? ` · devolver ${money(refund ?? listPrice(pickedType))}` : " · sin devolución";
 
   return (
-    <Sheet title={<>Corregir trenes · {def.shortName}</>} onClose={onClose}>
+    <Sheet title={<>Corregir trenes · <CompanyBadge company={def} size="inline" /></>} onClose={onClose}>
       <fieldset className="choice-fieldset menu-section">
         <legend className="muted">Quitar un tren</legend>
         <div className="choice-grid">

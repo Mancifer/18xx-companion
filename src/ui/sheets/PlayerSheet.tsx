@@ -63,7 +63,7 @@ export function PlayerSheet({
       {inSR
         ? holdings.map((h) => (
             <button key={h.company.id} onClick={() => void run({ type: "sellShares", seller: ref, company: h.company.id, count: 1 })}>
-              Vender 1 {h.company.shortName} · {money(h.price)}
+              Vender 1 <CompanyBadge company={h.company} size="inline" /> · {money(h.price)}
             </button>
           ))
         : null}

@@ -78,14 +78,14 @@ export const ROTLA_MINORS: readonly CompanyDef[] = [
   }),
 ];
 
-/** B p.18. Second identities are unverified placeholders (research R14). */
+/** B p.18. Second identities from the user's copy (2026-10-15, feature 013). */
 export const ROTLA_MAJORS: readonly CompanyDef[] = [
   major("CON", "Consortium", "#e53935", "#ffffff", ["consortium", "consorcio"], "Conglomerate", ["conglomerate", "conglomerado"]),
   major("UNI", "Union", "#ef6c00", "#ffffff", ["union", "unión"], "Unlimited", ["unlimited", "ilimitada"]),
   major("SYS", "System", "#fdd835", "#1b1b1b", ["system", "sistema"], "Syndicate", ["syndicate", "sindicato"]),
-  major("INT", "International", "#00bcd4", "#1b1b1b", ["international", "internacional"], "International II", ["international dos"]),
-  major("FED", "Federation", "#43a047", "#ffffff", ["federation", "federación"], "Federation II", ["federation dos"]),
-  major("EXM", "Experiment", "#7b1fa2", "#ffffff", ["experiment", "experimento"], "Experiment II", ["experiment dos"]),
+  major("INT", "International", "#00bcd4", "#1b1b1b", ["international", "internacional"], "Inc.", ["inc", "ink", "incorporated"]),
+  major("FED", "Federation", "#43a047", "#ffffff", ["federation", "federación"], "Firm", ["firm", "firma"]),
+  major("EXM", "Experiment", "#7b1fa2", "#ffffff", ["experiment", "experimento"], "Enterprise", ["enterprise", "empresa"]),
 ];
 
 /** Landmarks (L p.3, 10): colors from the user (2026-10-09). */
@@ -101,10 +101,10 @@ export const LANDMARKS_MINORS: readonly CompanyDef[] = [
   minor("TWC", "Twin Cities", "#81d4fa", "#1b1b1b", ["twin cities", "ciudades gemelas"]),
 ];
 
-/** L p.3: two majors, each with two identities; the second names are unverified placeholders. */
+/** L p.3: two majors, each with two identities; second names from the user's copy (2026-10-15, feature 013). */
 export const LANDMARKS_MAJORS: readonly CompanyDef[] = [
-  major("AUT", "Authority", "#e0e0e0", "#1b1b1b", ["authority", "autoridad"], "Authority II", ["authority dos"]),
-  major("LGE", "League", "#424242", "#ffffff", ["league", "liga"], "League II", ["league dos"]),
+  major("AUT", "Authority", "#e0e0e0", "#1b1b1b", ["authority", "autoridad"], "Alliance", ["alliance", "alianza"]),
+  major("LGE", "League", "#424242", "#ffffff", ["league", "liga"], "LLC", ["llc", "ele ele ce"]),
 ];
 
 /** Manufacturing's own 2-train (L p.10): never in the stack, never exported, held by `removed` until launch. */
@@ -379,8 +379,7 @@ export const grotla: GameDefinition = {
   verification: {
     bank: "verified",
     startingCash: "verified",
-    // The majors' second identities are placeholders (research R14).
-    companies: "unverified",
+    companies: "verified",
     currency: "verified",
     capitalization: "verified",
     ipoPrice: "verified",

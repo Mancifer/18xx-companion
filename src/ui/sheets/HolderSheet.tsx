@@ -1,10 +1,9 @@
 import { useState, type ReactNode } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
 import { cashOf, unitsOf } from "../../domain/events/state";
-import { holderName } from "../../domain/i18n/es";
 import { formatMoney } from "../../domain/i18n/format";
 import type { CompanyId, HolderRef } from "../../domain/types";
-import { CompanyBadge } from "../components/CompanyBadge";
+import { CompanyBadge, HolderName } from "../components/CompanyBadge";
 import { Keypad } from "../components/Keypad";
 import { Sheet } from "../components/Sheet";
 
@@ -36,8 +35,8 @@ export function HolderSheet({
   const [amount, setAmount] = useState<number | null>(null);
   const [target, setTarget] = useState<HolderRef | null>(null);
   const ctx = { game: meta.game, players: meta.players };
-  const name = (h: HolderRef) => holderName(h, meta.game, meta.players);
-  const toName = (h: HolderRef) => (h === "bank" ? "al banco" : `a ${name(h)}`);
+  const badged = (h: HolderRef) => <HolderName holder={h} game={meta.game} players={meta.players} />;
+  const toName = (h: HolderRef) => (h === "bank" ? "al banco" : <>a {badged(h)}</>);
 
   const moneyTargets: HolderRef[] = (
     [
@@ -55,7 +54,7 @@ export function HolderSheet({
   if (mode === "pay") {
     return (
       <Sheet title={<>Pagar desde {title}</>} onClose={onClose}>
-        <ChoiceGrid label="A quién" options={moneyTargets} value={target} onChange={setTarget} render={name} />
+        <ChoiceGrid label="A quién" options={moneyTargets} value={target} onChange={setTarget} render={badged} />
         <Keypad value={amount} onChange={setAmount} game={meta.game} />
         <button
           className="primary"
@@ -153,7 +152,6 @@ function SharesForm({
   const [other, setOther] = useState<HolderRef | null>(null);
   const [count, setCount] = useState(1);
   const [presidency, setPresidency] = useState(false);
-  const name = (h: HolderRef) => holderName(h, ctx.game, ctx.players);
   const others: HolderRef[] = company
     ? ([
         `ipo:${company}`,
@@ -190,7 +188,11 @@ function SharesForm({
             options={others}
             value={other}
             onChange={setOther}
-            render={(h) => `${name(h)} (${unitsOf(state, h, company)})`}
+            render={(h) => (
+              <>
+                <HolderName holder={h} game={ctx.game} players={ctx.players} /> ({unitsOf(state, h, company)})
+              </>
+            )}
           />
           <div className="row">
             <button aria-label="Menos" onClick={() => setCount((n) => Math.max(1, n - 1))}>

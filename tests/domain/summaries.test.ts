@@ -4,7 +4,8 @@ import type { PrimitiveEvent } from "../../src/domain/events/types";
 import type { HolderRef } from "../../src/domain/types";
 import { applyOptions, getBuiltInGame } from "../../src/domain/games";
 import type { GameDefinition } from "../../src/domain/games/schema";
-import { balanceLineEs, formatMoney, movementLineEs, summaryEs, trainsLineEs } from "../../src/domain/i18n/es";
+import { balanceLineEs, formatMoney, movementLineEs, summaryEs, trainsLineEs, type SummaryContext } from "../../src/domain/i18n/es";
+import { markMention, stripMentions } from "../../src/domain/i18n/mentions";
 import { trainLimitFor } from "../../src/domain/mechanics/phases";
 import type { Movement } from "../../src/domain/ledger/breakdown";
 import { TestSession, makePlayers } from "../helpers/dispatch";
@@ -523,5 +524,76 @@ describe("correctTrain summaries (feature 011, contracts/actions.md)", () => {
     expect(summaryEs(act("add", null, 80), ctx, [asset("bank", "company:PRR"), money("company:PRR", "bank", 80)])).toBe(
       "Corrección: la PRR recibe un 2 de la oferta y paga $80",
     );
+  });
+});
+
+describe("company mentions (feature 013, contracts/ui.md)", () => {
+  const PRIVATE_USE = /[\uE000-\uE002]/;
+  const PRR = markMention("PRR", "PRR");
+  const g1830 = getBuiltInGame("1830");
+  /** Plain and marked: the marked line strips back to the plain one, and the plain one has no markers. */
+  const both = (line: (ctx: SummaryContext) => string | undefined, ctx: SummaryContext) => {
+    const plain = line(ctx) ?? "";
+    const rich = line({ ...ctx, marks: true }) ?? "";
+    expect(PRIVATE_USE.test(plain)).toBe(false);
+    expect(stripMentions(rich)).toBe(plain);
+    return rich;
+  };
+
+  function floated() {
+    const s = TestSession.start(g1830, players);
+    seedCompany(s, "PRR", { cell: { row: 0, col: 6 }, holders: { "player:p1": 6 } });
+    seedCompany(s, "NYC", { cell: { row: 0, col: 5 }, holders: { "player:p2": 6 } });
+    return s;
+  }
+
+  it("a share purchase marks the company", () => {
+    const s = floated();
+    const action: Action = { type: "buyShare", buyer: "player:p3", company: "PRR", source: "ipo", count: 1 };
+    s.do(action);
+    const rich = both((ctx) => summaryEs(action, ctx, s.lastEvents), { game: s.game, players: s.players, state: s.state });
+    expect(rich).toContain(PRR);
+  });
+
+  it("a company paying is marked and still starts the sentence", () => {
+    const s = floated();
+    const action: Action = { type: "transferMoney", from: "company:PRR", to: "player:p1", amount: 10 };
+    const rich = both((ctx) => summaryEs(action, ctx), { game: s.game, players: s.players });
+    expect(rich.startsWith(PRR)).toBe(true);
+    expect(stripMentions(rich).startsWith("PRR")).toBe(true);
+  });
+
+  it("an IPO holder reads 'la IPO de' and the company", () => {
+    const action: Action = { type: "transferShares", company: "PRR", from: "ipo:PRR", to: "player:p1", units: 1, presidency: null };
+    const rich = both((ctx) => summaryEs(action, ctx), { game: g1830, players });
+    expect(rich).toContain(`la IPO de ${PRR}`);
+  });
+
+  it("a merger into the second identity marks the full names", () => {
+    const s = rotlaSession();
+    s.apply({ t: "turnAdvance", round: "MR", srNumber: 2, phase: "green" });
+    seedRotla(s, "EXP", { price: 80, holders: { "player:p1": 3, "player:p2": 2 }, treasury: 200, trains: ["train:2:1", "train:2:2"] });
+    seedRotla(s, "TUN", { price: 70, holders: { "player:p2": 3, "company:TUN": 2 }, treasury: 110, trains: ["train:3:1"] });
+    const action: Action = { type: "mergeCompanies", a: "EXP", b: "TUN", into: "UNI", identity: "alt" };
+    const rich = both((ctx) => summaryEs(action, ctx), { game: s.game, players: s.players });
+    expect(rich).toBe(`${markMention("EXP", "Express")} + ${markMention("TUN", "Tunneling")} → ${markMention("UNI", "Unlimited")}`);
+  });
+
+  it.each([
+    [{ kind: "shares", company: "PRR", from: "ipo:PRR", to: "player:p1", units: 2, presidency: true }, `2 ${PRR}: IPO → Ana (presidencia)`],
+    [{ kind: "asset", asset: "train:3:1", from: "bank", to: "company:PRR" }, `tren 3: Banco → ${PRR}`],
+    [{ kind: "price", company: "PRR", from: 100, to: 112, reason: "payout" }, `${PRR}: $100 → $112`],
+    [{ kind: "status", company: "PRR", from: "floated", to: "closed" }, `${PRR}: flotada → cerrada`],
+    [{ kind: "counter", subject: "company:PRR", key: "debt", delta: 100 }, `deuda de ${PRR}: +$100`],
+  ] as [Movement, string][])("movement %o is marked", (movement, line) => {
+    expect(both((ctx) => movementLineEs(movement, ctx), { game: g1830, players })).toBe(line);
+  });
+
+  it("balance lines mark a company holder only", () => {
+    const ctx = { game: g1830, players };
+    expect(both((c) => balanceLineEs({ holder: "company:PRR", before: 500, after: 420, delta: -80 }, c), ctx)).toBe(
+      `${PRR}: $500 → $420 (−$80)`,
+    );
+    expect(both((c) => balanceLineEs({ holder: "player:p1", before: 480, after: 720, delta: 240 }, c), ctx)).toBe("Ana: $480 → $720 (+$240)");
   });
 });

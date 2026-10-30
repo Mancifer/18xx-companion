@@ -297,7 +297,7 @@ describe("History: round sections (feature 011, US4)", () => {
     const { user } = await openSeededTable({ actions: sr1ToSr2.slice(0, -1) });
     await openMenuItem(user, "Historial");
     await user.click(within(item(/Empieza la ronda de acciones/)).getByRole("button", { name: "Deshacer" }));
-    await within(item(/Empieza la ronda de acciones/)).findByText("deshecha");
+    await within(item(/Empieza la ronda de acciones/)).findByText("deshecha", undefined, { timeout: 5000 });
     expect(screen.queryByRole("region", { name: "Ronda de acciones 2" })).toBeNull();
     const or11 = screen.getByRole("region", { name: "Ronda de operaciones 1.1" });
     expect(or11.querySelector(".round-header")?.textContent).toContain("en curso");

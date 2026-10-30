@@ -19,7 +19,12 @@ import { freshDbName, makeMeta } from "../helpers/session";
 /**
  * T163 (plan performance goals): replay of a long game, snapshot load and one write. Times are
  * medians of several runs after a warm-up, so a slow machine or a GC pause does not flake.
+ * Shared CI runners are several times slower and run other test files alongside, so there each
+ * budget gets 4× headroom: still catches a real regression, without failing on a busy runner.
  */
+
+const CI_SLACK = process.env["CI"] ? 4 : 1;
+const budget = (ms: number): number => ms * CI_SLACK;
 
 const GROUPS = 1500;
 const game = getBuiltInGame("1830");
@@ -83,7 +88,7 @@ describe("performance (T163)", () => {
   it(`replays a ${GROUPS}-group log in under 50 ms`, () => {
     expect(log.length).toBeGreaterThanOrEqual(GROUPS);
     const ms = timeIt(() => replay(game, players, log));
-    expect(ms).toBeLessThan(50);
+    expect(ms).toBeLessThan(budget(50));
   });
 
   it("loads from the latest snapshot plus the tail well under that", () => {
@@ -92,7 +97,7 @@ describe("performance (T163)", () => {
     const full = replay(game, players, log).state;
     expect(replayFromSnapshot(game, log, latest).state).toEqual(full);
     const ms = timeIt(() => new SessionStore({ appendEntry: () => Promise.resolve() }, makeMeta({ game, players }), log, { snapshot: latest }));
-    expect(ms).toBeLessThan(25);
+    expect(ms).toBeLessThan(budget(25));
   });
 
   it("dispatches a payout (pipeline + IndexedDB write) in under 100 ms", async () => {
@@ -111,7 +116,7 @@ describe("performance (T163)", () => {
         expect(result.ok).toBe(true);
         await store.undoLast(); // back to the same position for the next run
       }
-      expect(median(times)).toBeLessThan(100);
+      expect(median(times)).toBeLessThan(budget(100));
     } finally {
       db.close();
     }
@@ -138,30 +143,30 @@ describe("performance (T163)", () => {
         db.close();
       }
     }
-    expect(median(times)).toBeLessThan(500);
+    expect(median(times)).toBeLessThan(budget(500));
   });
 
   it("expands the first entry of a 300-group game in under 50 ms, active and undone (plan performance goals)", () => {
     const short = log.slice(0, 300);
     const first = short[1] as GroupEntry;
-    expect(timeIt(() => entryBreakdown(game, players, short, first.id))).toBeLessThan(50);
+    expect(timeIt(() => entryBreakdown(game, players, short, first.id))).toBeLessThan(budget(50));
     const ids = short.slice(1).map((e) => (e as GroupEntry).id).reverse();
     const undone: LogEntry[] = [...short, { kind: "undo", seq: 301, at: "2026-10-12T20:00:00.000Z", groupIds: ids }];
     expect(entryBreakdown(game, players, undone, first.id)?.status).toBe("reverted");
-    expect(timeIt(() => entryBreakdown(game, players, undone, first.id))).toBeLessThan(50);
+    expect(timeIt(() => entryBreakdown(game, players, undone, first.id))).toBeLessThan(budget(50));
   });
 
   it("computes History's round sections of a 300-group game in under 20 ms (feature 011, US4)", () => {
     const history = groupHistory(log.slice(0, 300));
     expect(roundSections(game, history).length).toBeGreaterThan(1);
-    expect(timeIt(() => roundSections(game, history))).toBeLessThan(20);
+    expect(timeIt(() => roundSections(game, history))).toBeLessThan(budget(20));
   });
 
   it("computes the OR income summary of a 300-group game in under 20 ms (feature 012, G6)", () => {
     const short = log.slice(0, 300);
     const effective = effectiveLog(short);
     const state = replay(game, players, short).state;
-    expect(timeIt(() => operatingPhase(game, players, effective, state))).toBeLessThan(20);
+    expect(timeIt(() => operatingPhase(game, players, effective, state))).toBeLessThan(budget(20));
   });
 });
 
@@ -174,6 +179,6 @@ describe("performance with RotLA mergers (T100)", () => {
     const merges = log.filter((e) => e.kind === "group" && e.action.type === "mergeCompanies").length;
     expect(merges).toBeGreaterThan(0);
     const ms = timeIt(() => replay(rotla, rotlaPlayers, log));
-    expect(ms).toBeLessThan(50);
+    expect(ms).toBeLessThan(budget(50));
   });
 });

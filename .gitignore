@@ -8,6 +8,7 @@ coverage/
 *.log
 .env*
 *.tsbuildinfo
+.wrangler/
 
 # Test output
 test-results/

@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { byLine, cashText, openMenuItem, openSeededTable } from "./helpers";
 
@@ -297,7 +297,9 @@ describe("History: round sections (feature 011, US4)", () => {
     const { user } = await openSeededTable({ actions: sr1ToSr2.slice(0, -1) });
     await openMenuItem(user, "Historial");
     await user.click(within(item(/Empieza la ronda de acciones/)).getByRole("button", { name: "Deshacer" }));
-    await within(item(/Empieza la ronda de acciones/)).findByText("deshecha");
+    // The undone entry is re-rendered inside OR 1.1, so look it up again on every retry: an item
+    // taken before the undo lands is the old SR 2 node, which is removed and never updates.
+    await waitFor(() => within(item(/Empieza la ronda de acciones/)).getByText("deshecha"));
     expect(screen.queryByRole("region", { name: "Ronda de acciones 2" })).toBeNull();
     const or11 = screen.getByRole("region", { name: "Ronda de operaciones 1.1" });
     expect(or11.querySelector(".round-header")?.textContent).toContain("en curso");

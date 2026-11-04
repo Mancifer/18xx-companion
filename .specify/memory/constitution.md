@@ -1,18 +1,22 @@
 <!--
 Sync Impact Report
-- Version change: 1.1.0 → 2.0.0 (MAJOR: principles I and IV redefined; amend and out-of-order
-  undo retired)
+- Version change: 2.0.0 → 2.1.0 (MINOR: voice guidance expanded from Spanish only to Spanish and
+  English; no principle removed or redefined)
 - Modified principles:
-  - I. Event-Sourced Ledger: undo is a ledger entry marking groups reverted, newest first; past
-    entries are never edited in place (amend retired); legacy entries stay readable
-  - IV. Propose, Confirm, Undo: one tap undoes only the latest action; older actions are reached
-    by a confirmed "undo back to here"; undo only in order
+  - V. Voice and Touch Parity, Minimal Screen Time: parity holds in every supported voice language
+  - VI. Test-First Domain Logic: the eval set covers every supported voice language; a new language
+    may start from player-written phrasings that real transcripts later replace
+- Modified sections:
+  - Platform & Technology Constraints: speech-to-text follows the display language (Spanish `es-*`
+    or English `en-*`), and the "in v1" qualifier on the Spanish locale is removed; provider/model
+    pairs are measured in every supported voice language before being offered
 - Added sections: none
 - Removed sections: none
-- Rationale: out-of-order undo and amend left later entries computed from a game that no longer
-  existed (bug undo-stale-market-move); feature 010-reliable-play-history
+- Rationale: feature 014-multi-language-support adds English as the default display language and
+  makes voice follow it
 - Templates: plan/spec/tasks templates read the constitution at runtime; no edits needed
-- Follow-up TODOs: none (feature 010 plan should cite v2.0.0)
+- Follow-up TODOs: none. The other "v1" rules (no backend, later iterations) are unchanged on
+  purpose.
 -->
 # 18xx Companion Constitution
 
@@ -82,8 +86,8 @@ harmless.
 
 ### V. Voice and Touch Parity, Minimal Screen Time
 
-- Voice and touch MUST produce the same action types through the same validation path. Voice is
-  a shortcut; every capability MUST be reachable by touch.
+- Voice and touch MUST produce the same action types through the same validation path, in every
+  supported voice language. Voice is a shortcut; every capability MUST be reachable by touch.
 - Common actions MUST take at most 2 taps or one short voice command.
 - Touch targets MUST be at least 48 px; color MUST never be the only cue (company colors are
   always paired with short names). Layouts MUST work on phone portrait and tablet landscape.
@@ -97,9 +101,11 @@ Rationale: players' attention belongs on the board, not the device.
   test, make it pass, then refactor.
 - Game definitions MUST have tests covering their rule-dependent calculations (payout modes,
   unowned-share dividends, rounding, market moves).
-- Voice resolution accuracy MUST be measured against a maintained eval set of real Spanish
-  transcripts with expected actions; prompt, tool-schema, provider, or model changes MUST be
-  re-evaluated against it before merging.
+- Voice resolution accuracy MUST be measured against a maintained eval set of real transcripts
+  with expected actions, covering every supported voice language (Spanish and English). Prompt,
+  tool-schema, provider, or model changes MUST be re-evaluated against it, in every language,
+  before merging. A newly added language MAY start from phrasings written by players and MUST
+  replace them with real transcripts as they are collected.
 
 Rationale: money correctness can only be trusted if it is proven by tests, and AI behavior can
 only be trusted if it is measured.
@@ -120,7 +126,9 @@ Rationale: fewer moving parts means fewer failure points mid-game.
 
 - Stack: React + TypeScript (strict mode) + Vite, delivered as an installable PWA.
 - Storage: IndexedDB holding the event log plus periodic snapshots; session export/import as JSON.
-- Speech-to-text: Web Speech API, push-to-talk only, Spanish (`es-*`) locale in v1.
+- Speech-to-text: Web Speech API, push-to-talk only. The voice language follows the display
+  language: Spanish (`es-*`) or English (`en-*`). A language MUST NOT be offered for voice before
+  it has cases in the eval set.
 - Command resolution: pluggable AI resolvers behind one interface (Anthropic Claude today; other
   providers such as Google Gemini may be added). Every resolver MUST:
   - receive the same tools/functions, generated from the same action schemas touch uses, the same
@@ -134,7 +142,8 @@ Rationale: fewer moving parts means fewer failure points mid-game.
 - Provider and model are user-configurable. Each provider keeps its own API key, stored only on
   the device (Principle VII).
 - A provider/model pair MUST be measured on the shared voice eval set (same cases, grading, and
-  report format, including cost per command) before it is offered in the app.
+  report format, including cost per command), in every supported voice language, before it is
+  offered in the app.
 - Performance target: transcript-to-confirmation-card latency under 3 s on a typical connection.
 - New runtime dependencies MUST be justified in the plan that introduces them.
 
@@ -161,4 +170,4 @@ Rationale: fewer moving parts means fewer failure points mid-game.
 - Compliance is reviewed at plan time (Constitution Check) and at review time. Unjustified
   complexity or principle violations block merging.
 
-**Version**: 2.0.0 | **Ratified**: 2026-10-07 | **Last Amended**: 2026-10-12
+**Version**: 2.1.0 | **Ratified**: 2026-10-07 | **Last Amended**: 2026-11-04

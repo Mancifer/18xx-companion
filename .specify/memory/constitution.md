@@ -1,21 +1,3 @@
-<!--
-Sync Impact Report
-- Version change: 2.1.0 → 2.2.0 (MINOR: speech-to-text expanded from one engine to two, with a
-  new external transcription service and a new quality gate; no principle removed or redefined)
-- Modified principles:
-  - IV. Propose, Confirm, Undo: degrade-to-touch rule now also covers the transcription service
-  - VI. Test-First Domain Logic: adds the recorded-audio check set gate for speech engines
-  - VII. Local-First Simplicity: key rule covers every external service; audio is never stored
-- Modified sections:
-  - Platform & Technology Constraints: "Speech-to-text" now lists the browser engine and Whisper
-    on Groq (recorded push-to-talk audio), Whisper as an opt-in toggle, and transcription-service
-    rules
-- Added sections: none
-- Removed sections: none
-- Templates: plan/spec/tasks templates read the constitution at runtime; no edits needed
-- Follow-up TODOs: docs/spec.md §2/§8/settings to be updated by feature 015
-  (specs/015-whisper-speech-groq)
--->
 # 18xx Companion Constitution
 
 ## Core Principles
@@ -121,7 +103,9 @@ only be trusted if it is measured.
 - The user's API keys (one per external service: each AI provider and the transcription service)
   MUST be stored only on the device and MUST NOT be included in exports, logs, or bug reports.
 - Recorded audio MUST live only in memory for the command it belongs to and MUST NOT be
-  persisted, exported, or added to history.
+  persisted, exported, or added to history. The one exception is development builds: there,
+  the developer MAY explicitly save a command's clip as part of the audio check set
+  (Principle VI). Nothing of that path may exist in a production build.
 - Features listed as "later iterations" (mergers, multi-device rooms, loans beyond what v1 games
   need, backend proxy, native wrapper) MUST NOT be built ahead of need. Designing data shapes so
   they remain possible is allowed; implementing them is not. Prefer the simplest solution (YAGNI).
@@ -144,7 +128,9 @@ Rationale: fewer moving parts means fewer failure points mid-game.
   shared voice messages in the display language. Other transcription hosts are a later iteration.
 - The voice language follows the display language: Spanish (`es-*`) or English (`en-*`). A
   language MUST NOT be offered for voice before it has cases in the eval set, and an engine MUST
-  NOT be offered in a language before it passes the audio check set (Principle VI).
+  NOT be offered in a language in a production build before it passes the audio check set
+  (Principle VI). Development builds MAY offer an engine in every voice language, so that it can
+  be built, tried, and checked; they are never released to players.
 - Command resolution: pluggable AI resolvers behind one interface (Anthropic Claude today; other
   providers such as Google Gemini may be added). Every resolver MUST:
   - receive the same tools/functions, generated from the same action schemas touch uses, the same

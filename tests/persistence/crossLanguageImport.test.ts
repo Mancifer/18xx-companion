@@ -51,7 +51,7 @@ describe("0.1.0 files across languages (feature 014 T055)", () => {
       db.close();
 
       expect(exp.version).toBe(parsed.file.version);
-      expect(exp.appVersion).toBe("0.2.0");
+      expect(exp.appVersion).toBe("0.3.0");
       const json = JSON.stringify(exp);
       expect(json).not.toMatch(/"language"|"voiceLocales"|"voiceLocale"/);
       for (const entry of exp.entries as LogEntry[]) {

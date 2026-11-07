@@ -465,6 +465,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
             availability={voice.availability}
             onPress={() => voice.controller.press()}
             onRelease={() => void voice.controller.release()}
+            onCancel={() => voice.controller.cancel()}
           />
         </>
       ) : null}

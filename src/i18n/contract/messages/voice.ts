@@ -26,4 +26,16 @@ export interface VoiceMessages {
   readonly "voice.noSpeech": None;
   readonly "voice.offline": None;
   readonly "voice.noKey": { readonly provider: string };
+  /** Feature 015: a Groq Whisper failure, by kind (the provider kinds plus `audio`). Names Groq. */
+  readonly "voice.transcription": { readonly kind: string };
+  /** Feature 015: the microphone was refused, or there is none. */
+  readonly "voice.micDenied": None;
+  readonly "voice.noMic": None;
+  /** Feature 015 hints (not errors): nothing was heard; the 30 s limit cut the recording. */
+  readonly "voice.heardNothing": None;
+  readonly "voice.cut": None;
+  /** Feature 015: why the mic is unavailable with Whisper (data-model §2). */
+  readonly "voice.noRecorder": None;
+  readonly "voice.noSpeechTryWhisper": None;
+  readonly "voice.noGroqKey": None;
 }

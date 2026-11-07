@@ -52,6 +52,8 @@ export const components: UiText["components"] = {
     interpreting: " · interpreting…",
     release: "Release to send",
     hold: "Hold to talk",
+    transcribing: "Transcribing…",
+    cancel: "Cancel",
   },
   voicePanel: {
     saveForEval: "Save for eval",
@@ -59,6 +61,7 @@ export const components: UiText["components"] = {
     ok: "OK",
     notUnderstood: "I didn't understand",
     manual: "Do it by hand",
+    useBrowser: "Use the browser's recognition",
   },
   chipsSheet: { title: "Chips", plan: "Setup", restore: "Back to the game's chips" },
   fields: {

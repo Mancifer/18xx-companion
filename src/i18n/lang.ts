@@ -45,6 +45,32 @@ export function voiceEnabled(lang: Lang): boolean {
   return voiceLanguages().includes(lang);
 }
 
+/** The build setting, read at each call so tests can stub it; absent outside Vite (the eval runner). */
+function envWhisperLanguages(): string | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  return import.meta.env?.VITE_WHISPER_LANGUAGES;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+const devBuild = (): boolean => import.meta.env?.DEV ?? false;
+
+/**
+ * The voice languages Whisper is offered in (feature 015, FR-018): `VITE_WHISPER_LANGUAGES` as a
+ * comma-separated list, kept only where voice itself is offered. Unlike voice, no language is
+ * always on: a language joins once its audio check passes (T054). Dev builds offer every voice
+ * language, so the check can be recorded (constitution, "Platform").
+ */
+export function whisperLanguages(raw: string | undefined = envWhisperLanguages()): Lang[] {
+  const voice = voiceLanguages();
+  if (devBuild()) return voice;
+  const listed = (raw ?? "").split(",").map((s) => s.trim().toLowerCase());
+  return voice.filter((id) => listed.includes(id));
+}
+
+export function whisperOffered(lang: Lang): boolean {
+  return whisperLanguages().includes(lang);
+}
+
 /** The device's preferred languages, safe where there is no `navigator`. */
 export function navigatorLanguages(): readonly string[] {
   if (typeof navigator === "undefined") return [];

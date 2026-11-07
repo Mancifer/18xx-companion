@@ -15,12 +15,13 @@ import { freshDbName } from "../helpers/session";
 
 const KEY = "sk-ant-api03-SECRET-KEY-DO-NOT-LEAK";
 const GEMINI_KEY = "AIzaSy-GEMINI-SECRET-DO-NOT-LEAK";
+const GROQ_KEY = "gsk_GROQ-SECRET-DO-NOT-LEAK";
 
 async function midGame() {
   const db = await openCompanionDb(freshDbName());
   const repo = new SessionRepo(db);
   const settings = new SettingsRepo(db);
-  await settings.set({ apiKeys: { anthropic: KEY, gemini: GEMINI_KEY }, rememberKey: true });
+  await settings.set({ apiKeys: { anthropic: KEY, gemini: GEMINI_KEY }, rememberKey: true, groqKey: GROQ_KEY, whisper: true });
   const store = await startSession(repo, settings, {
     game: getBuiltInGame("1830"),
     options: {},
@@ -50,6 +51,15 @@ describe("export (FR-091, FR-092)", () => {
     expect(json).not.toContain(GEMINI_KEY);
     expect(json).not.toContain("AIza");
     expect(json.toLowerCase()).not.toMatch(/api_?key/);
+  });
+
+  it("015 SC-005: never contains the Groq key, the Whisper settings, or any audio", async () => {
+    const { repo, store } = await midGame();
+    const json = JSON.stringify(await buildExport(repo, store.getSnapshot().meta.id, { appVersion: "0.1.0", now }));
+    expect(json).not.toContain(GROQ_KEY);
+    expect(json).not.toContain("gsk_");
+    expect(json).not.toMatch(/groq_?key|whisper|checkClips/i);
+    expect(json).not.toMatch(/audio\/(webm|ogg|mp4)/);
   });
 
   it("has the contract's shape and a state hash of the replayed state", async () => {

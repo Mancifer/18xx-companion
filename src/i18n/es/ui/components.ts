@@ -54,6 +54,9 @@ export const components = {
     interpreting: " · interpretando…",
     release: "Suelta para enviar",
     hold: "Mantén pulsado para hablar",
+    /** Feature 015: Whisper, after release (FR-007). */
+    transcribing: "Transcribiendo…",
+    cancel: "Cancelar",
   },
   voicePanel: {
     saveForEval: "Guardar para eval",
@@ -61,6 +64,8 @@ export const components = {
     ok: "Vale",
     notUnderstood: "No entendí",
     manual: "Hacerlo a mano",
+    /** Feature 015 (FR-016): after a Groq failure, turn Whisper off in one tap. */
+    useBrowser: "Usar el reconocimiento del navegador",
   },
   chipsSheet: { title: "Fichas", plan: "Preparación", restore: "Volver al juego" },
   fields: {

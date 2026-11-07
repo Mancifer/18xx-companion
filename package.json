@@ -1,6 +1,6 @@
 {
   "name": "18xx-companion",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -18,7 +18,9 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "eval:voice": "tsx eval/voice/run.ts",
-    "eval:voice:compare": "tsx eval/voice/compare.ts"
+    "eval:voice:compare": "tsx eval/voice/compare.ts",
+    "eval:audio": "tsx eval/audio/run.ts",
+    "eval:audio:collect": "tsx eval/audio/collect.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.132.0",

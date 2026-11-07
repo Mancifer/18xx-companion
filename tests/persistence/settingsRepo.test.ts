@@ -24,7 +24,16 @@ const defaults = () => Object.fromEntries(PROVIDER_IDS.map((id) => [id, PROVIDER
 describe("SettingsRepo (005)", () => {
   it("defaults: Claude selected, no keys, every model at its registry default", async () => {
     const repo = new SettingsRepo(await openCompanionDb(freshDbName()));
-    expect(await repo.get()).toEqual({ provider: "anthropic", apiKeys: {}, models: defaults(), rememberKey: true, voiceLocales: { en: "en-US", es: "es-ES" } });
+    expect(await repo.get()).toEqual({
+      provider: "anthropic",
+      apiKeys: {},
+      models: defaults(),
+      rememberKey: true,
+      voiceLocales: { en: "en-US", es: "es-ES" },
+      // Feature 015: Whisper off and no check clips by default.
+      whisper: false,
+      checkClips: false,
+    });
   });
 
   it("FR-005: legacy apiKey/model rows read as Claude's key and model", async () => {

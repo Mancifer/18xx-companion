@@ -13,6 +13,12 @@ export interface Settings {
   readonly language?: Lang;
   /** The speech-recognition region for each language (feature 014, FR-014a). */
   readonly voiceLocales: Readonly<Record<Lang, string>>;
+  /** Feature 015 (FR-003): Whisper (Groq) speech recognition, opt-in; separate from the key. */
+  readonly whisper: boolean;
+  /** Feature 015 (FR-002): the Groq key; follows rememberKey like apiKeys. Groq is not an AI provider. */
+  readonly groqKey?: string;
+  /** Feature 015 (research R11): save check clips for the audio check set. Dev builds only. */
+  readonly checkClips: boolean;
   readonly lastSessionId?: string;
 }
 
@@ -29,6 +35,10 @@ export interface SettingsPatch {
   readonly language?: Lang;
   /** Merged per language, like apiKeys. */
   readonly voiceLocales?: Readonly<Partial<Record<Lang, string>>>;
+  readonly whisper?: boolean;
+  /** A blank (or undefined) key removes it. */
+  readonly groqKey?: string | undefined;
+  readonly checkClips?: boolean;
   readonly lastSessionId?: string | undefined;
 }
 
@@ -41,7 +51,12 @@ export const DEFAULT_SETTINGS: Settings = {
   models: defaultModels(),
   rememberKey: true,
   voiceLocales: { en: "en-US", es: "es-ES" },
+  whisper: false,
+  checkClips: false,
 };
+
+/** Dev builds only (constitution VII). Read at each call so tests can stub it. */
+const devBuild = (): boolean => import.meta.env.DEV;
 
 /**
  * Rows written before feature 005 (read as Claude's key and model) and before feature 014
@@ -92,6 +107,8 @@ function modelsOf(value: unknown): Record<ProviderId, string> {
 export class SettingsRepo {
   /** Every provider's key while rememberKey is off; never stored. */
   private memoryKeys: Partial<Record<ProviderId, string>> | undefined;
+  /** The Groq key while rememberKey is off; never stored (feature 015). */
+  private memoryGroqKey: string | undefined;
 
   constructor(private readonly db: CompanionDb) {}
 
@@ -108,6 +125,7 @@ export class SettingsRepo {
     const storedKeys = "apiKeys" in stored ? keysOf(stored["apiKeys"]) : legacyKey ? { anthropic: legacyKey } : {};
     const models = "models" in stored ? modelsOf(stored["models"]) : modelsOf(legacyModel ? { anthropic: legacyModel } : {});
     const lastSessionId = stored["lastSessionId"];
+    const groqKey = rememberKey ? text(stored["groqKey"]) : this.memoryGroqKey;
     return {
       provider: isProviderId(stored["provider"]) ? stored["provider"] : DEFAULT_SETTINGS.provider,
       apiKeys: rememberKey ? storedKeys : { ...this.memoryKeys },
@@ -115,6 +133,9 @@ export class SettingsRepo {
       rememberKey,
       ...(isLang(stored["language"]) ? { language: stored["language"] } : {}),
       voiceLocales: voiceLocalesOf(stored["voiceLocales"], stored["voiceLocale"]),
+      whisper: stored["whisper"] === true,
+      ...(groqKey ? { groqKey } : {}),
+      checkClips: devBuild() && stored["checkClips"] === true,
       ...(typeof lastSessionId === "string" ? { lastSessionId } : {}),
     };
   }
@@ -131,6 +152,7 @@ export class SettingsRepo {
     // A blank model falls back to the registry default inside modelsOf.
     const models = modelsOf({ ...current.models, ...patch.models });
     const rememberKey = patch.rememberKey ?? current.rememberKey;
+    const groqKey = "groqKey" in patch ? text(patch.groqKey) : current.groqKey;
     const migrating = LEGACY.some((k) => k in stored);
 
     const tx = this.db.transaction("settings", "readwrite", { durability: "strict" });
@@ -139,6 +161,9 @@ export class SettingsRepo {
     if (migrating || "models" in patch) await put("models", models);
     if ("rememberKey" in patch) await put("rememberKey", rememberKey);
     if (patch.language !== undefined) await put("language", patch.language);
+    // Feature 015: the toggle is its own row, never written by a key change (FR-003).
+    if (patch.whisper !== undefined) await put("whisper", patch.whisper);
+    if (patch.checkClips !== undefined) await put("checkClips", patch.checkClips);
     if (migrating || patch.voiceLocales !== undefined) {
       await put("voiceLocales", voiceLocalesOf({ ...current.voiceLocales, ...patch.voiceLocales }, undefined));
     }
@@ -149,12 +174,19 @@ export class SettingsRepo {
     if (!rememberKey) {
       // The keys never touch storage; drop any previously remembered copy.
       this.memoryKeys = apiKeys;
+      this.memoryGroqKey = groqKey;
       await tx.store.delete("apiKeys");
+      await tx.store.delete("groqKey");
     } else {
       this.memoryKeys = undefined;
+      this.memoryGroqKey = undefined;
       if (migrating || "apiKeys" in patch || "rememberKey" in patch) {
         if (Object.keys(apiKeys).length > 0) await put("apiKeys", apiKeys);
         else await tx.store.delete("apiKeys");
+      }
+      if ("groqKey" in patch || "rememberKey" in patch) {
+        if (groqKey) await put("groqKey", groqKey);
+        else await tx.store.delete("groqKey");
       }
     }
     for (const key of LEGACY) await tx.store.delete(key);

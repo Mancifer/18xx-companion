@@ -254,4 +254,21 @@ const queryAnswer: VoiceText["queryAnswer"] = (ctx: QueryContext, q) => {
   }
 };
 
-export const voice: VoiceText = { lang: "es", systemPrompt, toolDescriptions, snapshot, queryAnswer };
+/** Feature 015: Whisper's hint and the transcripts it invents on silence (contracts/groq-transcription.md §7). */
+const whisperHint: VoiceText["whisperHint"] = {
+  lead: (gameName) => `Partida de ${gameName}.`,
+  players: "Jugadores",
+  companies: "Compañías",
+  trains: "Trenes",
+  words: ["dividendos", "retiene", "compra", "vende", "paga", "mitad"],
+};
+
+const hallucinations = [
+  "gracias por ver el video",
+  "gracias por ver",
+  "subtitulos realizados por la comunidad de amaraorg",
+  "suscribete",
+  "gracias",
+];
+
+export const voice: VoiceText = { lang: "es", systemPrompt, toolDescriptions, snapshot, queryAnswer, whisperHint, hallucinations };

@@ -16,6 +16,11 @@ test-results/
 playwright-report/
 eval/voice/candidates/
 eval/voice/results/
+# Feature 015 audio check: recordings stay out of git unless every speaker agrees (constitution VI).
+eval/audio/clips/
+eval/audio/fixtures/
+eval/audio/transcripts/
+eval/audio/results/
 
 # OS / editor
 .DS_Store

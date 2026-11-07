@@ -89,9 +89,14 @@ export function normalizeAction(action: Json, ctx: ResolveContext): Json {
     case "redeemShare":
       if (out["count"] === null || out["count"] === undefined) out["count"] = 1;
       break;
-    case "mergeCompanies":
+    case "mergeCompanies": {
       if (out["identity"] === null || out["identity"] === undefined) out["identity"] = "primary";
+      // The two merging companies are a pair: "A and B merge" and "B and A merge" are the same merger.
+      const pair = [String(out["a"]), String(out["b"])].sort();
+      out["a"] = pair[0];
+      out["b"] = pair[1];
       break;
+    }
     case "buyTrain": {
       const type = ctx.game.trains.find((t) => t.type === out["trainType"]);
       if (out["variant"] === null) out["variant"] = type?.variants[0]?.name ?? null;

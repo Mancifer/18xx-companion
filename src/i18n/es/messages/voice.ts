@@ -13,6 +13,18 @@ const PROVIDER: Readonly<Record<string, string>> = {
   service: "Error del servicio de voz.",
 };
 
+/** Feature 015 (contracts/groq-transcription.md §4): Groq Whisper failures; neutral verb forms, no voseo. */
+const TRANSCRIPTION: Readonly<Record<string, string>> = {
+  auth: "Groq: la clave no es válida. Revisar la clave en Ajustes",
+  permission: "Groq: esta clave no puede usar el modelo de transcripción",
+  model: "Groq: el modelo de transcripción no está disponible",
+  rateLimit: "Groq: demasiados pedidos, intentar de nuevo en un momento",
+  audio: "Groq no pudo leer la grabación",
+  service: "Groq no responde, intentar de nuevo",
+  timeout: "Groq tardó demasiado en responder",
+  connection: "Sin conexión con Groq",
+};
+
 export const voice: AreaText<VoiceMessages> = {
   "voice.refused": () => "La orden fue rechazada.",
   "voice.truncated": () => "La respuesta quedó incompleta.",
@@ -30,4 +42,12 @@ export const voice: AreaText<VoiceMessages> = {
   "voice.noSpeech": () => "Este navegador no reconoce la voz",
   "voice.offline": () => "Sin conexión: la voz no está disponible",
   "voice.noKey": ({ provider }) => `Añade tu clave de ${provider} en Ajustes`,
+  "voice.transcription": ({ kind }) => TRANSCRIPTION[kind] ?? TRANSCRIPTION["service"] ?? "",
+  "voice.micDenied": () => "La voz necesita el micrófono. Hay que permitirlo en los ajustes del sitio del navegador",
+  "voice.noMic": () => "No se encontró un micrófono",
+  "voice.heardNothing": () => "No escuché nada",
+  "voice.cut": () => "La grabación se cortó a los 30 segundos",
+  "voice.noRecorder": () => "Este navegador no puede grabar audio para Whisper",
+  "voice.noSpeechTryWhisper": () => "Este navegador no reconoce la voz. Para usar la voz, activar Whisper en Ajustes",
+  "voice.noGroqKey": () => "Falta la clave de Groq en Ajustes",
 };

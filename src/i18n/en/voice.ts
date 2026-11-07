@@ -250,4 +250,15 @@ const queryAnswer: VoiceText["queryAnswer"] = (ctx: QueryContext, q) => {
   }
 };
 
-export const voice: VoiceText = { lang: "en", systemPrompt, toolDescriptions, snapshot, queryAnswer };
+/** Feature 015: Whisper's hint and the transcripts it invents on silence (contracts/groq-transcription.md §7). */
+const whisperHint: VoiceText["whisperHint"] = {
+  lead: (gameName) => `${gameName} game.`,
+  players: "Players",
+  companies: "Companies",
+  trains: "Trains",
+  words: ["dividends", "withholds", "buys", "sells", "pays", "half"],
+};
+
+const hallucinations = ["thank you for watching", "thanks for watching", "you", "thank you", "bye"];
+
+export const voice: VoiceText = { lang: "en", systemPrompt, toolDescriptions, snapshot, queryAnswer, whisperHint, hallucinations };

@@ -226,6 +226,14 @@ describe("grading (T134)", () => {
     expect(gradeResponse(undo("g8"), bare, ctxOf(bare)).pass).toBe(false);
   });
 
+  it("a merger's two companies match in either order; the major still has to match", () => {
+    const c = byId("rl-mr-merge-01"); // EXP + TUN into UNI
+    const merge = (a: string, b: string, into: string) => message(["mergeCompanies", { a, b, into, identity: null }]);
+    expect(gradeResponse(merge("EXP", "TUN", "UNI"), c, ctxOf(c)).pass).toBe(true);
+    expect(gradeResponse(merge("TUN", "EXP", "UNI"), c, ctxOf(c)).pass).toBe(true);
+    expect(gradeResponse(merge("TUN", "EXP", "CON"), c, ctxOf(c)).pass).toBe(false);
+  });
+
   it("an explicit list price equals a null price for a bank train", () => {
     const c = byId("tr-01");
     const m = message(["buyTrain", { company: "PRR", trainType: "3", variant: "3", from: "bank", seller: null, price: 180, tradeIn: null }]);

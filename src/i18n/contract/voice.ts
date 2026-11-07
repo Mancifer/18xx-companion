@@ -22,4 +22,15 @@ export interface VoiceText {
   readonly snapshot: (input: SnapshotInput) => string;
   /** A state question's answer, from the app's data (FR-073). */
   readonly queryAnswer: (ctx: QueryContext, query: Query) => string;
+  /** Feature 015 (research R8): the words around Whisper's vocabulary hint. */
+  readonly whisperHint: {
+    readonly lead: (gameName: string) => string;
+    readonly players: string;
+    readonly companies: string;
+    readonly trains: string;
+    /** Common game words, last in the hint (dropped first when it's long). */
+    readonly words: readonly string[];
+  };
+  /** Feature 015 (research R6): whole transcripts Whisper invents on near-silence, normalized. */
+  readonly hallucinations: readonly string[];
 }

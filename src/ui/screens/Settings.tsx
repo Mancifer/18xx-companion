@@ -1,12 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { useServices } from "../../app/AppProvider";
 import { useLang, useText } from "../../app/language";
 import { useHasSession } from "../../app/useSession";
 import { SETTINGS_CHANGED } from "../../app/useVoice";
-import { LANGUAGES, voiceEnabled, type Lang } from "../../i18n/lang";
+import { LANGUAGES, voiceEnabled, whisperOffered, type Lang } from "../../i18n/lang";
 import type { Settings as StoredSettings } from "../../persistence/settingsRepo";
 import { PROVIDER_IDS, PROVIDERS, type ProviderId } from "../../voice/providers";
 import { useNav } from "../nav";
+import { VoiceDepsContext, voiceAvailability } from "../../app/useVoice";
+import { canRecordAlongsideRecognizer } from "../../voice/engine";
+import { pickMimeType } from "../../voice/recorder";
+import { usePlainMessageText } from "../useMessage";
 
 interface Draft {
   provider: ProviderId;
@@ -16,7 +20,15 @@ interface Draft {
   rememberKey: boolean;
   /** The speech region of the display language (feature 014, FR-014a). */
   voiceLocale: string;
+  /** Feature 015: the Whisper toggle and the Groq key, independent of each other (FR-003). */
+  whisper: boolean;
+  groqKey: string;
+  /** Dev builds only (research R11): save each hold's audio for the audio check set. */
+  checkClips: boolean;
 }
+
+/** Feature 015: the shape of a Groq key, like the providers' keyPlaceholder (not translated). */
+const GROQ_KEY_PLACEHOLDER = "gsk_…";
 
 const perProvider = (value: (id: ProviderId) => string) =>
   Object.fromEntries(PROVIDER_IDS.map((id) => [id, value(id)])) as Record<ProviderId, string>;
@@ -27,6 +39,9 @@ const draftOf = (s: StoredSettings, lang: Lang): Draft => ({
   models: perProvider((id) => s.models[id]),
   rememberKey: s.rememberKey,
   voiceLocale: s.voiceLocales[lang],
+  whisper: s.whisper,
+  groqKey: s.groqKey ?? "",
+  checkClips: s.checkClips,
 });
 
 /**
@@ -45,6 +60,8 @@ export function Settings() {
   const regionLang = useRef<Lang>(lang);
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
+  const voiceDeps = useContext(VoiceDepsContext);
+  const plainText = usePlainMessageText();
 
   useEffect(() => {
     void settings.get().then((s) => setDraft(draftOf(s, lang)));
@@ -73,13 +90,49 @@ export function Settings() {
       apiKeys: draft.apiKeys,
       voiceLocales: { [lang]: draft.voiceLocale },
       models: draft.models,
+      // Feature 015: the toggle and the key are saved side by side; neither changes the other.
+      whisper: draft.whisper,
+      groqKey: draft.groqKey,
+      ...(import.meta.env.DEV ? { checkClips: draft.checkClips } : {}),
     });
     setDraft(draftOf(next, lang));
     setSaved(true);
     window.dispatchEvent(new Event(SETTINGS_CHANGED));
   };
 
+  /**
+   * The Whisper toggle saves at once, like the language: Guardar is far below it on a phone, and a
+   * lost change keeps sending audio to Groq. Only the toggle is saved; the other drafts wait (FR-003).
+   */
+  const saveWhisper = async (whisper: boolean) => {
+    setDraft((d) => (d ? { ...d, whisper } : d));
+    await settings.set({ whisper });
+    window.dispatchEvent(new Event(SETTINGS_CHANGED));
+  };
+
   const provider = PROVIDERS[draft?.provider ?? "anthropic"];
+  // Feature 015 (contracts/ui.md §1): the toggle only where Whisper is offered; disabled where
+  // the browser can't record. The reason line follows the draft, so it updates as the user edits.
+  const offered = whisperOffered(lang);
+  const media = voiceDeps.media?.();
+  const canRecord = voiceDeps.transcriber !== undefined && media !== undefined && pickMimeType(media.MediaRecorder) !== undefined;
+  const whisperOn = offered && draft?.whisper === true;
+  const availability = draft
+    ? voiceAvailability(
+        voiceDeps,
+        {
+          provider: draft.provider,
+          apiKeys: Object.fromEntries(Object.entries(draft.apiKeys).filter(([, k]) => k.trim() !== "")),
+          models: draft.models,
+          rememberKey: draft.rememberKey,
+          voiceLocales: { en: "en-US", es: "es-ES", [lang]: draft.voiceLocale },
+          whisper: draft.whisper,
+          ...(draft.groqKey.trim() ? { groqKey: draft.groqKey.trim() } : {}),
+          checkClips: false,
+        },
+        lang,
+      )
+    : undefined;
   const regions = Object.entries(t.regions).map(([id, label]) => ({ id, label }));
   const locales =
     draft && !regions.some((l) => l.id === draft.voiceLocale) ? [...regions, { id: draft.voiceLocale, label: draft.voiceLocale }] : regions;
@@ -131,10 +184,65 @@ export function Settings() {
               <button onClick={() => setShowKey((v) => !v)}>{showKey ? t.hide : t.show}</button>
             </div>
             <p className="muted">{t.keyHelp[provider.id]}</p>
+            {offered ? (
+              <>
+                <label className="checkbox">
+                  <input
+                    type="checkbox"
+                    checked={draft.whisper}
+                    disabled={!canRecord}
+                    onChange={(e) => void saveWhisper(e.target.checked)}
+                  />
+                  {t.whisper.toggle}
+                </label>
+                {canRecord ? (
+                  <>
+                    <p className="muted">{t.whisper.help}</p>
+                    <p className="muted">{t.whisper.billing}</p>
+                  </>
+                ) : (
+                  <p className="muted" role="note">
+                    {t.whisper.unsupported}
+                  </p>
+                )}
+              </>
+            ) : null}
+            {/* The key stays reachable with the toggle off (FR-003), so it's never lost. */}
+            <label htmlFor="settings-groq-key">{t.whisper.key}</label>
+            <input
+              id="settings-groq-key"
+              type={showKey ? "text" : "password"}
+              autoComplete="off"
+              spellCheck={false}
+              placeholder={GROQ_KEY_PLACEHOLDER}
+              value={draft.groqKey}
+              onChange={(e) => edit({ groqKey: e.target.value })}
+            />
+            <p className="muted">
+              <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer">
+                {t.whisper.getKey}
+              </a>
+            </p>
             <label className="checkbox">
               <input type="checkbox" checked={!draft.rememberKey} onChange={(e) => edit({ rememberKey: !e.target.checked })} />
               {t.noRemember}
             </label>
+            {import.meta.env.DEV && voiceEnabled(lang) ? (
+              <label className="checkbox">
+                <input type="checkbox" checked={draft.checkClips} onChange={(e) => edit({ checkClips: e.target.checked })} />
+                {t.whisper.checkClips}
+              </label>
+            ) : null}
+            {import.meta.env.DEV && voiceEnabled(lang) && !canRecordAlongsideRecognizer() ? (
+              <p className="muted" role="note">
+                {t.whisper.checkClipsAndroid}
+              </p>
+            ) : null}
+            {availability && !availability.ok && voiceEnabled(lang) ? (
+              <p className="muted" role="note">
+                {plainText(availability.reason)}
+              </p>
+            ) : null}
             {voiceEnabled(lang) ? (
               <label>
                 {t.region}
@@ -178,7 +286,7 @@ export function Settings() {
           </section>
           <section className="stack">
             <h2>{t.privacy}</h2>
-            <p className="muted">{t.audio}</p>
+            <p className="muted">{whisperOn ? t.audioWhisper : t.audio}</p>
             <p className="muted">
               {t.sent[0]}
               <strong>{provider.label}</strong>

@@ -22,6 +22,17 @@ export const settings: UiText["settings"] = {
     ],
   },
   noRemember: "Don't remember the keys on this device",
+  whisper: {
+    toggle: "Use Whisper (Groq) for speech recognition",
+    help: "Records your command and sends the audio to Groq. Works in more browsers and recognizes names better.",
+    billing: "Groq may charge for this depending on your plan (each command counts as at least 10 s of audio).",
+    key: "Groq key",
+    getKey: "Get a key at console.groq.com",
+    unsupported: "This browser can't record audio for Whisper",
+    checkClips: "Record check clips",
+    /** Dev builds only, on Android (bug browser-speech-regression). */
+    checkClipsAndroid: "On Android, the browser's recognition can't record clips at the same time: record them on a computer.",
+  },
   region: "Voice region",
   regions: {
     "en-US": "United States",
@@ -37,6 +48,7 @@ export const settings: UiText["settings"] = {
   saved: "Saved",
   privacy: "Privacy",
   audio: "Audio is processed by the browser's speech service.",
+  audioWhisper: "Your voice is recorded only while you hold the button and sent to Groq to turn it into text. It isn't stored on this device.",
   sent: [
     "The transcript and the game state are sent to ",
     " to interpret the command. Keys are only stored on this device and are never included when exporting a game.",

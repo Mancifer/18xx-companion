@@ -14,6 +14,8 @@ import { isSetup, undoRangeIn, type UndoRange } from "../domain/ledger/undo";
 import { QUERY_KINDS } from "../domain/queries";
 import { answerQuery, type QueryAnswer } from "./answer";
 import { VoiceProviderError, type ProviderErrorKind } from "./errors";
+import { MicError } from "./recorder";
+import { TranscriptionError } from "./transcription/errors";
 import type { ModelReply } from "./reply";
 import { voiceAction } from "./tools";
 
@@ -74,7 +76,7 @@ export function notUnderstood(transcript: string, reason: Message, ctx?: Message
 }
 
 /** The voice codes whose text needs no params. */
-type PlainVoiceCode = Exclude<keyof VoiceMessages, "voice.provider" | "voice.noKey">;
+type PlainVoiceCode = Exclude<keyof VoiceMessages, "voice.provider" | "voice.noKey" | "voice.transcription">;
 const say = (code: PlainVoiceCode): Message => message(code, {});
 
 const ClarificationInput = z.object({
@@ -159,6 +161,13 @@ function resolveUndo(groupId: unknown, ctx: ResolveContext, transcript: string):
  */
 export function resolveError(error: unknown, transcript: string): VoiceResult {
   const provider = (kind: ProviderErrorKind) => notUnderstood(transcript, message("voice.provider", { kind }));
+  // Feature 015: speech-to-text failures name Groq or the microphone, not the AI provider.
+  if (error instanceof TranscriptionError) return notUnderstood(transcript, message("voice.transcription", { kind: error.kind }));
+  if (error instanceof MicError) {
+    if (error.kind === "denied") return notUnderstood(transcript, say("voice.micDenied"));
+    if (error.kind === "noDevice") return notUnderstood(transcript, say("voice.noMic"));
+    return notUnderstood(transcript, say("voice.unexpected"));
+  }
   if (error instanceof VoiceProviderError) return provider(error.kind);
   if (error instanceof Anthropic.AuthenticationError) return provider("auth");
   if (error instanceof Anthropic.PermissionDeniedError) return provider("permission");

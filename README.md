@@ -25,7 +25,7 @@ It handles the bookkeeping that slows games down (bank, player cash, company tre
 - **Money tracking:** player and company cash, share ownership, bank with a chip breakdown for every transaction, configurable chip denominations
 - **Operating rounds:** dividends (full payout, withhold, half-pay where the game allows it), stock market price moves with manual override, an income summary at the end of each OR
 - **History:** every change is recorded in an append-only ledger, with undo and a history view that shows where the money went
-- **Voice commands (optional):** hold a button, speak in English or Spanish, review the proposed action, confirm with one tap
+- **Voice commands (optional):** hold a button, speak in English or Spanish, review the proposed action, confirm with one tap. Uses the browser's speech recognition, or Whisper on Groq for browsers without it
 - **Two languages:** English and Spanish, everywhere from the menus to the history, with money written the way each language writes it
 - **Offline and installable:** all data stays on the device, with export/import of games and a game results page
 
@@ -45,7 +45,7 @@ Unit, UI and end-to-end tests cover the calculation logic for all supported game
 Voice is optional and off until you add your own API key in Settings.
 
 1. Hold the microphone button and speak (push-to-talk only; nothing is captured otherwise).
-2. The browser's speech recognition turns audio into text.
+2. The browser's speech recognition turns audio into text. Or, if you turn on **Whisper (Groq)** in Settings, the app records the hold and sends the clip to Groq's Whisper, with a hint listing the session's players and companies so their names come out right.
 3. The transcript and the game state are sent to the configured AI provider (Anthropic Claude or Google Gemini), together with the list of actions the app allows.
 4. The model must answer with a structured action from that list, validated with Zod. Anything else is rejected.
 5. A confirmation card shows what was heard and what will happen. Nothing changes until you tap to confirm, and everything can be undone.
@@ -53,11 +53,21 @@ Voice is optional and off until you add your own API key in Settings.
 Privacy:
 
 - Audio is processed by the browser's speech service (in Chrome, by Google). Only the transcript and game state go to the AI provider.
+- With Whisper on, your voice is recorded only while you hold the button, sent to Groq to be turned into text, and never stored on the device.
 - On Gemini's free plan, Google may use prompts and responses to improve its products. The app shows this notice in Settings.
 - API keys are stored on the device only, can be set to not be remembered, and are never included when exporting a game.
 - The app calls the providers directly from the browser using your key. There is no backend.
 
-Currently, speech recognition uses Web Speech API, which is limited to Chrome and Edge on desktop and Android.
+The browser's speech recognition (Web Speech API) is limited to Chrome and Edge on desktop and Android.
+
+### Whisper on Groq (optional)
+
+Whisper works in any browser that can record audio, Firefox and Safari included, and usually recognizes table names better.
+
+- It's **off by default**. Turn it on in Settings and add a Groq key from [console.groq.com/keys](https://console.groq.com/keys). The key is kept on the device like the AI keys.
+- The toggle and the key are separate: turning Whisper off keeps the key, so you don't have to clear it to stop using Groq.
+- Groq may charge for transcription on paid plans (each command is billed as at least 10 seconds of audio). A whole game is a few cents at most, and the free plan's limits are far above a table's pace.
+- Whisper is offered in English and Spanish. A language is added only after Whisper passes an audio check against the browser's recognizer on recorded commands (`VITE_WHISPER_LANGUAGES`). Development builds offer it in every language.
 
 ## Design decisions
 
@@ -66,7 +76,7 @@ Currently, speech recognition uses Web Speech API, which is limited to Chrome an
 - **Propose, confirm, undo.** AI-proposed actions are shown before anything is applied. Confirmation is a single tap, because two would defeat the point of using voice over touch.
 - **History without redo or editing the past.** Undo works newest-first, with a confirmed "undo back to here" for older entries. Reverted entries stay in the ledger. An earlier version allowed out-of-order undo and amending entries, but later entries had been computed from a game state that no longer existed (see `.specify/bugs/undo-stale-market-move`), so those features were removed in favor of a history that is always consistent.
 - **Rules as configuration.** Differences between games live in game definitions (data), not in per-game code paths.
-- **Strict security posture for a client-only app.** A Content-Security-Policy limits network access to the two AI providers, response headers deny framing, and e2e tests cover the key-handling rules.
+- **Strict security posture for a client-only app.** A Content-Security-Policy limits network access to the two AI providers and Groq, response headers deny framing, and e2e tests cover the key-handling rules.
 
 ## Tech stack
 
@@ -88,6 +98,7 @@ npm run dev
 | `npm run test:e2e` | End-to-end tests (Playwright) |
 | `npm run typecheck` / `npm run lint` | TypeScript and ESLint checks |
 | `npm run eval:voice` | Run the voice evaluation against a real model (needs `ANTHROPIC_API_KEY` or `GEMINI_API_KEY`; this spends money) |
+| `npm run eval:audio` | Compare Whisper with the browser's recognizer on recorded commands (needs `GROQ_API_KEY` and an AI key; fits Groq's free plan) |
 
 CI runs type-check, lint, tests and `npm audit` on every push and pull request.
 
@@ -101,10 +112,11 @@ CI runs type-check, lint, tests and `npm audit` on every push and pull request.
 src/domain       game definitions, actions, event ledger, mechanics
 src/i18n         English and Spanish text, one folder per language
 src/persistence  IndexedDB repositories, export/import
-src/voice        speech capture, prompt, providers (Anthropic, Gemini)
+src/voice        speech engines (browser, Whisper on Groq), prompt, providers (Anthropic, Gemini)
 src/ui, src/app  screens, sheets, components, stores
 tests, e2e       unit/UI tests and Playwright end-to-end tests
 eval/voice       voice evaluation harness, cases and fixtures
+eval/audio       Whisper audio check (recordings stay out of git)
 specs, docs      feature specs and the product spec
 ```
 
@@ -112,7 +124,7 @@ specs, docs      feature specs and the product spec
 
 This project uses spec-driven development with [GitHub Spec Kit](https://github.com/github/spec-kit) and Claude Code (VS Code extension). The process is visible in the repository:
 
-- `specs/` has 14 numbered feature specs, each with plan, tasks and research
+- `specs/` has 15 numbered feature specs, each with plan, tasks and research
 - `.specify/memory/constitution.md` holds the project principles (versioned)
 - `.specify/bugs/` documents bugs found while playing and testing, each with an assessment, a fix and a regression test
 - `docs/spec.md` is the overall product spec
@@ -121,11 +133,11 @@ This project uses spec-driven development with [GitHub Spec Kit](https://github.
 
 - 1830, 1848 and 21Moon haven't been played at a table yet (covered by automated tests for now)
 - No redo (see design decisions)
+- Whisper hasn't been used through a whole game yet. On the audio check it was close to desktop Chrome's recognition (a little ahead in Spanish, a little behind in English), so in Chrome the browser's recognition is still the better default
 - Chip suggestions are approximate. The app suggests how to make change but doesn’t enforce the chip supply entered during setup, so it may suggest paying out chips the bank doesn’t have. Players make change among themselves all the time, so tracking the physical supply exactly would disrupt play. Treat the suggestions as a guide.
 
 ## Roadmap 
 
-- Whisper-based speech recognition via Groq as a cross-browser alternative to the browser's recognizer
 - Better visual layout for tablets and large screen devices
 - Visual polish (buttons, layout, clearer notifications)
 

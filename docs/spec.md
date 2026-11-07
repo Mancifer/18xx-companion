@@ -59,6 +59,12 @@ the table. When the app and the table disagree, the table wins: every value can 
   offered in a language only after its eval passes (`VITE_VOICE_LANGUAGES`; Spanish is always on,
   English joins after its gate). In a language voice isn't offered in, the mic is hidden and
   touch is unchanged.
+- **Whisper on Groq**, an opt-in speech engine (feature 015): the app records the held mic button
+  and sends the clip to Groq's Whisper with the user's own Groq key, plus a hint with the
+  session's names. It works in any browser that can record (Firefox and Safari included) and
+  spells table names better. A settings toggle, off by default and separate from the key, turns
+  it on; while it's off nothing goes to Groq. It's offered in a language only after its audio
+  check passes (`VITE_WHISPER_LANGUAGES`, none by default; dev builds offer every voice language).
 - Local persistence (survives reloads and app restarts). Installable PWA.
 
 ### 2.2 Later iterations (designed for, not built)
@@ -71,6 +77,7 @@ the table. When the app and the table disagree, the table wins: every value can 
 - Custom games authored from scratch (new market grids, phases, dividend rules).
 - Backend proxy for the AI key.
 - Native wrapper (Capacitor) for hardware push-to-talk and offline speech recognition.
+- Other transcription hosts than Groq, and a user-picked Whisper model.
 
 ### 2.3 Non-goals
 
@@ -89,9 +96,14 @@ the table. When the app and the table disagree, the table wins: every value can 
 
 - **PWA**: React + TypeScript + Vite. Offline-capable, except for the AI call.
 - **Storage**: IndexedDB. A session is stored as its event log plus periodic snapshots.
-- **Speech-to-text**: Web Speech API in the display language, with a region per language
-  (Spanish `es-ES` by default, or another `es-*`; English `en-US` by default, or another `en-*`).
-  Push-to-talk only.
+- **Speech-to-text**: push-to-talk only, through one of two engines (feature 015):
+  - the Web Speech API in the display language, with a region per language (Spanish `es-ES` by
+    default, or another `es-*`; English `en-US` by default, or another `en-*`);
+  - opt-in, **Whisper on Groq** (`whisper-large-v3-turbo`): `MediaRecorder` records the hold in
+    the browser's own format (webm/opus, ogg/opus or mp4), and one multipart `fetch` sends it from
+    the device with the user's Groq key, with `language` and a vocabulary hint (≤ 400 characters).
+    Audio lives only in memory for that command.
+  Both engines hand their transcript to the same resolution path.
 - **Command resolution**: provider-neutral. The user picks a provider: Anthropic Claude (Messages
   API through its SDK) or Google Gemini (`generateContent` through plain `fetch`, no SDK). Each
   is called from the client with that provider's user-provided key, stored locally. Both get the
@@ -319,7 +331,13 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
 ### 8.1 Flow
 
 1. The user **holds** the mic button (large, thumb-reachable). Release ends capture.
-2. Speech-to-text produces a transcript in the display language, shown live.
+2. Speech-to-text produces a transcript in the display language. With the browser engine it is
+   shown live. With Whisper (feature 015), a ring around the mic follows the input level while
+   listening; on release the microphone is freed, "Transcribiendo…" shows with Cancelar, and the
+   clip goes to Groq. A tap or silence (under 400 ms, or under 250 ms of sound above the room's
+   own floor) sends nothing and shows "No escuché nada"; a hold stops by itself at 30 s. Whisper's
+   known inventions on silence ("Gracias por ver el video") count as nothing heard. Hiding the
+   page cancels.
 3. The transcript and a compact **context snapshot** are sent to the selected provider (Claude or
    Gemini), with the same tools and instructions for both.
 4. The provider replies with one or more **tool calls** (actions), a **clarification** request,
@@ -377,6 +395,17 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
   malformed call or an invalid tool input produces a "No entendí" message with the transcript
   shown for manual entry. Provider errors (bad key, no permission, unknown model, rate limit,
   timeout, no connection) map to the same messages for both providers, in the display language.
+- **Speech-to-text failures** (feature 015): Groq errors map to their own messages that name Groq
+  (bad key, no permission, model unavailable, rate limit, unreadable recording, service, 8 s
+  timeout, no connection), with one retry on a brief 429, a 5xx or a network error. A refused
+  microphone says to allow it in the site settings; a missing one says so. The card proposes
+  nothing and touch keeps working; where the browser also recognizes speech, "Usar el
+  reconocimiento del navegador" turns Whisper off in one tap. With Whisper on and no Groq key, the
+  mic is unavailable; the browser engine is never used in its place.
+- **Audio check** (feature 015): `npm run eval:audio` transcribes recorded commands with Groq and
+  resolves both the Whisper and the browser transcript of the same speech with the voice eval's
+  grader; clips come from the dev-only "Grabar clips de control" option and "Guardar para eval".
+  It fits Groq's free tier (paced at 18 requests a minute, transcripts cached).
 
 ### 8.3 Example commands (v1 target set)
 
@@ -428,12 +457,18 @@ English (the same actions):
    a provider control (Anthropic Claude / Google Gemini), then the selected provider's masked key with show/hide and where to get it,
    a "no recordar las claves en este dispositivo" option, the voice region of the display language
    (Spanish regions in Spanish, English ones in English; in a language voice isn't offered in yet,
-   a note takes its place), and the provider's model.
+   a note takes its place), and the provider's model. Feature 015 adds, where Whisper is offered,
+   the "Usar Whisper (Groq) para reconocer la voz" toggle (off by default; disabled with a note in
+   a browser that can't record) with a note that Groq may charge depending on the plan, and,
+   always, the masked "Clave de Groq" field with where to get a key. The key and the toggle are
+   saved side by side and never change each other; the key follows the "no recordar" option. A line
+   says what voice is missing, if anything. Dev builds also show "Grabar clips de control".
    Each provider keeps its own key and model, so switching loses nothing. With Gemini selected,
    two notes show: on the free tier Google may use prompts and responses to improve its products
    (they hold the game state and transcript, not personal data), and the free tier has per-minute
    and per-day limits (voice pauses, touch keeps working). The privacy note says audio goes to the
-   browser's speech service and transcripts and state to the **selected provider**. For Anthropic,
+   browser's speech service (with Whisper on: is recorded only while the button is held, sent to
+   Groq and never stored) and transcripts and state to the **selected provider**. For Anthropic,
    use a dedicated Console workspace with a monthly spend limit.
    Each row in the session list has an "Eliminar" button next to the open button (at least
    48 px, accessible name "Eliminar partida «name»"). It opens a confirmation sheet with the game,

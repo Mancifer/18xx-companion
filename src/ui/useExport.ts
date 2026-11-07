@@ -6,7 +6,11 @@ import type { SessionRepo } from "../persistence/sessionRepo";
 
 /** Saves a file through the browser's download (no server involved). */
 export function downloadJson(fileName: string, data: unknown): void {
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  downloadBlob(fileName, new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+}
+
+/** Saves a blob as a download (feature 015: dev check clips). */
+export function downloadBlob(fileName: string, blob: Blob): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

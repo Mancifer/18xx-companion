@@ -1,12 +1,12 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { SETTINGS_CHANGED } from "../../src/app/useVoice";
 import { openCompanionDb } from "../../src/persistence/db";
 import { SettingsRepo } from "../../src/persistence/settingsRepo";
 import { PROVIDERS } from "../../src/voice/providers";
 import { App } from "../../src/ui/App";
-import { freshDbName } from "../helpers/session";
+import { freshDbName, setNavigatorLanguages } from "../helpers/session";
 
 /** T133: the Settings screen (FR-076, research R17). */
 
@@ -76,7 +76,7 @@ describe("Settings screen", () => {
     const s = await stored(dbName);
     expect(s).toMatchObject({
       apiKeys: { anthropic: "sk-ant-new" },
-      voiceLocale: "es-AR",
+      voiceLocales: { en: "en-US", es: "es-AR" },
       models: { anthropic: "claude-haiku-4-5" },
       rememberKey: true,
     });
@@ -199,5 +199,90 @@ describe("Settings: provider (005, contracts/settings-ui.md)", () => {
     const group = screen.getByRole("radiogroup", { name: "Proveedor" });
     const options = within(group).getAllByRole("radio");
     expect(options.map((o) => o.textContent)).toEqual(["Anthropic Claude", "Google Gemini"]);
+  });
+});
+
+/** Feature 014 T046 (contracts/ui.md "Settings screen"): the language section and per-language regions. */
+describe("Settings: language (feature 014)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  async function openIn(settingsLabel: string, seed?: Parameters<SettingsRepo["set"]>[0]) {
+    const dbName = freshDbName();
+    if (seed) {
+      const db = await openCompanionDb(dbName);
+      await new SettingsRepo(db).set(seed);
+      db.close();
+    }
+    const user = userEvent.setup();
+    render(<App dbName={dbName} />);
+    await user.click(await screen.findByRole("button", { name: settingsLabel }));
+    await screen.findByRole("heading", { name: settingsLabel });
+    return { user, dbName };
+  }
+
+  const options = (group: string) => within(screen.getByRole("radiogroup", { name: group })).getAllByRole("radio");
+
+  it("comes first, with English and Español named the same in both languages (FR-011)", async () => {
+    await openIn("Ajustes");
+    const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    expect(headings[0]).toBe("Idioma");
+    expect(options("Idioma").map((o) => o.textContent)).toEqual(["English", "Español"]);
+  });
+
+  it("with nothing saved, the detected language is selected", async () => {
+    await openIn("Ajustes");
+    expect(options("Idioma").find((o) => o.getAttribute("aria-checked") === "true")?.textContent).toBe("Español");
+    document.body.innerHTML = "";
+    setNavigatorLanguages(["en-US"]);
+    await openIn("Settings");
+    expect(options("Language").find((o) => o.getAttribute("aria-checked") === "true")?.textContent).toBe("English");
+  });
+
+  it("selecting English switches at once, keeps an unsaved key, and saves only the language", async () => {
+    const { user, dbName } = await openIn("Ajustes");
+    await user.type(screen.getByLabelText("Clave de Anthropic"), "sk-ant-draft");
+    await user.click(screen.getByRole("radio", { name: "English" }));
+    expect(screen.getByRole("heading", { name: "Settings" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Language" })).toBeTruthy();
+    expect(document.documentElement.lang).toBe("en");
+    expect(screen.getByLabelText("Anthropic key")).toHaveProperty("value", "sk-ant-draft");
+    await vi.waitFor(async () => expect((await stored(dbName)).language).toBe("en"));
+    const s = await stored(dbName);
+    expect(s.apiKeys.anthropic).toBeUndefined();
+  });
+
+  it("lists each language's regions in that language; saving writes only that language's region", async () => {
+    vi.stubEnv("VITE_VOICE_LANGUAGES", "es,en");
+    const { user, dbName } = await openIn("Ajustes", { voiceLocales: { es: "es-UY" } });
+    const spanish = screen.getByLabelText("Variante de español");
+    expect([...spanish.querySelectorAll("option")].map((o) => o.value)).toEqual(["es-ES", "es-MX", "es-AR", "es-CO", "es-CL", "es-PE", "es-UY", "es-US"]);
+    expect(spanish).toHaveProperty("value", "es-UY");
+    await user.click(screen.getByRole("radio", { name: "English" }));
+    const english = await screen.findByLabelText("Voice region");
+    expect([...english.querySelectorAll("option")].map((o) => o.textContent)).toEqual([
+      "United States (en-US)",
+      "United Kingdom (en-GB)",
+      "Australia (en-AU)",
+      "Canada (en-CA)",
+      "Ireland (en-IE)",
+      "India (en-IN)",
+      "New Zealand (en-NZ)",
+    ]);
+    await vi.waitFor(() => expect(english).toHaveProperty("value", "en-US"));
+    await user.selectOptions(english, "en-AU");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+    await screen.findByText("Saved");
+    expect((await stored(dbName)).voiceLocales).toEqual({ en: "en-AU", es: "es-UY" });
+  });
+
+  it("in a language voice isn't offered in, a note takes the region's place; key and model stay", async () => {
+    setNavigatorLanguages(["en-US"]);
+    await openIn("Settings");
+    expect(screen.getByText("Voice isn't available in English yet.")).toBeTruthy();
+    expect(screen.queryByLabelText("Voice region")).toBeNull();
+    expect(screen.getByLabelText("Anthropic key")).toBeTruthy();
+    expect(screen.getByLabelText("Model")).toBeTruthy();
   });
 });

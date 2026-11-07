@@ -1,3 +1,4 @@
+import { isLang, LANGUAGES, type Lang } from "../i18n/lang";
 import { isProviderId, PROVIDER_IDS, PROVIDERS, type ProviderId } from "../voice/providers";
 import type { CompanionDb } from "./db";
 
@@ -8,7 +9,10 @@ export interface Settings {
   readonly models: Readonly<Record<ProviderId, string>>;
   /** false → every provider's key is kept in memory only, for this page load (research R17). */
   readonly rememberKey: boolean;
-  readonly voiceLocale: string;
+  /** The language the user picked; absent = follow the device (feature 014, FR-002). */
+  readonly language?: Lang;
+  /** The speech-recognition region for each language (feature 014, FR-014a). */
+  readonly voiceLocales: Readonly<Record<Lang, string>>;
   readonly lastSessionId?: string;
 }
 
@@ -22,7 +26,9 @@ export interface SettingsPatch {
   readonly apiKeys?: Readonly<Partial<Record<ProviderId, string | undefined>>>;
   readonly models?: Readonly<Partial<Record<ProviderId, string | undefined>>>;
   readonly rememberKey?: boolean;
-  readonly voiceLocale?: string;
+  readonly language?: Lang;
+  /** Merged per language, like apiKeys. */
+  readonly voiceLocales?: Readonly<Partial<Record<Lang, string>>>;
   readonly lastSessionId?: string | undefined;
 }
 
@@ -34,11 +40,32 @@ export const DEFAULT_SETTINGS: Settings = {
   apiKeys: {},
   models: defaultModels(),
   rememberKey: true,
-  voiceLocale: "es-ES",
+  voiceLocales: { en: "en-US", es: "es-ES" },
 };
 
-/** Rows written before feature 005; read as Claude's key and model, deleted on the next save. */
-const LEGACY = ["apiKey", "model"] as const;
+/**
+ * Rows written before feature 005 (read as Claude's key and model) and before feature 014
+ * (`voiceLocale`, read as the region of its language); deleted on the next save.
+ */
+const LEGACY = ["apiKey", "model", "voiceLocale"] as const;
+
+/** A non-empty BCP 47 tag whose primary subtag is `lang` (data-model §2). */
+const isLocaleOf = (lang: Lang, value: unknown): value is string =>
+  typeof value === "string" && /^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$/.test(value) && value.split("-")[0]?.toLowerCase() === lang;
+
+function voiceLocalesOf(stored: unknown, legacy: unknown): Record<Lang, string> {
+  const out: Record<Lang, string> = { ...DEFAULT_SETTINGS.voiceLocales };
+  for (const { id } of LANGUAGES) {
+    if (isLocaleOf(id, legacy)) out[id] = legacy;
+  }
+  if (stored && typeof stored === "object") {
+    for (const { id } of LANGUAGES) {
+      const value = (stored as Record<string, unknown>)[id];
+      if (isLocaleOf(id, value)) out[id] = value;
+    }
+  }
+  return out;
+}
 
 const text = (value: unknown): string | undefined => (typeof value === "string" && value.trim() !== "" ? value.trim() : undefined);
 
@@ -86,7 +113,8 @@ export class SettingsRepo {
       apiKeys: rememberKey ? storedKeys : { ...this.memoryKeys },
       models,
       rememberKey,
-      voiceLocale: typeof stored["voiceLocale"] === "string" ? stored["voiceLocale"] : DEFAULT_SETTINGS.voiceLocale,
+      ...(isLang(stored["language"]) ? { language: stored["language"] } : {}),
+      voiceLocales: voiceLocalesOf(stored["voiceLocales"], stored["voiceLocale"]),
       ...(typeof lastSessionId === "string" ? { lastSessionId } : {}),
     };
   }
@@ -110,7 +138,10 @@ export class SettingsRepo {
     if (migrating || "provider" in patch) await put("provider", patch.provider ?? current.provider);
     if (migrating || "models" in patch) await put("models", models);
     if ("rememberKey" in patch) await put("rememberKey", rememberKey);
-    if (patch.voiceLocale !== undefined) await put("voiceLocale", patch.voiceLocale);
+    if (patch.language !== undefined) await put("language", patch.language);
+    if (migrating || patch.voiceLocales !== undefined) {
+      await put("voiceLocales", voiceLocalesOf({ ...current.voiceLocales, ...patch.voiceLocales }, undefined));
+    }
     if ("lastSessionId" in patch) {
       if (patch.lastSessionId === undefined) await tx.store.delete("lastSessionId");
       else await put("lastSessionId", patch.lastSessionId);

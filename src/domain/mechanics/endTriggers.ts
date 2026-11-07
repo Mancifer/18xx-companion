@@ -1,3 +1,4 @@
+import { message, type Message } from "../../i18n/contract/domain";
 import { cashOf, counterOf, isPlayerBankrupt, type SessionState } from "../events/state";
 import { builtInBase } from "../games";
 import type { EndTriggerDef, EndTriggerType, GameDefinition, Scoring } from "../games/schema";
@@ -7,7 +8,8 @@ import { mergerRoundDue } from "./schedule";
 
 export interface EndTrigger {
   readonly type: EndTriggerDef["type"];
-  readonly messageEs: string;
+  /** Shown in the display language (feature 014). */
+  readonly message: Message;
 }
 
 /**
@@ -98,43 +100,43 @@ export function endTriggers(game: GameDefinition, state: SessionState): EndTrigg
   const result: EndTrigger[] = [];
   for (const def of game.endTriggers) {
     const fired = fires(game, state, def);
-    if (fired) result.push({ type: def.type, messageEs: fired });
+    if (fired) result.push({ type: def.type, message: fired });
   }
   return result;
 }
 
 /** The trigger's Spanish message when it fires in this state, else undefined. */
-function fires(game: GameDefinition, state: SessionState, def: EndTriggerDef): string | undefined {
+function fires(game: GameDefinition, state: SessionState, def: EndTriggerDef): Message | undefined {
   switch (def.type) {
     case "bankBroken":
-      return game.bank !== "unlimited" && cashOf(state, "bank") <= 0 ? "Banca quebrada: se termina el set de rondas de operaciones." : undefined;
+      return game.bank !== "unlimited" && cashOf(state, "bank") <= 0 ? message("end.bankBroken", {}) : undefined;
     case "topCell":
       return Object.values(state.companies).some((c) => cellTagsAt(game, c.position).includes("top"))
-        ? "Una compañía llegó a la casilla final del mercado."
+        ? message("end.topCell", {})
         : undefined;
     case "loansIssued": {
       const loans = game.loans;
       if (!loans) return undefined;
       const held = Object.entries(state.assets).filter(([a, h]) => a.startsWith("loan:") && h === loans.lender).length;
-      return loans.supply - held >= def.count ? `Se han emitido ${loans.supply - held} préstamos (fin con ${def.count}).` : undefined;
+      return loans.supply - held >= def.count ? message("end.loansIssued", { issued: loans.supply - held, count: def.count }) : undefined;
     }
     case "takeovers": {
       const n = counterOf(state, "bank", "nationalTakeovers");
-      return n >= def.count ? `${n} compañías en administración: fin de la partida.` : undefined;
+      return n >= def.count ? message("end.takeovers", { count: n }) : undefined;
     }
     case "lastRound": {
       const schedule = game.roundSchedule;
-      return schedule.type === "fixed" && state.turn.scheduleIndex === schedule.sequence.length - 1 ? "Última ronda de la partida." : undefined;
+      return schedule.type === "fixed" && state.turn.scheduleIndex === schedule.sequence.length - 1 ? message("end.lastRound", {}) : undefined;
     }
     case "scheduleComplete": {
       const schedule = game.roundSchedule;
       return schedule.type === "fixed" && state.turn.scheduleIndex === schedule.sequence.length - 1 && orSetComplete(state)
-        ? "Fin de la partida: se jugó la última ronda de operaciones."
+        ? message("end.scheduleComplete", {})
         : undefined;
     }
     case "cyclesComplete": {
       const cycles = cycleCount(game);
-      return cycles !== undefined && cyclesComplete(game, state, cycles) ? `Fin de la partida: se completaron los ${cycles} ciclos.` : undefined;
+      return cycles !== undefined && cyclesComplete(game, state, cycles) ? message("end.cyclesComplete", { cycles }) : undefined;
     }
     case "bankruptcy": {
       const company = Object.values(state.companies).some((c) => c.status === "bankrupt");
@@ -142,7 +144,7 @@ function fires(game: GameDefinition, state: SessionState, def: EndTriggerDef): s
         const h = parseHolder(subject as never);
         return h.kind === "player" && isPlayerBankrupt(state, h.id);
       });
-      return company || player ? "Hay una quiebra: fin de la partida." : undefined;
+      return company || player ? message("end.bankruptcy", {}) : undefined;
     }
   }
 }

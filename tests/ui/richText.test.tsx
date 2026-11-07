@@ -1,7 +1,7 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { getBuiltInGame } from "../../src/domain/games";
-import { markMention } from "../../src/domain/i18n/mentions";
+import { markMention } from "../../src/i18n/mentions";
 import { RichText } from "../../src/ui/components/RichText";
 
 /** Feature 013: company mentions render as badges (contracts/ui.md "RichText"). */

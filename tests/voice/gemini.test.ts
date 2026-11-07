@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { loadFixture } from "../../eval/voice/load";
 import { VoiceProviderError } from "../../src/voice/errors";
 import { createGeminiInterpreter, geminiReply, toVoiceProviderError } from "../../src/voice/providers/gemini";
-import { systemPromptEs } from "../../src/voice/prompt";
+import { systemPrompt } from "../../src/voice/prompt";
 
 /** Feature 005 T021: the Gemini adapter against a stubbed fetch (contracts/voice-provider.md §4). */
 
@@ -94,7 +94,7 @@ describe("Gemini request", () => {
     await run(createGeminiInterpreter(KEY, "gemini-3.8-flash")(session, "the user turn"));
     const body = JSON.parse(calls[0]!.init.body as string) as Record<string, unknown>;
     expect(Object.keys(body)).toEqual(["systemInstruction", "tools", "toolConfig", "contents", "generationConfig"]);
-    expect(body["systemInstruction"]).toEqual({ parts: [{ text: systemPromptEs(session) }] });
+    expect(body["systemInstruction"]).toEqual({ parts: [{ text: systemPrompt(session) }] });
     expect(body["toolConfig"]).toEqual({ functionCallingConfig: { mode: "ANY" } });
     expect(body["contents"]).toEqual([{ role: "user", parts: [{ text: "the user turn" }] }]);
     expect(body["generationConfig"]).toEqual({ maxOutputTokens: 1024, thinkingConfig: { thinkingLevel: "low" } });

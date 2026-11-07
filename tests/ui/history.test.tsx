@@ -353,3 +353,30 @@ describe("History: company badges (feature 013, US1)", () => {
     expect(struck.textContent).toMatch(/^PRR paga \$100/);
   });
 });
+
+describe("History in English (feature 014 T056, FR-007)", () => {
+  it("app-written lines read in English; notes, reasons and names stay as typed", async () => {
+    const { user } = await openSeededTable({
+      settings: { language: "en" },
+      actions: [
+        { type: "startSR" },
+        { type: "parCompany", player: "p1", company: "PRR", price: 100 },
+        { type: "endSR" },
+        { type: "startOR" },
+        { type: "note", text: "Mi nota" },
+        { type: "payCost", company: "PRR", amount: 80, reason: "Túnel" },
+      ],
+    });
+    await openMenuItem(user, "End game");
+    await user.click(within(await screen.findByRole("dialog", { name: "End the game?" })).getByRole("button", { name: "End" }));
+    await screen.findByRole("heading", { name: "Results" });
+    await user.click(screen.getByRole("button", { name: "Back" }));
+    await openMenuItem(user, "History");
+    await screen.findByRole("heading", { name: "History" });
+    expect(screen.getByText(byLine("Note: Mi nota"))).toBeTruthy();
+    expect(screen.getByText(byLine("PRR pays $80 (Túnel)"))).toBeTruthy();
+    expect(screen.getByText(byLine(/^Game over/))).toBeTruthy();
+    expect(screen.getByText(byLine(/^Ana pars PRR at \$100/))).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/Nota:|Fin de la partida|paga/);
+  });
+});

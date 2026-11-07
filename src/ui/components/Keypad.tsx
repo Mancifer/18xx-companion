@@ -1,5 +1,6 @@
 import type { GameDefinition } from "../../domain/games/schema";
-import { formatMoney } from "../../domain/i18n/format";
+import { formatMoney } from "../../i18n/format";
+import { useLang, useText } from "../../app/language";
 
 const DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"];
 
@@ -17,6 +18,8 @@ export function Keypad({
   label?: string;
   quick?: readonly number[];
 }) {
+  const t = useText().components.keypad;
+  const { lang } = useLang();
   const digits = value === null ? "" : String(value);
   const press = (key: string) => {
     const next = (digits + key).replace(/^0+(?=\d)/, "").slice(0, 7);
@@ -24,8 +27,8 @@ export function Keypad({
   };
   return (
     <div className="keypad">
-      <output className="keypad-display money" aria-label={label ?? "Cantidad"} data-testid="keypad-value">
-        {value === null ? <span className="muted">{label ?? "Cantidad"}</span> : formatMoney(value, game)}
+      <output className="keypad-display money" aria-label={label ?? t.amount} data-testid="keypad-value">
+        {value === null ? <span className="muted">{label ?? t.amount}</span> : formatMoney(value, game, lang)}
       </output>
       <div className="keypad-grid">
         {DIGITS.map((k) => (
@@ -57,7 +60,7 @@ export function Keypad({
         </button>
         <button
           type="button"
-          aria-label="Borrar"
+          aria-label={t.erase}
           onClick={() => {
             const next = digits.slice(0, -1);
             onChange(next === "" ? null : Number(next));
@@ -80,7 +83,7 @@ export function Keypad({
         ))}
         <button
           type="button"
-          aria-label="Vaciar"
+          aria-label={t.clear}
           onClick={() => {
             onChange(null);
           }}

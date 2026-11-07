@@ -3,6 +3,8 @@ import type { PrimitiveEvent } from "../events/types";
 import type { GameDefinition } from "../games/schema";
 import type { GameEndStatus } from "../mechanics/gameEnd";
 import type { Player } from "../types";
+import { message, type Message, type MessageCode, type MessageContext, type MessageParams } from "../../i18n/contract/domain";
+import { spanishText } from "../../i18n/render";
 import type { Action, ActionOf, ActionType, Warning } from "./schemas";
 
 /** Everything an expander, validator or availability check may read. Pure data. */
@@ -14,10 +16,16 @@ export interface ActionContext {
   readonly gameEnd?: GameEndStatus;
 }
 
-export type AvailabilityResult = { readonly ok: true } | { readonly ok: false; readonly reasonEs: string };
+/** Why an action isn't offered, as a message rendered in the display language (feature 014). */
+export type AvailabilityResult = { readonly ok: true } | { readonly ok: false; readonly reason: Message };
 
 export const AVAILABLE: AvailabilityResult = { ok: true };
-export const unavailable = (reasonEs: string): AvailabilityResult => ({ ok: false, reasonEs });
+
+/** Feature 014: not offered, with a coded reason. */
+export function unavailable<C extends MessageCode>(code: C, params: MessageParams<C>): AvailabilityResult {
+  return { ok: false, reason: message(code, params) };
+}
+
 
 export interface ActionHandler<T extends ActionType> {
   /**
@@ -50,8 +58,17 @@ export interface TriggerContext extends ActionContext {
  */
 export type Trigger = (ctx: TriggerContext) => PrimitiveEvent[];
 
-export const warning = (code: string, messageEs: string, severity: Warning["severity"] = "warn"): Warning => ({
-  code,
-  messageEs,
-  severity,
-});
+/**
+ * Feature 014 (data-model §4): a stored warning keeps its code and params, so it can be shown in
+ * any language, and its Spanish text, so older app versions can still import the file.
+ */
+export function warning<C extends MessageCode>(
+  ctx: MessageContext,
+  code: C,
+  params: MessageParams<C>,
+  severity: Warning["severity"] = "warn",
+): Warning {
+  const m = message(code, params);
+  return { code, messageEs: spanishText(m, ctx), severity, params: m.params ?? {} };
+}
+

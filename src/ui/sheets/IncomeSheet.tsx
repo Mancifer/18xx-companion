@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "../../app/useSession";
-import { formatMoney } from "../../domain/i18n/format";
-import { INCOME_ES, summaryEs } from "../../domain/i18n/es";
+import { formatMoney } from "../../i18n/format";
+import { useDomainText, useLang, useText } from "../../app/language";
 import { operatingPhase, type PlayerSettlement, type SettlementMovement } from "../../domain/ledger/operatingPhase";
 import { breakdown } from "../../domain/mechanics/chips";
 import { ChipDiscs } from "../components/ChipStrip";
@@ -14,6 +14,7 @@ import { Sheet } from "../components/Sheet";
  */
 export function IncomeSheet({ onClose }: { onClose: () => void }) {
   const { meta, state, effective } = useSession();
+  const INCOME = useDomainText().income;
   const phase = useMemo(() => operatingPhase(meta.game, meta.players, effective, state), [meta.game, meta.players, effective, state]);
   // An undo can end the phase while the sheet is open: there is nothing left to show.
   useEffect(() => {
@@ -23,10 +24,10 @@ export function IncomeSheet({ onClose }: { onClose: () => void }) {
 
   const settled = phase.players.every((p) => p.out || p.delta === 0);
   return (
-    <Sheet title={INCOME_ES.title} onClose={onClose}>
-      <p className="muted">{INCOME_ES.since(`${phase.firstOR.orSet}.${phase.firstOR.orIndex}`)}</p>
-      <p className="income-rule">{INCOME_ES.rule}</p>
-      {settled ? <p>{INCOME_ES.allSettled}</p> : null}
+    <Sheet title={INCOME.title} onClose={onClose}>
+      <p className="muted">{INCOME.since(`${phase.firstOR.orSet}.${phase.firstOR.orIndex}`)}</p>
+      <p className="income-rule">{INCOME.rule}</p>
+      {settled ? <p>{INCOME.allSettled}</p> : null}
       <ul className="income-list">
         {phase.players.map((p) => (
           <IncomeRow key={p.player} settlement={p} />
@@ -38,9 +39,12 @@ export function IncomeSheet({ onClose }: { onClose: () => void }) {
 
 function IncomeRow({ settlement: p }: { settlement: PlayerSettlement }) {
   const { meta } = useSession();
+  const INCOME = useDomainText().income;
+  const t = useText().sheets.income;
+  const { lang } = useLang();
   const [expanded, setExpanded] = useState(false);
   const player = meta.players.find((x) => x.id === p.player);
-  const money = (n: number) => formatMoney(n, meta.game);
+  const money = (n: number) => formatMoney(n, meta.game, lang);
   const name = (
     <span className="income-name">
       <span className="swatch" style={{ background: player?.color }} aria-hidden="true" />
@@ -53,7 +57,7 @@ function IncomeRow({ settlement: p }: { settlement: PlayerSettlement }) {
         <div className="income-summary">
           <span className="income-head">
             {name}
-            <span className="income-amount income-amount--none">{INCOME_ES.out}</span>
+            <span className="income-amount income-amount--none">{INCOME.out}</span>
           </span>
         </div>
       </li>
@@ -66,23 +70,23 @@ function IncomeRow({ settlement: p }: { settlement: PlayerSettlement }) {
         <span className="income-head">
           {name}
           {p.delta > 0 ? (
-            <span className="income-amount income-take">↑ {INCOME_ES.take(money(p.delta))}</span>
+            <span className="income-amount income-take">↑ {INCOME.take(money(p.delta))}</span>
           ) : p.delta < 0 ? (
-            <span className="income-amount income-pay">↓ {INCOME_ES.pay(money(-p.delta))}</span>
+            <span className="income-amount income-pay">↓ {INCOME.pay(money(-p.delta))}</span>
           ) : (
-            <span className="income-amount income-amount--none">{INCOME_ES.none}</span>
+            <span className="income-amount income-amount--none">{INCOME.none}</span>
           )}
         </span>
         {p.delta !== 0 ? (
           chips ? (
             <ChipDiscs chips={chips.chips} set={meta.chipSet} />
           ) : (
-            <span className="muted">no hay cambio exacto</span>
+            <span className="muted">{t.noExactChange}</span>
           )
         ) : null}
         <span className="income-balances">
           <span>
-            {INCOME_ES.startCash} {money(p.startCash)} → {INCOME_ES.cashNow} {money(p.cash)}
+            {INCOME.startCash} {money(p.startCash)} → {INCOME.cashNow} {money(p.cash)}
           </span>
           <span aria-hidden="true">{expanded ? "▴" : "▾"}</span>
         </span>
@@ -95,6 +99,9 @@ function IncomeRow({ settlement: p }: { settlement: PlayerSettlement }) {
 /** The entries behind an amount, under one heading per OR (US3, research R3). */
 function Movements({ movements }: { movements: readonly SettlementMovement[] }) {
   const { meta } = useSession();
+  const dt = useDomainText();
+  const INCOME = dt.income;
+  const { lang } = useLang();
   const ctx = { game: meta.game, players: meta.players, marks: true as const };
   const byOR: { key: string; or: SettlementMovement["or"]; items: SettlementMovement[] }[] = [];
   for (const m of movements) {
@@ -107,16 +114,16 @@ function Movements({ movements }: { movements: readonly SettlementMovement[] }) 
     <div className="income-movements">
       {byOR.map((section) => (
         <section key={section.key}>
-          <h4 className="income-or">{INCOME_ES.orHeading(section.or.orSet, section.or.orIndex)}</h4>
+          <h4 className="income-or">{INCOME.orHeading(section.or.orSet, section.or.orIndex)}</h4>
           <ul>
             {section.items.map((m) => (
               <li key={m.groupId} className="income-movement">
                 <span>
-                  <RichText text={summaryEs(m.action, ctx)} />
+                  <RichText text={dt.summary(m.action, ctx)} />
                 </span>
                 <span className="income-movement-amount">
                   {m.amount > 0 ? "+" : ""}
-                  {formatMoney(m.amount, meta.game)}
+                  {formatMoney(m.amount, meta.game, lang)}
                 </span>
               </li>
             ))}

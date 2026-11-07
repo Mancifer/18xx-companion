@@ -190,20 +190,16 @@ function mergeWarnings(ctx: ActionContext, m: MergeCompanies): Warning[] {
   const { game, state } = ctx;
   const warnings: Warning[] = [];
   const cfg = mechanicConfigOf(game, "mergers", MergersConfig);
-  if (state.turn.round !== (cfg?.round ?? "MR")) warnings.push(warning("notMergerRound", "No es la ronda de fusiones."));
+  if (state.turn.round !== (cfg?.round ?? "MR")) warnings.push(warning(ctx, "notMergerRound", {}));
   if (m.identity === "alt" && game.companies.find((c) => c.id === m.into)?.altName === undefined) {
-    warnings.push(warning("unknownIdentity", "Esta corporación no tiene segunda identidad."));
+    warnings.push(warning(ctx, "unknownIdentity", {}));
   }
   const plan = mergePlan(game, ctx.players, state, m.a, m.b);
   if (plan.countedTrains > plan.limit) {
-    warnings.push(warning("trainLimit", `La corporación tendría ${plan.countedTrains} trenes; el límite es ${plan.limit}.`));
+    warnings.push(warning(ctx, "trainLimit", { count: plan.countedTrains, limit: plan.limit, merger: 1 }));
   }
   if (plan.tie && plan.president) {
-    const name = ctx.players.find((p) => p.id === plan.president)?.name ?? plan.president;
-    const minor = game.companies.find((c) => c.id === plan.tie?.minor)?.shortName ?? plan.tie.minor;
-    warnings.push(
-      warning("presidencyTie", `Empate a ${plan.tie.units}: preside ${name} (presidencia de ${minor}, que opera antes).`, "info"),
-    );
+    warnings.push(warning(ctx, "presidencyTie", { units: plan.tie.units, president: plan.president, minor: plan.tie.minor }, "info"));
   }
   return warnings;
 }
@@ -218,11 +214,11 @@ export const mergers: Mechanic<MergersConfig> = {
     mergeCompanies: {
       available: (ctx, m) => {
         if (!m) return AVAILABLE;
-        if (m.a === m.b) return unavailable("Elige dos minors distintas");
-        if (!isFloatedMinor(ctx, m.a) || !isFloatedMinor(ctx, m.b)) return unavailable("Solo se fusionan dos minors en juego");
+        if (m.a === m.b) return unavailable("merge.sameMinor", {});
+        if (!isFloatedMinor(ctx, m.a) || !isFloatedMinor(ctx, m.b)) return unavailable("merge.notFloated", {});
         const into = ctx.game.companies.find((c) => c.id === m.into);
         if (into?.tier !== "major" || ctx.state.companies[m.into]?.status !== "unstarted") {
-          return unavailable("La corporación debe estar sin abrir");
+          return unavailable("merge.intoNotUnstarted", {});
         }
         return AVAILABLE;
       },
@@ -232,7 +228,7 @@ export const mergers: Mechanic<MergersConfig> = {
 
     /** The end step of the OR being left (none), then the MR, with the minors in operating order. */
     startMR: {
-      available: (ctx) => (mergerRoundDue(ctx.game, ctx.state) ? AVAILABLE : unavailable("No toca ronda de fusiones")),
+      available: (ctx) => (mergerRoundDue(ctx.game, ctx.state) ? AVAILABLE : unavailable("merge.notDue", {})),
       expand: (ctx) => {
         const scheduleIndex = slotIndex(ctx.game, `MR${ctx.state.turn.srNumber}`);
         const minors = operatingOrder(ctx.game, ctx.state).filter((id) => ctx.game.companies.find((c) => c.id === id)?.tier === "minor");

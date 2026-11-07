@@ -57,11 +57,9 @@ describe("startSR with the export", () => {
   it("the first 3 exported starts green, with an info that names it", () => {
     const s = toEndOfCycle(clearBank(rotlaSession(), "2", 7));
     const result = s.tryDo({ type: "startSR" });
-    expect(result.kind === "ok" && result.warnings).toContainEqual({
-      code: "export",
-      messageEs: "Se exporta un tren 3: empieza la fase verde.",
-      severity: "info",
-    });
+    expect(result.kind === "ok" && result.warnings).toContainEqual(
+      expect.objectContaining({ code: "export", messageEs: "Se exporta un tren 3: empieza la fase verde.", severity: "info" }),
+    );
     s.do({ type: "startSR" });
     expect(s.state.turn.phase).toBe("green");
   });

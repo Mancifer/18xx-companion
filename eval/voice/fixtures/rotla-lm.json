@@ -2308,7 +2308,11 @@
         {
           "code": "launchPriceClamped",
           "messageEs": "La mitad de la puja ($100) queda fuera del rango de la fase: se usa $90.",
-          "severity": "info"
+          "severity": "info",
+          "params": {
+            "half": 100,
+            "price": 90
+          }
         }
       ]
     },
@@ -2388,7 +2392,8 @@
         {
           "code": "noLeadoffTrain",
           "messageEs": "Esta compañía no compra el tren de salida.",
-          "severity": "info"
+          "severity": "info",
+          "params": {}
         }
       ]
     },
@@ -2545,7 +2550,10 @@
         {
           "code": "trainOrder",
           "messageEs": "Aún quedan trenes 2 en el banco.",
-          "severity": "warn"
+          "severity": "warn",
+          "params": {
+            "type": "2"
+          }
         }
       ]
     },
@@ -2593,12 +2601,19 @@
         {
           "code": "trainOrder",
           "messageEs": "Aún quedan trenes 3 en el banco.",
-          "severity": "warn"
+          "severity": "warn",
+          "params": {
+            "type": "3"
+          }
         },
         {
           "code": "trainLimit",
           "messageEs": "Con este tren tendría 2; el límite es 1.",
-          "severity": "warn"
+          "severity": "warn",
+          "params": {
+            "count": 2,
+            "limit": 1
+          }
         }
       ]
     },

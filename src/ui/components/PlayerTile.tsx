@@ -1,12 +1,15 @@
 import { useSession } from "../../app/useSession";
 import { cashOf, certificateCount, counterOf, isPlayerBankrupt, presidencyHolder, unitsOf } from "../../domain/events/state";
-import { formatMoney } from "../../domain/i18n/format";
+import { formatMoney } from "../../i18n/format";
+import { useLang, useText } from "../../app/language";
 import type { Player } from "../../domain/types";
 import { CompanyBadge } from "./CompanyBadge";
 
 /** Large tile per player (US1). Cash is hidden in "bank only" mode (US1-4). */
 export function PlayerTile({ player, onOpen }: { player: Player; onOpen: () => void }) {
   const { meta, state } = useSession();
+  const t = useText().table.playerTile;
+  const { lang } = useLang();
   const ref = `player:${player.id}` as const;
   const cash = cashOf(state, ref);
   const debt = counterOf(state, ref, "debt");
@@ -18,11 +21,11 @@ export function PlayerTile({ player, onOpen }: { player: Player; onOpen: () => v
       <span className="player-tile-head">
         <span className="swatch" style={{ background: player.color }} aria-hidden="true" />
         <span className="player-name">{player.name}</span>
-        {isPlayerBankrupt(state, player.id) ? <span className="badge danger">Eliminado</span> : null}
+        {isPlayerBankrupt(state, player.id) ? <span className="badge danger">{t.eliminated}</span> : null}
       </span>
       {meta.walletMode === "appTruth" ? (
         <span className={`player-cash money${cash < 0 ? " negative" : ""}`} data-testid={`cash-${player.id}`}>
-          {formatMoney(cash, meta.game)}
+          {formatMoney(cash, meta.game, lang)}
         </span>
       ) : (
         <span className="player-cash muted" data-testid={`cash-${player.id}`}>
@@ -30,8 +33,12 @@ export function PlayerTile({ player, onOpen }: { player: Player; onOpen: () => v
         </span>
       )}
       <span className="player-meta muted">
-        {certificateCount(meta.game, state, player.id)} cert.
-        {debt > 0 ? <span className="badge danger">deuda {formatMoney(debt, meta.game)}</span> : null}
+        {certificateCount(meta.game, state, player.id)}
+        {t.certs}
+        {debt > 0 ? <span className="badge danger">
+            {t.debt}
+            {formatMoney(debt, meta.game, lang)}
+          </span> : null}
       </span>
       {holdings.length > 0 ? (
         <span className="holdings">

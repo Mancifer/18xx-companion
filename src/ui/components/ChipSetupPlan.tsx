@@ -1,6 +1,7 @@
 import type { GameDefinition } from "../../domain/games/schema";
-import { formatMoney } from "../../domain/i18n/format";
-import { missingWarningEs, type ChipCount, type SetupPlan } from "../../domain/mechanics/chipSetup";
+import { formatMoney } from "../../i18n/format";
+import { useLang, useText } from "../../app/language";
+import { missingWarning, type ChipCount, type SetupPlan } from "../../domain/mechanics/chipSetup";
 import type { ChipSet } from "../../domain/types";
 import { ChipDiscs } from "./ChipStrip";
 
@@ -17,6 +18,7 @@ function BankSteppers(props: {
   onPinsChange: (pins: Record<string, number>) => void;
 }) {
   const { plan, set, pins, onPinsChange } = props;
+  const t = useText().components.setupPlan;
   const chips = [...set.chips].sort((a, b) => b.value - a.value);
   const pin = (value: number, n: number) => onPinsChange({ ...pins, [String(value)]: Math.max(0, n) });
   return (
@@ -30,21 +32,21 @@ function BankSteppers(props: {
               <span className="chip-disc" style={{ background: chip.color }} aria-hidden="true" />
               <span className="chip-text">{chip.value}</span>
             </span>
-            <button aria-label={`Menos fichas de ${chip.value} en el banco`} disabled={n === 0} onClick={() => pin(chip.value, n - 1)}>
+            <button aria-label={t.lessChips(chip.value)} disabled={n === 0} onClick={() => pin(chip.value, n - 1)}>
               −
             </button>
             <input
               inputMode="numeric"
-              aria-label={`Fichas de ${chip.value} en el banco`}
+              aria-label={t.chipsIn(chip.value)}
               value={n}
               onChange={(e) => pin(chip.value, Number(e.target.value.replace(/\D/g, "")) || 0)}
             />
-            <button aria-label={`Más fichas de ${chip.value} en el banco`} onClick={() => pin(chip.value, n + 1)}>
+            <button aria-label={t.moreChips(chip.value)} onClick={() => pin(chip.value, n + 1)}>
               +
             </button>
             <span className="plan-stepper-notes">
-              {plan.pinned.includes(chip.value) ? <span className="badge">fijada</span> : null}
-              {missing > 0 ? <span className="muted">faltan {missing}</span> : null}
+              {plan.pinned.includes(chip.value) ? <span className="badge">{t.pinned}</span> : null}
+              {missing > 0 ? <span className="muted">{t.missingN(missing)}</span> : null}
             </span>
           </li>
         );
@@ -75,34 +77,45 @@ export function ChipSetupPlan({
   /** "notice": only "Cada jugador", the fixed bank's "Banco" and the warnings. */
   variant?: "full" | "notice";
 }) {
+  const t = useText().components.setupPlan;
+  const noChips = useText().components.chips.noChips;
+  const { lang } = useLang();
+  const money = (n: number) => formatMoney(n, game, lang);
   const full = variant === "full";
   const { bank, perPlayer } = plan;
-  const missing = missingWarningEs(plan, set);
+  const missing = missingWarning(plan, set, lang);
   return (
     // The notice is labelled by its own title, so only the full plan is a named region.
-    <section className="setup-plan" aria-label={full ? "Preparación de fichas" : undefined}>
+    <section className="setup-plan" aria-label={full ? t.region : undefined}>
       {missing ? (
         // US5, FR-025: advice only; starting is never blocked.
         <p className="warning-box" role="status">
-          {missing} Podés cambiar cantidades o valores, o empezar igual y usar otras fichas.
+          {missing}
+          {t.missingAdvice}
         </p>
       ) : null}
       <div className="plan-row" data-testid="plan-players">
-        <span className="plan-label">Cada jugador {formatMoney(perPlayer.amount, game)}</span>
+        <span className="plan-label">
+          {t.eachPlayer}
+          {money(perPlayer.amount)}
+        </span>
         {perPlayer.owned.length + perPlayer.missing.length > 0 ? (
           <ChipDiscs chips={perPlayer.owned} missing={perPlayer.missing} set={set} />
         ) : (
-          <span className="muted">sin fichas</span>
+          <span className="muted">{noChips}</span>
         )}
       </div>
       {bank.kind === "fixed" ? (
         <>
           <div className="plan-row" data-testid="plan-bank">
-            <span className="plan-label">Banco {formatMoney(bank.portion.amount, game)}</span>
+            <span className="plan-label">
+              {t.bankWith}
+              {money(bank.portion.amount)}
+            </span>
             {full && onPinsChange ? (
               <>
                 <BankSteppers plan={bank} set={set} pins={pins} onPinsChange={onPinsChange} />
-                {bank.pinned.length > 0 ? <button onClick={() => onPinsChange({})}>Restablecer</button> : null}
+                {bank.pinned.length > 0 ? <button onClick={() => onPinsChange({})}>{t.reset}</button> : null}
               </>
             ) : (
               <ChipDiscs chips={bank.portion.owned} missing={bank.portion.missing} set={set} />
@@ -111,15 +124,16 @@ export function ChipSetupPlan({
           {bank.difference !== 0 ? (
             <p className="warning-box">
               {bank.difference > 0
-                ? `El banco tiene ${formatMoney(bank.difference, game)} de más.`
-                : `Al banco le faltan ${formatMoney(-bank.difference, game)}.`}{" "}
-              Cambiá alguna ficha fijada o tocá Restablecer.
+                ? t.bankOver(money(bank.difference))
+                : t.bankShort(money(-bank.difference))}{" "}
+              {t.fixHint}
             </p>
           ) : null}
           {full && bank.setAside.length > 0 ? (
             <div className="plan-row plan-aside" data-testid="plan-aside">
               <span className="plan-label">
-                Apartadas <span className="muted">no se usan</span>
+                {t.aside}
+                <span className="muted">{t.unused}</span>
               </span>
               <ChipDiscs chips={bank.setAside} set={set} />
             </div>
@@ -127,9 +141,9 @@ export function ChipSetupPlan({
         </>
       ) : full ? (
         <div className="plan-row" data-testid="plan-bank">
-          <span className="plan-label">Banco</span>
+          <span className="plan-label">{t.bank}</span>
           <ChipDiscs chips={bank.owned} set={set} />
-          {bank.unlimitedValues.length > 0 ? <span className="muted">sin límite: {bank.unlimitedValues.join(", ")}</span> : null}
+          {bank.unlimitedValues.length > 0 ? <span className="muted">{t.unlimited(bank.unlimitedValues.join(", "))}</span> : null}
         </div>
       ) : null}
     </section>

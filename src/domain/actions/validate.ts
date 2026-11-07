@@ -30,6 +30,5 @@ function turnWarnings(ctx: ActionContext, action: Action): Warning[] {
   if (turn.round !== "OR" || turn.currentCompany === undefined || !TURN_ACTIONS.has(action.type)) return [];
   const company = "company" in action ? action.company : null;
   if (!company || company === turn.currentCompany) return [];
-  const short = (id: string) => ctx.game.companies.find((c) => c.id === id)?.shortName ?? id;
-  return [warning("outOfTurn", `${short(company)} opera fuera de turno (le toca a ${short(turn.currentCompany)}).`)];
+  return [warning(ctx, "outOfTurn", { company, current: turn.currentCompany })];
 }

@@ -35,8 +35,8 @@ export const manualFloatCondition: Mechanic<ManualFloatConditionConfig> = {
     confirmFloatCondition: {
       available: (ctx, a) => {
         const cfg = floatConditionConfig(ctx.game);
-        if (!cfg || (a && a.company !== cfg.company)) return unavailable("Esta compañía no tiene condición de flotación");
-        if (a && ctx.state.companies[a.company]?.floatConfirmed) return unavailable("Ya está confirmada");
+        if (!cfg || (a && a.company !== cfg.company)) return unavailable("float.noCondition", {});
+        if (a && ctx.state.companies[a.company]?.floatConfirmed) return unavailable("float.alreadyConfirmed", {});
         return AVAILABLE;
       },
       expand: (ctx, a) => [

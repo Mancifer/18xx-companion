@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getBuiltInGame } from "../../src/domain/games";
 import type { GameDefinition } from "../../src/domain/games/schema";
-import { companyTrains, trainsLineEs } from "../../src/domain/i18n/es";
+import { companyTrains, trainsLineEs } from "../../src/i18n/es/domain";
 import { countedTrains, trainLimitFor } from "../../src/domain/mechanics/phases";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { rotlaSession, seedCompany as seedRotla } from "../helpers/rotla";

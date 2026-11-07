@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getBuiltInGame } from "../../src/domain/games";
-import { answerQuery, companyGroups, currentORGroups, turnActivity, upcomingCompanies } from "../../src/domain/queries";
+import { companyGroups, currentORGroups, turnActivity, upcomingCompanies } from "../../src/domain/queries";
+import { answerQuery } from "../../src/voice/answer";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { seedCompany } from "../helpers/seed";
 
@@ -15,7 +16,7 @@ function table() {
   return s;
 }
 const ask = (s: TestSession, kind: string, player: string | null = null, company: string | null = null) =>
-  answerQuery(s, { kind: kind as never, player, company }).textEs;
+  answerQuery(s, { kind: kind as never, player, company }).text.es;
 
 describe("answerQuery", () => {
   it("cash of a player, or of a company", () => {

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { CATEGORIES, percentile, STOPS, type RunRecord, type Summary } from "./grade";
+import { CATEGORIES, languageSections, percentile, STOPS, type LanguageSummary, type RunRecord, type Summary } from "./grade";
 import { costOf, priceFor } from "./prices";
 
 /**
@@ -112,8 +112,36 @@ export function formatComparison(a: Comparable, b: Comparable): string {
   lines.push(numberRow("total $ 2027", total2027(a), total2027(b), 5));
   lines.push(numberRow("rate-limit retries", a.rateLimitRetries, b.rateLimitRetries));
   lines.push("", ...flags(a, b));
+  lines.push(...languageRows(a, b));
   if (a.records && b.records) lines.push("", ...caseChanges(a.records, b.records));
   return lines.join("\n");
+}
+
+/** A run's per-language sections: from its summary, else from its records (pre-014 files are all Spanish). */
+function languagesOf(s: Comparable): Partial<Record<"es" | "en", LanguageSummary>> {
+  if (s.byLanguage) return s.byLanguage;
+  return s.records && s.model ? languageSections(s.records, "2026-01-01", s.model) : {};
+}
+
+/** Feature 014 (contracts/voice.md "Runner and report"): the two runs compared language by language. */
+function languageRows(a: Comparable, b: Comparable): string[] {
+  const la = languagesOf(a);
+  const lb = languagesOf(b);
+  const lines: string[] = [];
+  for (const lang of ["es", "en"] as const) {
+    const x = la[lang];
+    const y = lb[lang];
+    if (!x && !y) continue;
+    lines.push("", lang === "en" ? "English" : "Español");
+    lines.push(percentRow("  overall", x?.overall, y?.overall));
+    lines.push(percentRow("  held-out", x?.heldout, y?.heldout));
+    for (const cat of CATEGORIES) {
+      if ((x?.byCategory[cat] ?? null) === null && (y?.byCategory[cat] ?? null) === null) continue;
+      lines.push(percentRow(`    ${cat}`, x?.byCategory[cat], y?.byCategory[cat]));
+    }
+    lines.push(numberRow("  paid $ / command", x?.paidPerCaseUsd, y?.paidPerCaseUsd, 5));
+  }
+  return lines;
 }
 
 function load(path: string): Comparable {

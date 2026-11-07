@@ -1,5 +1,5 @@
 import type { CompanyDef, GameDefinition } from "../../domain/games/schema";
-import { holderName } from "../../domain/i18n/es";
+import { useDomainText, useText } from "../../app/language";
 import { parseHolder, type HolderRef, type Player } from "../../domain/types";
 
 /**
@@ -38,14 +38,18 @@ export function CompanyName({ game, id, size = "inline" }: { game: GameDefinitio
 
 /** `holderName` with a company (or its IPO) shown as its badge; the words are the same. */
 export function HolderName({ holder, game, players }: { holder: HolderRef; game: GameDefinition; players: readonly Player[] }) {
+  const ipoOf = useText().components.ipoOf;
+  const dt = useDomainText();
   const h = parseHolder(holder);
   if (h.kind === "company") return <CompanyName game={game} id={h.id} />;
   if (h.kind === "ipo") {
     return (
       <>
-        la IPO de <CompanyName game={game} id={h.id} />
+        {ipoOf[0]}
+        <CompanyName game={game} id={h.id} />
+        {ipoOf[1]}
       </>
     );
   }
-  return <>{holderName(holder, game, players)}</>;
+  return <>{dt.holderName(holder, game, players)}</>;
 }

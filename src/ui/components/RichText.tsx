@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { SessionContext } from "../../app/contexts";
 import type { GameDefinition } from "../../domain/games/schema";
-import { splitMentions } from "../../domain/i18n/mentions";
+import { splitMentions } from "../../i18n/mentions";
 import { CompanyBadge } from "./CompanyBadge";
 
 /**

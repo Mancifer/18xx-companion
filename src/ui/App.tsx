@@ -1,5 +1,6 @@
 import { Component, useMemo, useState, type ReactNode } from "react";
 import { AppProvider } from "../app/AppProvider";
+import { useText } from "../app/language";
 import { useHasSession } from "../app/useSession";
 import { defaultVoiceDeps, VoiceDepsContext, type VoiceDeps } from "../app/useVoice";
 import { NavContext, type Nav, type Screen } from "./nav";
@@ -50,28 +51,44 @@ class ErrorBoundary extends Component<{ children: ReactNode; onReset: () => void
   override render() {
     if (this.state.error) {
       return (
-        <main className="screen">
-          <div className="screen-body">
-            <h1>Algo salió mal</h1>
-            <p className="muted">{this.state.error.message}</p>
-            <button
-              className="primary"
-              onClick={() => {
-                this.setState({ error: null });
-                this.props.onReset();
-              }}
-            >
-              Volver al inicio
-            </button>
-          </div>
-        </main>
+        <ErrorScreen
+          message={this.state.error.message}
+          onReset={() => {
+            this.setState({ error: null });
+            this.props.onReset();
+          }}
+        />
       );
     }
     return this.props.children;
   }
 }
 
-export function App({ dbName, voiceDeps = defaultVoiceDeps }: { dbName?: string; voiceDeps?: VoiceDeps }) {
+function ErrorScreen({ message, onReset }: { message: string; onReset: () => void }) {
+  const t = useText().components.app;
+  return (
+    <main className="screen">
+      <div className="screen-body">
+        <h1>{t.error}</h1>
+        <p className="muted">{message}</p>
+        <button className="primary" onClick={onReset}>
+          {t.home}
+        </button>
+      </div>
+    </main>
+  );
+}
+
+export function App({
+  dbName,
+  voiceDeps = defaultVoiceDeps,
+  overlay,
+}: {
+  dbName?: string;
+  voiceDeps?: VoiceDeps;
+  /** Rendered inside every provider, next to the screen: tests use it to reach the app's hooks. */
+  overlay?: ReactNode;
+}) {
   const [screen, setScreen] = useState<Screen>({ name: "home" });
   const nav = useMemo<Nav>(() => ({ screen, go: setScreen }), [screen]);
   return (
@@ -84,6 +101,7 @@ export function App({ dbName, voiceDeps = defaultVoiceDeps }: { dbName?: string;
           }}
         >
           <Screens screen={screen} />
+          {overlay}
         </ErrorBoundary>
       </NavContext.Provider>
       </VoiceDepsContext.Provider>

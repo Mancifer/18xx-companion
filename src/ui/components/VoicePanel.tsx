@@ -8,6 +8,8 @@ import { downloadJson } from "../useExport";
 import { ClarifyButtons } from "./ClarifyButtons";
 import { ConfirmationCard } from "./ConfirmationCard";
 import { UndoRangeSheet } from "./UndoRangeSheet";
+import { useLang, useText } from "../../app/language";
+import { useMessageText } from "../useMessage";
 
 /**
  * Dev only (T137, research R18): saves the recognizer's transcript, a fixture of the session and
@@ -16,6 +18,7 @@ import { UndoRangeSheet } from "./UndoRangeSheet";
 function SaveForEval({ transcript, action }: { transcript: string; action: Action | null }) {
   const { sessions } = useServices();
   const { meta } = useSession();
+  const t = useText().components.voicePanel;
   if (!import.meta.env.DEV) return null;
   return (
     <button
@@ -26,7 +29,7 @@ function SaveForEval({ transcript, action }: { transcript: string; action: Actio
         })
       }
     >
-      Guardar para eval
+      {t.saveForEval}
     </button>
   );
 }
@@ -42,6 +45,10 @@ export function VoicePanel({
   onManual: (hint: string | undefined) => void;
 }) {
   const { meta } = useSession();
+  const text = useText();
+  const t = text.components.voicePanel;
+  const { lang } = useLang();
+  const reasonText = useMessageText();
   if (phase.phase !== "result") return null;
   const { result } = phase;
   const cancel = () => controller.cancel();
@@ -68,11 +75,11 @@ export function VoicePanel({
       );
     case "query":
       return (
-        <section className="voice-card" role="dialog" aria-label="Respuesta">
+        <section className="voice-card" role="dialog" aria-label={t.answer}>
           <p className="muted transcript">«{result.transcript}»</p>
-          <p className="voice-summary">{result.answer.textEs}</p>
+          <p className="voice-summary">{result.answer.text[lang]}</p>
           <button className="primary" onClick={cancel}>
-            Vale
+            {t.ok}
           </button>
         </section>
       );
@@ -92,12 +99,12 @@ export function VoicePanel({
       return null;
     case "notUnderstood":
       return (
-        <section className="voice-card" role="dialog" aria-label="No entendí">
-          <p className="voice-summary">No entendí</p>
+        <section className="voice-card" role="dialog" aria-label={t.notUnderstood}>
+          <p className="voice-summary">{t.notUnderstood}</p>
           <p className="transcript">«{result.transcript}»</p>
-          <p className="muted">{result.reasonEs}</p>
+          <p className="muted">{reasonText(result.reason)}</p>
           <div className="row">
-            <button onClick={cancel}>Cerrar</button>
+            <button onClick={cancel}>{text.common.close}</button>
             <SaveForEval transcript={result.transcript} action={null} />
             <span className="spacer" />
             <button
@@ -107,7 +114,7 @@ export function VoicePanel({
                 onManual(result.hint);
               }}
             >
-              Hacerlo a mano
+              {t.manual}
             </button>
           </div>
         </section>

@@ -2,7 +2,9 @@ import { advanceTurn } from "../events/reduce";
 import { initialState, type TurnState } from "../events/state";
 import type { Round } from "../events/types";
 import type { GameDefinition } from "../games/schema";
-import { ROUND_ICON, roundTitleEs } from "../i18n/es";
+import { domainText } from "../../i18n/domainText";
+import type { Lang } from "../../i18n/lang";
+import { ROUND_ICON } from "../../i18n/shared";
 import type { GroupHistory } from "./effectiveLog";
 import type { GroupId } from "./entries";
 import { isSetup } from "./undo";
@@ -39,7 +41,8 @@ function keyOf(turn: TurnState): string {
  * group stays in the section of its position and opens nothing (FR-021). Setup before any round
  * forms "Preparación". Equal keys that are not adjacent are separate sections.
  */
-export function roundSections(game: GameDefinition, history: readonly GroupHistory[]): RoundSection[] {
+export function roundSections(game: GameDefinition, history: readonly GroupHistory[], lang: Lang = "es"): RoundSection[] {
+  const text = domainText(lang);
   let state = initialState(game, []);
   const sections: { key: string; round: Round | "SETUP"; title: string; startGroupId: GroupId | undefined; groupIds: GroupId[] }[] = [];
   for (const h of [...history].sort((a, b) => a.group.seq - b.group.seq)) {
@@ -59,11 +62,11 @@ export function roundSections(game: GameDefinition, history: readonly GroupHisto
     }
     sections.push(
       setup
-        ? { key, round: "SETUP", title: "Preparación", startGroupId: undefined, groupIds: [h.group.id] }
+        ? { key, round: "SETUP", title: text.setup, startGroupId: undefined, groupIds: [h.group.id] }
         : {
             key,
             round: state.turn.round,
-            title: roundTitleEs(game, state.turn),
+            title: text.roundTitle(game, state.turn),
             startGroupId: active ? h.group.id : undefined,
             groupIds: [h.group.id],
           },

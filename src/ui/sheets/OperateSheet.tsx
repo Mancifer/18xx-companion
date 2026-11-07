@@ -1,3 +1,4 @@
+import { useMessageText } from "../useMessage";
 import { useState, type Dispatch, type ReactNode, type SetStateAction } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
 import { availabilityOf } from "../../domain/actions/availability";
@@ -6,9 +7,10 @@ import { forcedWithholdReason, tradeInProblem, trainPrice, zeroRunAction } from 
 import { handlerFor } from "../../domain/actions/expand";
 import type { ActionType } from "../../domain/actions/schemas";
 import { cashOf, counterOf, presidentOf, unitsOf, type SessionState } from "../../domain/events/state";
-import type { GameDefinition, NamedPayment, PayoutMode, TrainDef } from "../../domain/games/schema";
-import { summaryEs } from "../../domain/i18n/es";
-import { formatMoney } from "../../domain/i18n/format";
+import type { GameDefinition, NamedPayment, TrainDef } from "../../domain/games/schema";
+import { useDomainText, useLang, useText } from "../../app/language";
+import { gameText } from "../../i18n/gameText";
+import { formatMoney } from "../../i18n/format";
 import { CANYON, cliffKeyFor, ROCK } from "../../domain/mechanics/custom/landmarks";
 import { nationalBankConfig, nationalMinDividend } from "../../domain/mechanics/custom/nationalBank";
 import { priceOf } from "../../domain/mechanics/market";
@@ -27,13 +29,17 @@ export type OperateView = "run" | "train" | "cost" | "bonus" | "payment" | "clif
 type View = OperateView;
 type Amounts = Record<string, number | null>;
 
-const MODE_LABEL: Readonly<Record<PayoutMode, string>> = { full: "Pagar", withhold: "Retener", half: "Mitad" };
-const COST_REASONS = ["terreno", "estación", "ficha", "río"];
-
 /** Whether the game offers an action at all (a mechanic it enables, or a core action its data gates). */
 function offers(ctx: ActionContext, type: ActionType): boolean {
   const handler = handlerFor(ctx, type);
   return handler !== undefined && (handler.offered?.(ctx.game) ?? true);
+}
+
+/** This sheet's text, and the display language for money. */
+function useOperateText() {
+  const text = useText();
+  const { lang } = useLang();
+  return { tx: text.sheets.operate, text, lang };
 }
 
 /**
@@ -60,6 +66,9 @@ export function OperateSheet({
   /** Opens the train correction view (feature 011, US3) from the trains line. */
   onCorrectTrains?: () => void;
 }) {
+  const reasonText = useMessageText();
+  const { tx, text, lang } = useOperateText();
+  const dt = useDomainText();
   const { meta, state, effective } = useSession();
   const { dispatch } = useDispatch();
   const [view, setView] = useState<View>(initialView);
@@ -98,13 +107,13 @@ export function OperateSheet({
 
   const title = (
     <span className="row">
-      <CompanyBadge company={def} /> {formatMoney(cashOf(state, ref), meta.game)}
-      {price !== undefined ? <span className="muted"> · {formatMoney(price, meta.game)}</span> : null}
+      <CompanyBadge company={def} /> {formatMoney(cashOf(state, ref), meta.game, lang)}
+      {price !== undefined ? <span className="muted"> · {formatMoney(price, meta.game, lang)}</span> : null}
     </span>
   );
   const back = (
     <button className="ghost" onClick={() => setView("run")}>
-      ← Volver
+      {tx.back}
     </button>
   );
 
@@ -119,12 +128,12 @@ export function OperateSheet({
   if (view === "loan") return <LoanView ctx={ctx} company={companyId} title={title} back={back} onClose={onClose} run={step} />;
   if (view === "cliff") {
     return (
-      <Sheet title={<>Acantilado · {title}</>} onClose={onClose}>
+      <Sheet title={<>{tx.cliff} · {title}</>} onClose={onClose}>
         {back}
         <div className="choice-grid">
           {trainsHeldBy(state, ref).map((asset) => (
             <button key={asset} onClick={() => void step({ type: "cliffSale", company: companyId, train: asset })}>
-              Vender el {trainTypeOf(asset)}
+              {tx.sellTrain(trainTypeOf(asset))}
             </button>
           ))}
         </div>
@@ -138,7 +147,7 @@ export function OperateSheet({
         <div className="choice-grid">
           {trainsHeldBy(state, ref).map((asset) => (
             <button key={asset} onClick={() => void step({ type: "discardTrain", company: companyId, train: asset })}>
-              Descartar un {trainTypeOf(asset)}
+              {tx.discardOne(trainTypeOf(asset))}
             </button>
           ))}
         </div>
@@ -147,7 +156,7 @@ export function OperateSheet({
   }
   if (view === "supply") {
     return (
-      <Sheet title="Oferta de trenes" onClose={onClose}>
+      <Sheet title={tx.supply} onClose={onClose}>
         {back}
         <div className="choice-grid">
           {meta.game.trains
@@ -157,8 +166,8 @@ export function OperateSheet({
                 const action = { type: "changeTrainSupply", trainType: t.type, op } as const;
                 const ok = availabilityOf(ctx, "changeTrainSupply", action);
                 return (
-                  <button key={`${t.type}-${op}`} disabled={!ok.ok} title={ok.ok ? undefined : ok.reasonEs} onClick={() => void step(action)}>
-                    {op === "add" ? "Añadir" : "Quitar"} un {t.type}
+                  <button key={`${t.type}-${op}`} disabled={!ok.ok} title={ok.ok ? undefined : reasonText(ok.reason)} onClick={() => void step(action)}>
+                    {tx.supplyChange(op, t.type)}
                   </button>
                 );
               }),
@@ -171,20 +180,20 @@ export function OperateSheet({
   const offered = (type: ActionType) => handlerFor(ctx, type) !== undefined;
   /** A concrete payload for this company, so availability never falls back to "the operating company". */
   const more: { view: View; label: string; probe?: { type: ActionType } & Record<string, unknown>; show: boolean }[] = [
-    { view: "train", label: "Comprar tren", show: true },
-    { view: "cost", label: "Pagar costo", show: true },
-    { view: "bonus", label: "Cobro del banco", show: true },
-    { view: "private", label: "Comprar privada", show: meta.game.privates.length > 0 },
+    { view: "train", label: tx.buyTrain, show: true },
+    { view: "cost", label: tx.payCost, show: true },
+    { view: "bonus", label: tx.bankPays, show: true },
+    { view: "private", label: tx.buyPrivate, show: meta.game.privates.length > 0 },
     {
       view: "loan",
-      label: "Préstamo",
+      label: tx.loan,
       probe: { type: "takeLoan", company: companyId, count: 1 },
       show: offered("takeLoan"),
     },
-    { view: "discard", label: "Descartar tren", show: trainsHeldBy(state, ref).length > 0 },
+    { view: "discard", label: tx.discardTrain, show: trainsHeldBy(state, ref).length > 0 },
     {
       view: "supply",
-      label: "Cambiar oferta de trenes",
+      label: tx.changeSupply,
       probe: { type: "changeTrainSupply" },
       show: meta.game.trains.some((t) => (t.reserve ?? 0) > 0),
     },
@@ -197,25 +206,26 @@ export function OperateSheet({
       <TrainsLine company={companyId} onCorrect={onCorrectTrains} />
       {outOfTurn && turn.currentCompany ? (
         <p className="out-of-turn" role="note">
-          Fuera de turno: le toca a <CompanyName game={meta.game} id={turn.currentCompany} />. Lo que registres quedará marcado en el
-          historial.
+          {tx.outOfTurn[0]}
+          <CompanyName game={meta.game} id={turn.currentCompany} />
+          {tx.outOfTurn[1]}
         </p>
       ) : null}
       {overLimit ? (
         <button className="over-limit" onClick={() => setView("discard")}>
-          {def.name}: {overLimit.count} trenes, límite {overLimit.limit}. Elegir cuál va al pool
+          {text.table.overLimit(def.name, overLimit.count, overLimit.limit)}
         </button>
       ) : null}
       {inTurn ? (
         <div className="turn-summary">
-          <span className="label">Este turno</span>
+          <span className="label">{tx.thisTurn}</span>
           {activity.groups.length === 0 ? (
             <p className="muted">—</p>
           ) : (
             <ul>
               {activity.groups.map((g) => (
                 <li key={g.id}>
-                  <RichText text={summaryEs(g.action, { ...ctx, marks: true }, g.events)} />
+                  <RichText text={dt.summary(g.action, { ...ctx, marks: true }, g.events)} />
                 </li>
               ))}
             </ul>
@@ -223,7 +233,7 @@ export function OperateSheet({
         </div>
       ) : null}
       {activity.runRecorded ? (
-        <p className="run-recorded">✓ Operación registrada</p>
+        <p className="run-recorded">{tx.runRecorded}</p>
       ) : def.kind === "national" ? (
         <NationalPayout ctx={ctx} run={pay} />
       ) : (
@@ -240,9 +250,9 @@ export function OperateSheet({
       )}
       {rusted.map((asset) => (
         <div key={asset} className="row rusted-train">
-          <span>{trainTypeOf(asset)} · Oxidado · última carrera</span>
+          <span>{tx.rustedLine(trainTypeOf(asset))}</span>
           <button onClick={() => void step({ type: "discardTrain", company: companyId, train: asset })}>
-            Retirar el {trainTypeOf(asset)}
+            {tx.retire(trainTypeOf(asset))}
           </button>
         </div>
       ))}
@@ -264,20 +274,21 @@ export function OperateSheet({
               ? availabilityOf(ctx, m.probe.type, m.probe.type === "changeTrainSupply" ? undefined : (m.probe as never))
               : { ok: true as const };
             return (
-              <button key={m.view} disabled={!ok.ok} title={ok.ok ? undefined : ok.reasonEs} onClick={() => setView(m.view)}>
+              <button key={m.view} disabled={!ok.ok} title={ok.ok ? undefined : reasonText(ok.reason)} onClick={() => setView(m.view)}>
                 {m.label}
-                {ok.ok ? null : <span className="muted reason"> · {ok.reasonEs}</span>}
+                {ok.ok ? null : <span className="muted reason"> · {reasonText(ok.reason)}</span>}
               </button>
             );
           })}
-        {onDetails ? <button onClick={onDetails}>Detalles y ajustes…</button> : null}
+        {onDetails ? <button onClick={onDetails}>{tx.details}</button> : null}
       </div>
       {inTurn ? (
         <div className="stack">
           <button className="primary big" disabled={!activity.canFinish} onClick={() => void finish()}>
-            Terminar turno → siguiente: <NextLabel game={meta.game} state={state} company={companyId} />
+            {tx.finishTurn}
+            <NextLabel game={meta.game} state={state} company={companyId} />
           </button>
-          {activity.canFinish ? null : <p className="muted">Registra lo que corrió o «No corrió» primero</p>}
+          {activity.canFinish ? null : <p className="muted">{tx.recordFirst}</p>}
         </div>
       ) : null}
     </Sheet>
@@ -286,9 +297,10 @@ export function OperateSheet({
 
 /** Who operates after this company: the next one in order, a new OR in the set, or the set's end. */
 function NextLabel({ game, state, company }: { game: GameDefinition; state: SessionState; company: CompanyId }) {
+  const { tx } = useOperateText();
   const next = operatingOrder(game, state).find((id) => id !== company && !state.turn.operatedThisOR.includes(id));
   if (next) return <CompanyName game={game} id={next} />;
-  return <>{state.turn.orIndex < state.turn.orsInSet ? `OR ${state.turn.orSet}.${state.turn.orIndex + 1}` : "fin del set"}</>;
+  return <>{state.turn.orIndex < state.turn.orsInSet ? `OR ${state.turn.orSet}.${state.turn.orIndex + 1}` : tx.endOfSet}</>;
 }
 
 function RevenueEntry({
@@ -311,15 +323,19 @@ function RevenueEntry({
   editing: string;
   setEditing: (part: string) => void;
 }) {
+  const reasonText = useMessageText();
+  const { tx, text, lang } = useOperateText();
+  const partLabel = (id: string) => gameText(ctx.game, lang).revenuePart(id);
   const parts = ctx.game.revenueParts;
   const choice = parts.length === 1 && parts[0]?.to === "choice" ? parts[0] : undefined;
-  const forced = forcedWithholdReason(ctx, company);
+  const forcedReason = forcedWithholdReason(ctx, company);
+  const forced = forcedReason ? reasonText(forcedReason) : undefined;
 
   if (choice) {
     const amount = amounts[choice.id] ?? null;
     return (
       <div className="stack">
-        <Keypad value={amount} onChange={(v) => setAmounts({ [choice.id]: v })} game={ctx.game} label={choice.label} />
+        <Keypad value={amount} onChange={(v) => setAmounts({ [choice.id]: v })} game={ctx.game} label={partLabel(choice.id)} />
         {forced ? <p className="toast-warning">{forced}</p> : null}
         <div className="row payout-modes">
           {ctx.game.payoutModes.map((mode) => {
@@ -332,13 +348,13 @@ function RevenueEntry({
                 title={blocked ? forced : undefined}
                 onClick={() => void run({ type: "runAndPayout", company, parts: [{ part: choice.id, amount }], mode })}
               >
-                {MODE_LABEL[mode]}
+                {tx.modes[mode]}
               </button>
             );
           })}
           {noRun ? (
             <button className="big" onClick={noRun}>
-              No corrió
+              {tx.noRun}
             </button>
           ) : null}
         </div>
@@ -353,8 +369,8 @@ function RevenueEntry({
       <div className="row">
         {parts.map((p) => (
           <button key={p.id} className="field-row" aria-pressed={p.id === editing} onClick={() => setEditing(p.id)}>
-            <span className="label">{p.label}</span>
-            <span className="money">{amounts[p.id] != null ? formatMoney(amounts[p.id] ?? 0, ctx.game) : "—"}</span>
+            <span className="label">{partLabel(p.id)}</span>
+            <span className="money">{amounts[p.id] != null ? formatMoney(amounts[p.id] ?? 0, ctx.game, lang) : "—"}</span>
           </button>
         ))}
       </div>
@@ -363,7 +379,7 @@ function RevenueEntry({
           value={amounts[current.id] ?? null}
           onChange={(v) => setAmounts((a) => ({ ...a, [current.id]: v }))}
           game={ctx.game}
-          label={current.label}
+          label={partLabel(current.id)}
         />
       ) : null}
       {forced ? <p className="toast-warning">{forced}</p> : null}
@@ -379,11 +395,11 @@ function RevenueEntry({
           })
         }
       >
-        Confirmar
+        {text.common.confirm}
       </button>
       {noRun ? (
         <button className="big" onClick={noRun}>
-          No corrió
+          {tx.noRun}
         </button>
       ) : null}
     </div>
@@ -391,15 +407,16 @@ function RevenueEntry({
 }
 
 function NationalPayout({ ctx, run }: { ctx: ActionContext; run: (action: unknown) => Promise<void> }) {
+  const { tx, lang } = useOperateText();
   const [extra, setExtra] = useState<number | null>(0);
   const min = nationalMinDividend(ctx.game, ctx.state);
   if (!nationalBankConfig(ctx.game)) return null;
   return (
     <div className="stack">
-      <p className="muted">Mínimo de la fase: {formatMoney(min, ctx.game)}. Añade el valor de las ciudades administradas.</p>
-      <Keypad value={extra} onChange={setExtra} game={ctx.game} label="Extra de ciudades" />
+      <p className="muted">{tx.nationalMin(formatMoney(min, ctx.game, lang))}</p>
+      <Keypad value={extra} onChange={setExtra} game={ctx.game} label={tx.cityExtra} />
       <button className="primary big" onClick={() => void run({ type: "nationalPayout", extra: extra ?? 0 })}>
-        Pagar dividendo ({formatMoney(min + (extra ?? 0), ctx.game)})
+        {tx.payDividend(formatMoney(min + (extra ?? 0), ctx.game, lang))}
       </button>
     </div>
   );
@@ -415,6 +432,7 @@ interface ViewProps {
 }
 
 function TrainView({ ctx, company, title, back, onClose, run }: ViewProps) {
+  const { tx, lang } = useOperateText();
   const [seller, setSeller] = useState<CompanyId | null>(null);
   const [price, setPrice] = useState<number | null>(null);
   const [sellerTrain, setSellerTrain] = useState<string | null>(null);
@@ -434,7 +452,7 @@ function TrainView({ ctx, company, title, back, onClose, run }: ViewProps) {
     const action = buy(train, from, variant, tradeIn);
     const ok = availabilityOf(ctx, "buyTrain", action as never);
     if (!ok.ok) return null;
-    const cost = formatMoney(trainPrice(ctx.game, action, ctx.state), ctx.game);
+    const cost = formatMoney(trainPrice(ctx.game, action, ctx.state), ctx.game, lang);
     return (
       <button key={`${from}-${train.type}-${variant ?? ""}-${tradeIn ?? ""}`} onClick={() => void run(action)}>
         {/* An unlimited type with variants (7/∞): "7: $750"; otherwise "3 (5) · $200", as before. */}
@@ -451,10 +469,10 @@ function TrainView({ ctx, company, title, back, onClose, run }: ViewProps) {
   const others = ctx.game.companies.filter((c) => c.id !== company && trainsHeldBy(ctx.state, `company:${c.id}`).length > 0);
 
   return (
-    <Sheet title={<>Comprar tren · {title}</>} onClose={onClose}>
+    <Sheet title={<>{tx.buyTrain} · {title}</>} onClose={onClose}>
       {back}
       <ForcedPurchaseCard ctx={ctx} company={company} run={run} />
-      <h3>Del banco</h3>
+      <h3>{tx.fromBank}</h3>
       <div className="choice-grid">
         {ctx.game.trains
           .filter((t) => !t.special)
@@ -471,17 +489,17 @@ function TrainView({ ctx, company, title, back, onClose, run }: ViewProps) {
               if (froms.length > 0) {
                 buttons.push(
                   <button key={`trade-${t.type}`} aria-expanded={tradeInFor === t.type} onClick={() => setTradeInFor(t.type)}>
-                    {tradeVariant} entregando…
+                    {tx.tradeInOpen(tradeVariant ?? "")}
                   </button>,
                 );
               }
               if (tradeInFor === t.type) {
-                for (const from of froms) buttons.push(option(t, "bank", tradeVariant, from, `${tradeVariant} entregando un ${from}`));
+                for (const from of froms) buttons.push(option(t, "bank", tradeVariant, from, tx.tradeInWith(tradeVariant ?? "", from)));
               }
             } else {
               for (const from of t.tradeIn?.fromTypes ?? []) {
                 if (trainsHeldBy(ctx.state, ref, from).length > 0) {
-                  buttons.push(option(t, "bank", tradeVariant, from, `${tradeVariant ?? t.type} entregando un ${from}`));
+                  buttons.push(option(t, "bank", tradeVariant, from, tx.tradeInWith(tradeVariant ?? t.type, from)));
                 }
               }
             }
@@ -490,13 +508,13 @@ function TrainView({ ctx, company, title, back, onClose, run }: ViewProps) {
       </div>
       {ctx.game.trains.some((t) => trainsHeldBy(ctx.state, "pool", t.type).length > 0) ? (
         <>
-          <h3>Del pool</h3>
+          <h3>{tx.fromPool}</h3>
           <div className="choice-grid">{ctx.game.trains.map((t) => option(t, "pool", null, null, t.type))}</div>
         </>
       ) : null}
       {others.length > 0 ? (
         <>
-          <h3>De otra compañía</h3>
+          <h3>{tx.fromCompany}</h3>
           <div className="choice-grid">
             {others.map((c) => (
               <button key={c.id} aria-pressed={seller === c.id} onClick={() => setSeller(c.id)}>
@@ -513,7 +531,7 @@ function TrainView({ ctx, company, title, back, onClose, run }: ViewProps) {
                   </button>
                 ))}
               </div>
-              <Keypad value={price} onChange={setPrice} game={ctx.game} label="Precio acordado" />
+              <Keypad value={price} onChange={setPrice} game={ctx.game} label={tx.agreedPrice} />
               <button
                 className="primary"
                 disabled={price === null || price < 1 || sellerTrain === null}
@@ -530,7 +548,7 @@ function TrainView({ ctx, company, title, back, onClose, run }: ViewProps) {
                   })
                 }
               >
-                Comprar
+                {tx.buy}
               </button>
             </>
           ) : null}
@@ -545,6 +563,7 @@ function TrainView({ ctx, company, title, back, onClose, run }: ViewProps) {
  * the stack. The president puts in the difference, selling shares first if they need to.
  */
 function ForcedPurchaseCard({ ctx, company, run }: { ctx: ActionContext; company: CompanyId; run: (action: unknown) => Promise<void> }) {
+  const { tx, lang } = useOperateText();
   const [counts, setCounts] = useState<Partial<Record<CompanyId, number>>>({});
   const ref = `company:${company}` as const;
   const president = presidentOf(ctx.state, company);
@@ -554,7 +573,7 @@ function ForcedPurchaseCard({ ctx, company, run }: { ctx: ActionContext; company
   const cost = trainPrice(ctx.game, { trainType: train.type, variant: null, from: "bank", price: null, tradeIn: null }, ctx.state);
   const cash = cashOf(ctx.state, ref);
   if (cash >= cost) return null;
-  const money = (n: number) => formatMoney(n, ctx.game);
+  const money = (n: number) => formatMoney(n, ctx.game, lang);
   const presidentRef = `player:${president}` as const;
   const presidentName = ctx.players.find((p) => p.id === president)?.name ?? president;
   const presidentCash = cashOf(ctx.state, presidentRef);
@@ -573,15 +592,15 @@ function ForcedPurchaseCard({ ctx, company, run }: { ctx: ActionContext; company
   const missing = shortfall - (presidentCash + proceeds);
   const setCount = (id: CompanyId, count: number) => setCounts((all) => ({ ...all, [id]: count }));
   return (
-    <fieldset className="forced-purchase stack" aria-label="Compra forzada">
-      <legend>Compra forzada</legend>
+    <fieldset className="forced-purchase stack" aria-label={tx.forced}>
+      <legend>{tx.forced}</legend>
       <p>
-        {presidentName} (presidente) pone {money(shortfall)} · tiene {money(presidentCash)}
-        {proceeds > 0 ? <> + {money(proceeds)} por ventas</> : null}
-        {missing > 0 ? <span className="toast-warning"> · le faltan {money(missing)}</span> : null}
+        {tx.forcedPuts(presidentName, money(shortfall), money(presidentCash))}
+        {proceeds > 0 ? tx.forcedProceeds(money(proceeds)) : null}
+        {missing > 0 ? <span className="toast-warning">{tx.forcedMissing(money(missing))}</span> : null}
       </p>
       {holdings.length > 0 ? (
-        <ul className="forced-sales stack" aria-label={`Acciones de ${presidentName}`}>
+        <ul className="forced-sales stack" aria-label={tx.sharesOf(presidentName)}>
           {holdings.map((h) => {
             const count = counts[h.company.id] ?? 0;
             return (
@@ -590,17 +609,17 @@ function ForcedPurchaseCard({ ctx, company, run }: { ctx: ActionContext; company
                   <CompanyBadge company={h.company} size="sm" /> {(h.units * 100) / h.company.shareCount}% · {money(h.price)}
                 </span>
                 <button
-                  aria-label={`Vender una ${h.company.shortName} menos`}
+                  aria-label={tx.sellOneLess(h.company.shortName)}
                   disabled={count === 0}
                   onClick={() => setCount(h.company.id, count - 1)}
                 >
                   −
                 </button>
-                <span className="money stepper-value" aria-label={`${h.company.shortName} a vender`}>
+                <span className="money stepper-value" aria-label={tx.toSell(h.company.shortName)}>
                   {count}
                 </span>
                 <button
-                  aria-label={`Vender una ${h.company.shortName} más`}
+                  aria-label={tx.sellOneMore(h.company.shortName)}
                   disabled={count >= h.units}
                   onClick={() => setCount(h.company.id, count + 1)}
                 >
@@ -611,13 +630,13 @@ function ForcedPurchaseCard({ ctx, company, run }: { ctx: ActionContext; company
           })}
         </ul>
       ) : (
-        <p>{presidentName} no tiene acciones para vender.</p>
+        <p>{tx.noSharesToSell(presidentName)}</p>
       )}
       <button
         className="primary"
         onClick={() => void run({ type: "forcedTrainPurchase", company, trainType: train.type, variant: null, from: "bank", sales })}
       >
-        Comprar el {top?.displayName ?? train.type} · {money(cost)}
+        {tx.buyThe(top?.displayName ?? train.type, money(cost))}
       </button>
     </fieldset>
   );
@@ -631,21 +650,22 @@ function AmountView({
   onClose,
   run,
 }: Omit<ViewProps, "ctx"> & { kind: "cost" | "bonus" }) {
+  const { tx, lang } = useOperateText();
   const { meta } = useSession();
   const [amount, setAmount] = useState<number | null>(null);
   const [reason, setReason] = useState("");
   const isCost = kind === "cost";
   return (
-    <Sheet title={<>{isCost ? "Pagar costo" : "Cobro del banco"} · {title}</>} onClose={onClose}>
+    <Sheet title={<>{isCost ? tx.payCost : tx.bankPays} · {title}</>} onClose={onClose}>
       {back}
       <Keypad value={amount} onChange={setAmount} game={meta.game} />
       <label className="field-row">
-        <span className="label">Motivo</span>
-        <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={isCost ? "opcional" : "obligatorio"} />
+        <span className="label">{tx.reason}</span>
+        <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder={isCost ? tx.optional : tx.required} />
       </label>
       {isCost ? (
         <div className="row">
-          {COST_REASONS.map((r) => (
+          {tx.costReasons.map((r) => (
             <button key={r} aria-pressed={reason === r} onClick={() => setReason(r)}>
               {r}
             </button>
@@ -663,17 +683,17 @@ function AmountView({
           )
         }
       >
-        {isCost ? "Pagar" : "Cobrar"} {amount !== null ? formatMoney(amount, meta.game) : ""}
+        {isCost ? tx.pay : tx.collect} {amount !== null ? formatMoney(amount, meta.game, lang) : ""}
       </button>
     </Sheet>
   );
 }
 
 /** "Montaña (−40 / +60)", "Ficha extra (−40)", "Sede (+…)": the label of a company ability's money. */
-function paymentLabel(p: NamedPayment): string {
-  if (p.cost) return `${p.labelEs} (−${p.cost} / +${p.amount})`;
-  if (p.amount === 0) return `${p.labelEs} (${p.direction === "bankPays" ? "+" : "−"}…)`;
-  return `${p.labelEs} (${p.direction === "bankPays" ? "+" : "−"}${p.amount})`;
+function paymentLabel(p: NamedPayment, name: string): string {
+  if (p.cost) return `${name} (−${p.cost} / +${p.amount})`;
+  if (p.amount === 0) return `${name} (${p.direction === "bankPays" ? "+" : "−"}…)`;
+  return `${name} (${p.direction === "bankPays" ? "+" : "−"}${p.amount})`;
 }
 
 /**
@@ -692,9 +712,11 @@ function AbilityChips({
   run: (action: unknown) => Promise<void>;
   onAmount: (payment: string) => void;
 }) {
+  const reasonText = useMessageText();
+  const { tx, lang } = useOperateText();
   const chips: { key: string; label: string; action: { type: ActionType } & Record<string, unknown> }[] = [];
-  if (offers(ctx, "issueShares")) chips.push({ key: "issue", label: "Emitir", action: { type: "issueShares", company, count: 1 } });
-  if (offers(ctx, "redeemShare")) chips.push({ key: "redeem", label: "Recomprar", action: { type: "redeemShare", company, count: null } });
+  if (offers(ctx, "issueShares")) chips.push({ key: "issue", label: tx.issue, action: { type: "issueShares", company, count: 1 } });
+  if (offers(ctx, "redeemShare")) chips.push({ key: "redeem", label: tx.redeem, action: { type: "redeemShare", company, count: null } });
   const payments = effectiveTraits(ctx.game, ctx.state, company).payments ?? [];
   if (chips.length === 0 && payments.length === 0) return null;
   return (
@@ -702,9 +724,9 @@ function AbilityChips({
       {chips.map((c) => {
         const ok = availabilityOf(ctx, c.action.type, c.action as never);
         return (
-          <button key={c.key} disabled={!ok.ok} title={ok.ok ? undefined : ok.reasonEs} onClick={() => void run(c.action)}>
+          <button key={c.key} disabled={!ok.ok} title={ok.ok ? undefined : reasonText(ok.reason)} onClick={() => void run(c.action)}>
             {c.label}
-            {ok.ok ? null : <span className="muted reason"> · {ok.reasonEs}</span>}
+            {ok.ok ? null : <span className="muted reason"> · {reasonText(ok.reason)}</span>}
           </button>
         );
       })}
@@ -713,7 +735,7 @@ function AbilityChips({
           key={p.id}
           onClick={() => (p.amount === 0 ? onAmount(p.id) : void run({ type: "namedPayment", company, payment: p.id, amount: null }))}
         >
-          {paymentLabel(p)}
+          {paymentLabel(p, gameText(ctx.game, lang).payment(p.id, p.labelEs))}
         </button>
       ))}
     </div>
@@ -736,18 +758,19 @@ function LandmarkChips({
   run: (action: unknown) => Promise<void>;
   onCliff: () => void;
 }) {
+  const { tx } = useOperateText();
   if (!offers(ctx, "rockFormation")) return null;
   const ref = `company:${company}` as const;
   const used = (key: string) => counterOf(ctx.state, ref, key) > 0;
   const chips = [
-    { key: "rock", label: "Formación rocosa (+2)", used: used(ROCK), act: () => void run({ type: "rockFormation", company }) },
+    { key: "rock", label: tx.rock, used: used(ROCK), act: () => void run({ type: "rockFormation", company }) },
     {
       key: "cliff",
-      label: "Acantilado",
+      label: tx.cliff,
       used: used(cliffKeyFor(ctx.state.turn)),
       act: onCliff,
     },
-    { key: "canyon", label: "Cañón", used: used(CANYON), act: () => void run({ type: "canyonTrain", company }) },
+    { key: "canyon", label: tx.canyon, used: used(CANYON), act: () => void run({ type: "canyonTrain", company }) },
   ];
   return (
     <div className="row ability-chips">
@@ -765,7 +788,7 @@ function LandmarkChips({
           }}
         >
           {c.label}
-          {c.used ? " · Ya usada" : ""}
+          {c.used ? tx.alreadyUsed : ""}
         </button>
       ))}
     </div>
@@ -774,11 +797,12 @@ function LandmarkChips({
 
 /** A named payment whose amount is entered at use (Sede: half the city's printed value). */
 function PaymentView({ ctx, company, payment, title, back, onClose, run }: ViewProps & { payment: string }) {
+  const { tx, lang } = useOperateText();
   const [amount, setAmount] = useState<number | null>(null);
   const def = effectiveTraits(ctx.game, ctx.state, company).payments?.find((p) => p.id === payment);
   const bankPays = def?.direction !== "companyPays";
   return (
-    <Sheet title={<>{def?.labelEs ?? payment} · {title}</>} onClose={onClose}>
+    <Sheet title={<>{gameText(ctx.game, lang).payment(payment, def?.labelEs)} · {title}</>} onClose={onClose}>
       {back}
       <Keypad value={amount} onChange={setAmount} game={ctx.game} />
       <button
@@ -786,13 +810,14 @@ function PaymentView({ ctx, company, payment, title, back, onClose, run }: ViewP
         disabled={amount === null || amount <= 0}
         onClick={() => void run({ type: "namedPayment", company, payment, amount })}
       >
-        {bankPays ? "Cobrar" : "Pagar"} {amount !== null ? formatMoney(amount, ctx.game) : ""}
+        {bankPays ? tx.collect : tx.pay} {amount !== null ? formatMoney(amount, ctx.game, lang) : ""}
       </button>
     </Sheet>
   );
 }
 
 function PrivateView({ ctx, company, title, back, onClose, run }: ViewProps) {
+  const { tx, lang } = useOperateText();
   const [chosen, setChosen] = useState<string | null>(null);
   const [price, setPrice] = useState<number | null>(null);
   const choices = ctx.game.privates.filter((p) => {
@@ -800,24 +825,24 @@ function PrivateView({ ctx, company, title, back, onClose, run }: ViewProps) {
     return holder !== undefined && holder !== "removed" && holder !== `company:${company}`;
   });
   return (
-    <Sheet title={<>Comprar privada · {title}</>} onClose={onClose}>
+    <Sheet title={<>{tx.buyPrivate} · {title}</>} onClose={onClose}>
       {back}
       <div className="choice-grid">
         {choices.map((p) => (
           <button key={p.id} aria-pressed={chosen === p.id} onClick={() => setChosen(p.id)}>
-            {p.name} ({formatMoney(p.cost, ctx.game)})
+            {p.name} ({formatMoney(p.cost, ctx.game, lang)})
           </button>
         ))}
       </div>
       {chosen ? (
         <>
-          <Keypad value={price} onChange={setPrice} game={ctx.game} label="Precio" />
+          <Keypad value={price} onChange={setPrice} game={ctx.game} label={tx.price} />
           <button
             className="primary"
             disabled={price === null || price <= 0}
             onClick={() => void run({ type: "buyPrivateByCompany", company, private: chosen, price })}
           >
-            Comprar {price !== null ? formatMoney(price, ctx.game) : ""}
+            {tx.buy} {price !== null ? formatMoney(price, ctx.game, lang) : ""}
           </button>
         </>
       ) : null}
@@ -826,23 +851,24 @@ function PrivateView({ ctx, company, title, back, onClose, run }: ViewProps) {
 }
 
 function LoanView({ ctx, company, title, back, onClose, run }: ViewProps) {
+  const { tx, lang } = useOperateText();
   const [count, setCount] = useState(1);
   const amount = ctx.game.loans?.amount ?? 0;
   return (
-    <Sheet title={<>Préstamo · {title}</>} onClose={onClose}>
+    <Sheet title={<>{tx.loan} · {title}</>} onClose={onClose}>
       {back}
-      <p className="muted">Sin intereses y sin devolución.</p>
+      <p className="muted">{tx.loanNote}</p>
       <div className="row">
-        <button aria-label="Menos" onClick={() => setCount((n) => Math.max(1, n - 1))}>
+        <button aria-label={tx.less} onClick={() => setCount((n) => Math.max(1, n - 1))}>
           −
         </button>
         <span className="money stepper-value">{count}</span>
-        <button aria-label="Más" onClick={() => setCount((n) => n + 1)}>
+        <button aria-label={tx.more} onClick={() => setCount((n) => n + 1)}>
           +
         </button>
       </div>
       <button className="primary" onClick={() => void run({ type: "takeLoan", company, count })}>
-        Pedir {count} ({formatMoney(count * amount, ctx.game)})
+        {tx.takeLoans(count, formatMoney(count * amount, ctx.game, lang))}
       </button>
     </Sheet>
   );

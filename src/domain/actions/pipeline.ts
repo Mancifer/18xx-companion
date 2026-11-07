@@ -1,3 +1,4 @@
+import type { Message } from "../../i18n/contract/domain";
 import type { PrimitiveEvent } from "../events/types";
 import { touchesOf } from "../ledger/entries";
 import { availabilityOf } from "./availability";
@@ -18,7 +19,7 @@ export type PipelineResult =
       readonly touches: readonly string[];
     }
   | { readonly kind: "invalid"; readonly issues: readonly string[] }
-  | { readonly kind: "unavailable"; readonly reasonEs: string };
+  | { readonly kind: "unavailable"; readonly reason: Message };
 
 /**
  * The one path for touch and voice (constitution V):
@@ -36,7 +37,7 @@ export function runPipeline(ctx: ActionContext, input: unknown): PipelineResult 
   const unknown = referenceIssues(ctx, action);
   if (unknown.length > 0) return { kind: "invalid", issues: unknown };
   const availability = availabilityOf(ctx, action.type, action);
-  if (!availability.ok) return { kind: "unavailable", reasonEs: availability.reasonEs };
+  if (!availability.ok) return { kind: "unavailable", reason: availability.reason };
 
   const warnings = validateAction(ctx, action);
   const events = expandAction(ctx, action);

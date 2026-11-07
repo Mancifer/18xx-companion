@@ -1,4 +1,5 @@
 import { useDispatch, useSession } from "../../app/useSession";
+import { useText } from "../../app/language";
 import { availabilityOf } from "../../domain/actions/availability";
 import type { PlayerId } from "../../domain/types";
 import { CompanyBadge } from "../components/CompanyBadge";
@@ -7,6 +8,7 @@ import { Sheet } from "../components/Sheet";
 /** privateGrants exchanges (1830 MH for a NYC share, 21Moon P6 for any pool share), closing the private. */
 export function ExchangeSheet({ player, onClose }: { player: PlayerId; onClose: () => void }) {
   const { meta, state } = useSession();
+  const t = useText().sheets.exchange;
   const { dispatch } = useDispatch();
   const ctx = { game: meta.game, players: meta.players, state };
   const owned = meta.game.privates.filter((p) => p.exchange && state.assets[`private:${p.id}`] === `player:${player}`);
@@ -30,7 +32,7 @@ export function ExchangeSheet({ player, onClose }: { player: PlayerId; onClose: 
   });
 
   return (
-    <Sheet title="Canjear privada" onClose={onClose}>
+    <Sheet title={t.title} onClose={onClose}>
       <div className="choice-grid">
         {options
           .filter((o) => o.ok)
@@ -45,12 +47,12 @@ export function ExchangeSheet({ player, onClose }: { player: PlayerId; onClose: 
                   })
                 }
               >
-                {o.p.name} → {company ? <CompanyBadge company={company} size="sm" /> : o.company} {o.source === "ipo" ? "de la IPO" : "del pool"}
+                {o.p.name} → {company ? <CompanyBadge company={company} size="sm" /> : o.company} {o.source === "ipo" ? t.fromIpo : t.fromPool}
               </button>
             );
           })}
       </div>
-      {options.every((o) => !o.ok) ? <p className="muted">No hay acciones disponibles para canjear.</p> : null}
+      {options.every((o) => !o.ok) ? <p className="muted">{t.none}</p> : null}
     </Sheet>
   );
 }

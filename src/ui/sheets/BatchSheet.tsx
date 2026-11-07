@@ -1,11 +1,13 @@
+import { textMessage } from "../../i18n/render";
+import { useMessageText } from "../useMessage";
 import { useState } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
 import { availabilityOf } from "../../domain/actions/availability";
 import type { ActionContext } from "../../domain/actions/context";
 import { batchItemPrices } from "../../domain/actions/expand/stock";
 import type { ActionOf } from "../../domain/actions/schemas";
-import { summaryEs } from "../../domain/i18n/es";
-import { formatMoney } from "../../domain/i18n/format";
+import { useDomainText, useLang, useText } from "../../app/language";
+import { formatMoney } from "../../i18n/format";
 import { parPricesFor } from "../../domain/mechanics/market";
 import type { CompanyId } from "../../domain/types";
 import { CompanyBadge } from "../components/CompanyBadge";
@@ -16,18 +18,22 @@ import { Sheet } from "../components/Sheet";
 type Item = ActionOf<"stockBatch">["items"][number];
 type Kind = "buyIpo" | "buyPool" | "sell" | "par";
 
-const KIND_LABEL: Readonly<Record<Kind, string>> = {
-  buyIpo: "Compra IPO",
-  buyPool: "Compra pool",
-  sell: "Venta",
-  par: "Apertura",
-};
+const KINDS: readonly Kind[] = ["buyIpo", "buyPool", "sell", "par"];
 
 /**
  * Batch entry (FR-042, US4-5): rows in the order they happened, each with the price assumed at
  * that point (editable), shown on one card and recorded as one group.
  */
+/** An empty batch can't be confirmed, and shows no reason (the warning line needs items). */
+const AVAILABLE_EMPTY = { ok: false, reason: textMessage("") } as const;
+
 export function BatchSheet({ onClose }: { onClose: () => void }) {
+  const reasonText = useMessageText();
+  const text = useText();
+  const t = text.sheets.batch;
+  const stockText = text.sheets.stock;
+  const dt = useDomainText();
+  const { lang } = useLang();
   const { meta, state } = useSession();
   const { dispatch } = useDispatch();
   const [items, setItems] = useState<Item[]>([]);
@@ -38,7 +44,7 @@ export function BatchSheet({ onClose }: { onClose: () => void }) {
   const prices = batchItemPrices(ctx, items, assumed);
   const summaryCtx = { game: meta.game, players: meta.players, state, marks: true as const };
   const batch = { type: "stockBatch", items, assumedPrices: assumed } as const;
-  const ok = items.length > 0 ? availabilityOf(ctx, "stockBatch", batch as never) : { ok: false as const, reasonEs: "" };
+  const ok = items.length > 0 ? availabilityOf(ctx, "stockBatch", batch as never) : AVAILABLE_EMPTY;
 
   if (editing !== null) {
     return (
@@ -74,7 +80,7 @@ export function BatchSheet({ onClose }: { onClose: () => void }) {
       setDraft(null);
     };
     return (
-      <Sheet title={KIND_LABEL[draft.kind]} onClose={() => setDraft(null)}>
+      <Sheet title={t.kinds[draft.kind]} onClose={() => setDraft(null)}>
         <div className="choice-grid">
           {meta.players.map((p) => (
             <button key={p.id} aria-pressed={draft.player === p.id} onClick={() => setDraft({ ...draft, player: p.id })}>
@@ -93,42 +99,42 @@ export function BatchSheet({ onClose }: { onClose: () => void }) {
           <div className="choice-grid">
             {parPricesFor(meta.game, draft.company).map((p) => (
               <button key={p} aria-pressed={draft.par === p} onClick={() => setDraft({ ...draft, par: p })}>
-                {formatMoney(p, meta.game)}
+                {formatMoney(p, meta.game, lang)}
               </button>
             ))}
           </div>
         ) : draft.kind !== "par" ? (
           <div className="row">
-            <button aria-label="Menos" onClick={() => setDraft({ ...draft, count: Math.max(1, draft.count - 1) })}>
+            <button aria-label={stockText.less} onClick={() => setDraft({ ...draft, count: Math.max(1, draft.count - 1) })}>
               −
             </button>
             <span className="money stepper-value">{draft.count}</span>
-            <button aria-label="Más" onClick={() => setDraft({ ...draft, count: draft.count + 1 })}>
+            <button aria-label={stockText.more} onClick={() => setDraft({ ...draft, count: draft.count + 1 })}>
               +
             </button>
           </div>
         ) : null}
         <button className="primary" disabled={!complete} onClick={add}>
-          Añadir fila
+          {t.addRow}
         </button>
       </Sheet>
     );
   }
 
   return (
-    <Sheet title="Lote de acciones" onClose={onClose}>
+    <Sheet title={t.title} onClose={onClose}>
       <ol className="batch-rows">
         {items.map((item, i) => (
           <li key={i} className="batch-row">
             <span>
-              <RichText text={summaryEs(item, summaryCtx)} />
+              <RichText text={dt.summary(item, summaryCtx)} />
             </span>
-            <button className="money" aria-label={`Precio de la fila ${i + 1}`} onClick={() => setEditing(i)}>
-              {prices[i] !== undefined ? formatMoney(prices[i], meta.game) : "—"}
+            <button className="money" aria-label={t.rowPrice(i + 1)} onClick={() => setEditing(i)}>
+              {prices[i] !== undefined ? formatMoney(prices[i], meta.game, lang) : "—"}
               {assumed[i] !== null && assumed[i] !== undefined ? " ✎" : ""}
             </button>
             <button
-              aria-label={`Quitar la fila ${i + 1}`}
+              aria-label={t.removeRow(i + 1)}
               onClick={() => {
                 setItems((xs) => xs.filter((_, j) => j !== i));
                 setAssumed((xs) => xs.filter((_, j) => j !== i));
@@ -140,13 +146,13 @@ export function BatchSheet({ onClose }: { onClose: () => void }) {
         ))}
       </ol>
       <div className="choice-grid">
-        {(Object.keys(KIND_LABEL) as Kind[]).map((kind) => (
+        {KINDS.map((kind) => (
           <button key={kind} onClick={() => setDraft({ kind, player: null, company: null, count: 1, par: null })}>
-            + {KIND_LABEL[kind]}
+            + {t.kinds[kind]}
           </button>
         ))}
       </div>
-      {!ok.ok && items.length > 0 ? <p className="toast-warning">{ok.reasonEs}</p> : null}
+      {!ok.ok && items.length > 0 ? <p className="toast-warning">{reasonText(ok.reason)}</p> : null}
       <button
         className="primary big"
         disabled={!ok.ok}
@@ -156,7 +162,7 @@ export function BatchSheet({ onClose }: { onClose: () => void }) {
           })
         }
       >
-        Anotar el lote ({items.length})
+        {t.record(items.length)}
       </button>
     </Sheet>
   );
@@ -164,15 +170,16 @@ export function BatchSheet({ onClose }: { onClose: () => void }) {
 
 function PriceEditor({ value, onDone, onClose }: { value: number | null; onDone: (v: number | null) => void; onClose: () => void }) {
   const { meta } = useSession();
+  const t = useText().sheets.batch;
   const [price, setPrice] = useState<number | null>(value);
   return (
-    <Sheet title="Precio supuesto" onClose={onClose}>
-      <Keypad value={price} onChange={setPrice} game={meta.game} label="Precio" />
+    <Sheet title={t.assumedPrice} onClose={onClose}>
+      <Keypad value={price} onChange={setPrice} game={meta.game} label={t.price} />
       <div className="row">
-        <button onClick={() => onDone(null)}>Precio del momento</button>
+        <button onClick={() => onDone(null)}>{t.currentPrice}</button>
         <span className="spacer" />
         <button className="primary" disabled={price === null || price <= 0} onClick={() => onDone(price)}>
-          Listo
+          {t.done}
         </button>
       </div>
     </Sheet>

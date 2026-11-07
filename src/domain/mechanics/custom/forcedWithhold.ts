@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { message } from "../../../i18n/contract/domain";
 import type { Mechanic } from "./mechanic";
 
 /**
@@ -11,7 +12,7 @@ export const forcedWithhold: Mechanic<Record<string, never>> = {
   hooks: {
     forceWithhold: (ctx, company) =>
       ctx.state.companies[company]?.status === "receivership"
-        ? "En administración: retiene todos los ingresos."
+        ? message("forcedWithhold", {})
         : undefined,
   },
 };

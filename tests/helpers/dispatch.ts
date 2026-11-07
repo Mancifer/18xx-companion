@@ -1,3 +1,4 @@
+import { renderMessage } from "../../src/i18n/render";
 import { runPipeline } from "../../src/domain/actions/pipeline";
 import { reduceAll } from "../../src/domain/events/reduce";
 import { initialState, type SessionState } from "../../src/domain/events/state";
@@ -37,7 +38,7 @@ export class TestSession {
     const result = runPipeline({ game: this.game, players: this.players, state: this.state }, action);
     if (result.kind !== "ok") {
       throw new Error(
-        `${(action as { type?: string }).type ?? "?"}: ${result.kind === "invalid" ? result.issues.join("; ") : result.reasonEs}`,
+        `${(action as { type?: string }).type ?? "?"}: ${result.kind === "invalid" ? result.issues.join("; ") : renderMessage(result.reason, this, "es")}`,
       );
     }
     this.lastEvents = result.events;
@@ -56,6 +57,12 @@ export class TestSession {
 
   tryDo(action: unknown) {
     return runPipeline({ game: this.game, players: this.players, state: this.state }, action);
+  }
+
+  /** Feature 014: why the action is refused, in Spanish; undefined when it isn't refused. */
+  reasonEs(action: unknown): string | undefined {
+    const result = this.tryDo(action);
+    return result.kind === "unavailable" ? renderMessage(result.reason, this, "es") : undefined;
   }
 
   violations() {

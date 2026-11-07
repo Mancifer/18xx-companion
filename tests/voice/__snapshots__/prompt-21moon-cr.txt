@@ -23,9 +23,9 @@ Jugadores (id = nombre; alias):
 - p4 = Dani
 
 Compañías (id = nombre; alias):
-- SWP = Suijin Water Plants; suijin, water plants
-- HMQ = Hematite Low-G Mining and Quarry; hematite, hache eme cu
-- VH = Varuna Hydroculture; varuna, uve hache, la uve
+- SWP = Suijin Water Plants; suijin, water plants, s w p
+- HMQ = Hematite Low-G Mining and Quarry; hematite, hache eme cu, h m q
+- VH = Varuna Hydroculture; varuna, uve hache, la uve, v h
 - ITC = International Tritium Consortium; tritium, i te ce
 - SSF = Shamsum Solar Farms; shamsum, solar
 - LG = Lunar Geodynamics; lunar, geodynamics, ele ge

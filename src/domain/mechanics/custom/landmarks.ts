@@ -51,10 +51,10 @@ export const landmarks: Mechanic<Record<string, never>> = {
       available: (ctx, a) => {
         const target = companyTarget(ctx, a?.company);
         if (!target.ok || !a) return target;
-        return priceOf(ctx.game, ctx.state, requireCompany(ctx, a.company)) === undefined ? unavailable("La compañía no está en el mercado") : AVAILABLE;
+        return priceOf(ctx.game, ctx.state, requireCompany(ctx, a.company)) === undefined ? unavailable("landmark.notOnMarket", {}) : AVAILABLE;
       },
       validate: (ctx, a) =>
-        used(ctx, requireCompany(ctx, a.company), ROCK) ? [warning("landmarkUsed", "Esta compañía ya usó la formación rocosa.")] : [],
+        used(ctx, requireCompany(ctx, a.company), ROCK) ? [warning(ctx, "landmarkUsed", { landmark: "rock" })] : [],
       expand: (ctx, a) => {
         const company = requireCompany(ctx, a.company);
         const events: PrimitiveEvent[] = [];
@@ -70,13 +70,13 @@ export const landmarks: Mechanic<Record<string, never>> = {
       available: (ctx, a) => {
         const target = companyTarget(ctx, a?.company);
         if (!target.ok || !a) return target;
-        return ctx.game.trains.some((t) => t.type === typeOf(a.train)) ? AVAILABLE : unavailable(`No hay trenes ${typeOf(a.train)} en este juego`);
+        return ctx.game.trains.some((t) => t.type === typeOf(a.train)) ? AVAILABLE : unavailable("train.unknownType", { type: typeOf(a.train) });
       },
       validate: (ctx, a: ActionOf<"cliffSale">) => {
         const company = requireCompany(ctx, a.company);
         const warnings: Warning[] = [];
-        if (used(ctx, company, cliffKey(ctx))) warnings.push(warning("cliffTwice", "Esta compañía ya usó el acantilado en esta ronda de operaciones."));
-        if (!cliffTrain(ctx, company, a.train)) warnings.push(warning("trainNotOwned", "La compañía no tiene ese tren."));
+        if (used(ctx, company, cliffKey(ctx))) warnings.push(warning(ctx, "cliffTwice", {}));
+        if (!cliffTrain(ctx, company, a.train)) warnings.push(warning(ctx, "trainNotOwned", {}));
         return warnings;
       },
       expand: (ctx, a) => {
@@ -96,15 +96,15 @@ export const landmarks: Mechanic<Record<string, never>> = {
       available: (ctx, a) => {
         const target = companyTarget(ctx, a?.company);
         if (!target.ok || !a) return target;
-        return canyonAsset(ctx) ? AVAILABLE : unavailable("No hay un tren oxidado fuera del juego");
+        return canyonAsset(ctx) ? AVAILABLE : unavailable("landmark.noRustedTrain", {});
       },
       validate: (ctx, a) => {
         const company = requireCompany(ctx, a.company);
         const warnings: Warning[] = [];
-        if (used(ctx, company, CANYON)) warnings.push(warning("landmarkUsed", "Esta compañía ya tiene el tren del cañón."));
+        if (used(ctx, company, CANYON)) warnings.push(warning(ctx, "landmarkUsed", { landmark: "canyon" }));
         const type = canyonType(ctx);
         if (type?.rustsOnPhase && !phaseReached(ctx.game, ctx.state, type.rustsOnPhase)) {
-          warnings.push(warning("canyonEarly", `Los ${type.type} aún no se oxidaron: el cañón da un ${type.type} oxidado.`));
+          warnings.push(warning(ctx, "canyonEarly", { type: type.type }));
         }
         return warnings;
       },

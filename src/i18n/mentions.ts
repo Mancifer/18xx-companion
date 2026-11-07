@@ -1,4 +1,4 @@
-import type { CompanyId } from "../types";
+import type { CompanyId } from "../domain/types";
 
 /**
  * Company mentions inside summary strings (feature 013, data-model.md "Mention"). A marked

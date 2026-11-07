@@ -5,6 +5,9 @@ import { openCompanionDb, type CompanionDb } from "../persistence/db";
 import { GamesRepo } from "../persistence/gamesRepo";
 import { SessionRepo } from "../persistence/sessionRepo";
 import { SettingsRepo } from "../persistence/settingsRepo";
+import type { Message } from "../i18n/contract/domain";
+import { detectLanguage, navigatorLanguages, type Lang } from "../i18n/lang";
+import { LanguageProvider, setDocumentLanguage } from "./language";
 import { SessionStore } from "./SessionStore";
 import { startSession, type NewSessionInput } from "./sessions";
 import { SessionContext } from "./contexts";
@@ -21,7 +24,7 @@ export type FeedbackInput =
   | { readonly kind: "applied"; readonly group: GroupEntry }
   /** The groups an undo undid, newest first, as they applied (feature 010). */
   | { readonly kind: "reverted"; readonly groups: readonly EffectiveGroup[] }
-  | { readonly kind: "error"; readonly messageEs: string };
+  | { readonly kind: "error"; readonly message: Message };
 export type Feedback = FeedbackInput & { readonly id: number };
 
 export interface AppActions {
@@ -66,16 +69,23 @@ export function AppProvider({ children, dbName }: { children: ReactNode; dbName?
   const [error, setError] = useState<string | null>(null);
   const [store, setStore] = useState<SessionStore | null>(null);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  /** Read with the settings before the first render, so the app never flashes another language (R6). */
+  const [initialLang, setInitialLang] = useState<Lang | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     openCompanionDb(dbName)
-      .then((db) => {
+      .then(async (db) => {
+        const settings = new SettingsRepo(db);
+        const saved = await settings.get();
+        const lang = saved.language ?? detectLanguage(navigatorLanguages());
         if (!cancelled) {
+          setDocumentLanguage(lang);
+          setInitialLang(lang);
           setServices({
             db,
             sessions: new SessionRepo(db),
-            settings: new SettingsRepo(db),
+            settings,
             games: new GamesRepo(db),
           });
         }
@@ -121,6 +131,10 @@ export function AppProvider({ children, dbName }: { children: ReactNode; dbName?
   }, [services, store]);
 
   const feedbackValue = useMemo(() => ({ feedback, push, clear }), [feedback, push, clear]);
+  const saveLanguage = useCallback(
+    (patch: { readonly language: Lang }) => (services ? services.settings.set(patch) : Promise.resolve()),
+    [services],
+  );
 
   if (error) {
     return (
@@ -132,15 +146,17 @@ export function AppProvider({ children, dbName }: { children: ReactNode; dbName?
       </main>
     );
   }
-  if (!services || !actions) return null;
+  if (!services || !actions || !initialLang) return null;
 
   return (
-    <ServicesContext.Provider value={services}>
-      <AppActionsContext.Provider value={actions}>
-        <FeedbackContext.Provider value={feedbackValue}>
-          <SessionContext.Provider value={store}>{children}</SessionContext.Provider>
-        </FeedbackContext.Provider>
-      </AppActionsContext.Provider>
-    </ServicesContext.Provider>
+    <LanguageProvider initial={initialLang} save={saveLanguage}>
+      <ServicesContext.Provider value={services}>
+        <AppActionsContext.Provider value={actions}>
+          <FeedbackContext.Provider value={feedbackValue}>
+            <SessionContext.Provider value={store}>{children}</SessionContext.Provider>
+          </FeedbackContext.Provider>
+        </AppActionsContext.Provider>
+      </ServicesContext.Provider>
+    </LanguageProvider>
   );
 }

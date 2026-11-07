@@ -26,7 +26,7 @@ describe("endGame", () => {
     const s = start().do(endGame);
     expect(s.lastEvents).toEqual([{ t: "note", text: "Fin de la partida" }]);
     expect(s.lastWarnings).toEqual([
-      { code: "noEndCondition", messageEs: "Todavía no se cumplió ninguna condición de fin de partida.", severity: "info" },
+      expect.objectContaining({ code: "noEndCondition", messageEs: "Todavía no se cumplió ninguna condición de fin de partida.", severity: "info" }),
     ]);
     expect(s.groups.at(-1)?.action).toEqual({ type: "endGame", triggers: [] });
   });
@@ -71,7 +71,7 @@ describe("reopenGame", () => {
   });
 
   it("while open it is unavailable", () => {
-    expect(start().tryDo(reopen)).toEqual({ kind: "unavailable", reasonEs: "La partida no está terminada" });
+    expect(start().reasonEs(reopen)).toBe("La partida no está terminada");
   });
 
   it("moves no money or shares", () => {

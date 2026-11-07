@@ -1,3 +1,5 @@
+import { message, type Message } from "../i18n/contract/domain";
+import { plainSpanish } from "../i18n/render";
 import { z } from "zod";
 import { ActionSchema, PlayerSchema, WarningSchema } from "../domain/actions/schemas";
 import type { SessionState } from "../domain/events/state";
@@ -129,24 +131,31 @@ export type ParsedImport =
       /** Derived from the replayed log, never read from the file (feature 007, FR-018). */
       readonly outcome: SessionOutcome | null;
       readonly hashMatches: boolean;
+      /** The recorded state doesn't match the replay; `warningEs` is its Spanish text, for logs and tests. */
+      readonly warning?: Message;
       readonly warningEs?: string;
     }
-  | { readonly ok: false; readonly errorEs: string };
+  /** `error` is shown in the display language (feature 014); `errorEs` is for logs and tests. */
+  | { readonly ok: false; readonly error: Message; readonly errorEs: string };
+
+const failure = (error: Message) => ({ ok: false, error, errorEs: plainSpanish(error) }) as const;
 
 /** Brings an older file up to EXPORT_VERSION, before schema validation. */
-export function upgradeExport(json: unknown): { readonly ok: true; readonly data: unknown } | { readonly ok: false; readonly errorEs: string } {
+export function upgradeExport(
+  json: unknown,
+): { readonly ok: true; readonly data: unknown } | { readonly ok: false; readonly error: Message; readonly errorEs: string } {
   if (!json || typeof json !== "object" || (json as { format?: unknown }).format !== EXPORT_FORMAT) {
-    return { ok: false, errorEs: "El archivo no es una partida de 18xx Companion." };
+    return failure(message("import.notCompanion", {}));
   }
   let data = json as Record<string, unknown>;
   const version = typeof data["version"] === "number" ? data["version"] : NaN;
-  if (!Number.isInteger(version) || version < 1) return { ok: false, errorEs: "Versión de archivo desconocida." };
+  if (!Number.isInteger(version) || version < 1) return failure(message("import.unknownVersion", {}));
   if (version > EXPORT_VERSION) {
-    return { ok: false, errorEs: `El archivo es de una versión más nueva de la app (${version}). Actualiza la app.` };
+    return failure(message("import.newerVersion", { version }));
   }
   for (let v = version; v < EXPORT_VERSION; v++) {
     const migrate = migrations[v];
-    if (!migrate) return { ok: false, errorEs: `No se puede convertir un archivo de la versión ${v}.` };
+    if (!migrate) return failure(message("import.cannotConvert", { version: v }));
     data = migrate(data);
   }
   return { ok: true, data };
@@ -158,7 +167,7 @@ export async function parseImport(json: unknown): Promise<ParsedImport> {
   const parsed = SessionExportSchema.safeParse(upgraded.data);
   if (!parsed.success) {
     const first = parsed.error.issues[0];
-    return { ok: false, errorEs: `Archivo dañado: ${first ? `${first.path.join(".")}: ${first.message}` : "formato inválido"}` };
+    return failure(message("import.damaged", { path: first ? first.path.join(".") : "", issue: first ? first.message : "" }));
   }
   const file = parsed.data;
   const replayed = replay(file.session.game, file.session.players, file.entries as LogEntry[]);
@@ -167,20 +176,24 @@ export async function parseImport(json: unknown): Promise<ParsedImport> {
   const hashMatches = (await stateHash(state)) === file.stateHash;
   return hashMatches
     ? { ok: true, file, state, outcome, hashMatches }
-    : { ok: true, file, state, outcome, hashMatches, warningEs: "el estado reproducido no coincide" };
+    : { ok: true, file, state, outcome, hashMatches, warning: message("import.hashMismatch", {}), warningEs: plainSpanish(message("import.hashMismatch", {})) };
 }
 
 /** Writes an imported session: replacing one with the same id, or as a copy with a new id. */
 export async function importSession(
   repo: SessionRepo,
   parsed: Extract<ParsedImport, { ok: true }>,
-  options: { readonly mode: "replace" | "copy" },
+  options: {
+    readonly mode: "replace" | "copy";
+    /** The copy's name in the display language (feature 014); stored as the session's name. */
+    readonly copyName?: (name: string) => string;
+  },
 ): Promise<SessionMeta> {
   const { session, entries } = parsed.file;
   const copy = options.mode === "copy";
   const meta: SessionMeta = {
     id: copy ? crypto.randomUUID() : session.id,
-    name: copy ? `${session.name} (copia)` : session.name,
+    name: copy ? (options.copyName ?? ((n) => `${n} (copia)`))(session.name) : session.name,
     game: session.game,
     options: session.options ?? {},
     players: session.players,

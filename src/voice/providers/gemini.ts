@@ -1,6 +1,6 @@
 import { VoiceProviderError } from "../errors";
 import type { CacheEvent, Interpreter, InterpreterOptions } from "../interpreter";
-import { systemPromptEs } from "../prompt";
+import { systemPrompt } from "../prompt";
 import type { ModelReply, ReplyStop, ToolCall } from "../reply";
 import { buildToolSpecs, toGeminiTools, type VoiceSession } from "../tools";
 
@@ -322,7 +322,7 @@ export function createGeminiInterpreter(apiKey: string, model: string, options: 
     if (session !== lastSession || !stable) {
       lastSession = session;
       stable =
-        `"systemInstruction":${JSON.stringify({ parts: [{ text: systemPromptEs(session) }] })}` +
+        `"systemInstruction":${JSON.stringify({ parts: [{ text: systemPrompt(session) }] })}` +
         `,"tools":${JSON.stringify(toGeminiTools(buildToolSpecs(session)))}` +
         `,"toolConfig":${JSON.stringify({ functionCallingConfig: { mode: TOOL_MODE } })}`;
     }

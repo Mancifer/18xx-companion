@@ -196,16 +196,16 @@ function forcedPurchaseWarnings(ctx: ActionContext, a: ForcedPurchase): Warning[
   const { company, afterSales, short } = forcedPurchasePlan(ctx, a);
   const warnings: Warning[] = [];
   if (trainsHeldBy(ctx.state, `company:${company}`).length > 0) {
-    warnings.push(warning("hasTrain", "La compañía ya tiene un tren: la compra no es forzada."));
+    warnings.push(warning(ctx, "hasTrain", {}));
   }
   for (const sold of [...new Set(a.sales.map((s) => s.company))]) {
     if (sold === company && presidencyChange(ctx.game, ctx.players, afterSales, company).length > 0) {
-      warnings.push(warning("presidencyChange", "Esa venta cambiaría la presidencia de la compañía que compra el tren."));
+      warnings.push(warning(ctx, "presidencyChange", {}));
     }
     warnings.push(...poolWarnings(ctx, afterSales, sold));
   }
   if (short > 0) {
-    warnings.push(warning("presidentShort", "Ni vendiendo le alcanza al presidente: puede declararse en quiebra."));
+    warnings.push(warning(ctx, "presidentShort", {}));
   }
   return warnings;
 }
@@ -221,9 +221,9 @@ export const corporateBankruptcy: Mechanic<CorporateBankruptcyConfig> = {
       available: (ctx, a) => {
         const target = companyTarget(ctx, a?.company);
         if (!target.ok || !a) return target;
-        if (!ctx.game.trains.some((t) => t.type === a.trainType)) return unavailable(`No hay trenes ${a.trainType} en este juego`);
+        if (!ctx.game.trains.some((t) => t.type === a.trainType)) return unavailable("train.unknownType", { type: a.trainType });
         const president = ctx.state.presidency[requireCompany(ctx, a.company)];
-        if (!president || parseHolder(president).kind !== "player") return unavailable("La compañía no tiene presidente");
+        if (!president || parseHolder(president).kind !== "player") return unavailable("company.noPresident", {});
         return AVAILABLE;
       },
       validate: forcedPurchaseWarnings,
@@ -246,14 +246,8 @@ export const corporateBankruptcy: Mechanic<CorporateBankruptcyConfig> = {
         paid > 0 ? [{ t: "moneyTransfer", from: president, to: `company:${company}`, amount: paid }] : [];
       const warnings =
         paid < shortfall
-          ? [
-              {
-                code: "presidentShort",
-                messageEs: "Al presidente no le alcanza: debe vender acciones o declararse en quiebra.",
-                severity: "warn" as const,
-              },
-            ]
-          : [{ code: "forcedPurchase", messageEs: "Compra forzada: el presidente pone la diferencia.", severity: "info" as const }];
+          ? [warning(ctx, "presidentShort", { trigger: 1 })]
+          : [warning(ctx, "forcedPurchase", { difference: 1 }, "info")];
       return { events, warnings };
     },
   },

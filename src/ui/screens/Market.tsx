@@ -1,20 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
 import type { CompanyDef } from "../../domain/games/schema";
-import { formatMoney } from "../../domain/i18n/format";
+import { formatMoney } from "../../i18n/format";
+import { useLang, useText } from "../../app/language";
 import { currentPhase, trainStack } from "../../domain/mechanics/phases";
 import { cellEquals, type CellRef, type CompanyId } from "../../domain/types";
 import { CompanyBadge, CompanyName } from "../components/CompanyBadge";
 import { UndoToast } from "../components/UndoToast";
 import { useNav } from "../nav";
-
-const TAG_LABEL: Readonly<Record<string, string>> = {
-  par: "salida",
-  receivership: "administración",
-  closed: "cerrada",
-  top: "fin",
-  noUp: "techo",
-};
 
 /**
  * The market (FR-052): the grid with each company's token (stacked by arrival), 1-D tracks such
@@ -25,6 +18,10 @@ export function Market() {
   const { meta, state } = useSession();
   const { dispatch } = useDispatch();
   const { go } = useNav();
+  const text = useText();
+  const t = text.market;
+  const { lang } = useLang();
+  const money = (n: number) => formatMoney(n, game, lang);
   const [picked, setPicked] = useState<CompanyId | null>(null);
   const dragging = useRef<CompanyId | null>(null);
   const game = meta.game;
@@ -70,7 +67,7 @@ export function Market() {
     <button
       key={c.id}
       className="market-token"
-      aria-label={`Ficha ${c.shortName}`}
+      aria-label={t.token(c.shortName)}
       aria-pressed={selected === c.id}
       onPointerDown={() => {
         dragging.current = c.id;
@@ -99,7 +96,7 @@ export function Market() {
         if ((e.key === "Enter" || e.key === " ") && selected) place(selected, cell);
       }}
     >
-      <span className="market-price">{price > 0 ? formatMoney(price, game) : extraClass.includes("tag-closed") ? "Cerrada" : ""}</span>
+      <span className="market-price">{price > 0 ? money(price) : extraClass.includes("tag-closed") ? t.closedCell : ""}</span>
       <span className="market-tokens">{tokensAt(cell).map(token)}</span>
     </div>
   );
@@ -112,16 +109,16 @@ export function Market() {
   return (
     <main className="screen">
       <header className="topbar">
-        <button className="ghost" aria-label="Volver" onClick={() => go({ name: "table" })}>
+        <button className="ghost" aria-label={text.common.back} onClick={() => go({ name: "table" })}>
           ←
         </button>
-        <h1 className="topbar-center">Mercado</h1>
+        <h1 className="topbar-center">{t.title}</h1>
       </header>
       <div className="screen-body">
         <p className="muted">
           {selected
-            ? <>Toca la casilla a la que mover <CompanyName game={game} id={selected} />.</>
-            : "Arrastra una ficha, o tócala y después toca una casilla."}
+            ? <>{t.pickCell[0]}<CompanyName game={game} id={selected} />{t.pickCell[1]}</>
+            : t.dragHint}
         </p>
         {game.market.shape === "1d" ? (
           // RotLA (research R1): the one-column track as a strip that wraps on phones, lowest
@@ -135,7 +132,7 @@ export function Market() {
                 const closed = cell.tags?.includes("closed") ?? false;
                 const range = phase?.launchPriceRange;
                 const inRange = range !== undefined && !closed && cell.price >= range[0] && cell.price <= range[1];
-                const label = `Casilla ${closed ? "cerrada" : formatMoney(cell.price, game)} (posición ${position + 1})${inRange ? ", precio de salida" : ""}`;
+                const label = t.stripCell(closed ? (t.tags["closed"] ?? "") : money(cell.price), position + 1, inRange);
                 return cellView(ref, cell.price, `${closed ? "tag-closed" : ""}${inRange ? " launch-range" : ""}`, label);
               })}
           </div>
@@ -147,9 +144,10 @@ export function Market() {
                   const cell = row[c];
                   if (!cell) return <div key={`${r}-${c}`} className="market-gap" aria-hidden="true" />;
                   const tags = cell.tags ?? [];
-                  const classes = [cell.zone ? `zone-${cell.zone}` : "", ...tags.map((t) => `tag-${t}`)].join(" ");
-                  const tagText = tags.map((t) => TAG_LABEL[t] ?? t).join(", ");
-                  const label = `Casilla ${tags.includes("receivership") ? "administración" : tags.includes("closed") ? "cerrada" : formatMoney(cell.price, game)} (fila ${r + 1}, columna ${c + 1})${tagText ? `, ${tagText}` : ""}`;
+                  const classes = [cell.zone ? `zone-${cell.zone}` : "", ...tags.map((tag) => `tag-${tag}`)].join(" ");
+                  const tagText = tags.map((tag) => t.tags[tag] ?? tag).join(", ");
+                  const what = tags.includes("receivership") ? (t.tags["receivership"] ?? "") : tags.includes("closed") ? (t.tags["closed"] ?? "") : money(cell.price);
+                  const label = t.gridCell(what, r + 1, c + 1, tagText);
                   return cellView({ row: r, col: c }, cell.price, classes, label);
                 }),
               )}
@@ -166,15 +164,15 @@ export function Market() {
                     { index },
                     price,
                     index - 1 === track.endGameAtIndex ? "tag-top" : "",
-                    `Casilla ${formatMoney(price, game)} (posición ${index})`,
+                    t.trackCell(money(price), index),
                   ),
                 )}
               </div>
             </div>
           </section>
         ))}
-        <section className="stack" aria-label="Trenes">
-          <h2>Trenes</h2>
+        <section className="stack" aria-label={t.trains}>
+          <h2>{t.trains}</h2>
           <p data-testid="train-stack">
             {trainStack(game, state)
               .map((e) => `${e.displayName}×${e.left}`)
@@ -182,13 +180,13 @@ export function Market() {
           </p>
           {phase?.trainLimitByTier ? (
             <p>
-              Límite: minor {phase.trainLimitByTier.minor ?? phase.trainLimit} · major {phase.trainLimitByTier.major ?? phase.trainLimit}
+              {t.tierLimit(phase.trainLimitByTier.minor ?? phase.trainLimit, phase.trainLimitByTier.major ?? phase.trainLimit)}
             </p>
           ) : null}
         </section>
         {unplaced.length > 0 ? (
           <section className="stack">
-            <h2>Sin ficha en el mercado</h2>
+            <h2>{t.unplaced}</h2>
             <div className="row">{unplaced.map(token)}</div>
           </section>
         ) : null}

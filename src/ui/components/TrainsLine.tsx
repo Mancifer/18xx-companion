@@ -1,5 +1,6 @@
 import { useSession } from "../../app/useSession";
-import { companyTrains, trainsHeadEs } from "../../domain/i18n/es";
+import { useDomainText, useText } from "../../app/language";
+import { companyTrains } from "../../i18n/shared";
 import type { CompanyId } from "../../domain/types";
 import { TrainCards } from "./TrainCards";
 
@@ -9,22 +10,24 @@ import { TrainCards } from "./TrainCards";
  */
 export function TrainsLine({ company, onCorrect }: { company: CompanyId; onCorrect?: (() => void) | undefined }) {
   const { meta, state } = useSession();
+  const t = useText().table.trains;
+  const dt = useDomainText();
   const { cards, count, limit, over } = companyTrains(meta.game, state, company);
   const none = cards.length === 0;
   return (
     <div data-testid="trains-line" className={none || over ? "trains-line warn" : "trains-line"}>
       {none ? (
-        <span>Sin trenes</span>
+        <span>{t.none}</span>
       ) : (
         <>
-          <span>{trainsHeadEs(count, limit)}</span>
+          <span>{dt.trainsHead(count, limit)}</span>
           <TrainCards company={company} />
-          {over ? <span>sobre el límite</span> : null}
+          {over ? <span>{t.overLimit}</span> : null}
         </>
       )}
       {onCorrect ? (
         <button className="ghost" onClick={onCorrect}>
-          Corregir…
+          {t.correct}
         </button>
       ) : null}
     </div>

@@ -2,7 +2,9 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
 import type { Action } from "../../domain/actions/schemas";
 import type { PrimitiveEvent } from "../../domain/events/types";
-import { balanceLineEs, movementLineEs, summaryEs, UNDO_RANGE_ES, type SummaryContext } from "../../domain/i18n/es";
+import { useDomainText, useLang, useText } from "../../app/language";
+import type { SummaryContext } from "../../i18n/contract/domain";
+import { renderWarning } from "../../i18n/render";
 import { entryBreakdown } from "../../domain/ledger/breakdown";
 import { groupHistory, type GroupHistory } from "../../domain/ledger/effectiveLog";
 import type { EntrySource, LogEntry } from "../../domain/ledger/entries";
@@ -14,11 +16,7 @@ import { UndoToast } from "../components/UndoToast";
 import { useNav } from "../nav";
 import { useExportSession } from "../useExport";
 
-const SOURCE_ICON: Readonly<Record<EntrySource, { icon: string; label: string }>> = {
-  touch: { icon: "👆", label: "Toque" },
-  voice: { icon: "🎤", label: "Voz" },
-  system: { icon: "⚙", label: "Sistema" },
-};
+const SOURCE_ICON: Readonly<Record<EntrySource, string>> = { touch: "👆", voice: "🎤", system: "⚙" };
 
 function time(iso: string): string {
   const d = new Date(iso);
@@ -34,6 +32,10 @@ function time(iso: string): string {
  */
 export function History({ extraActions }: { extraActions?: ReactNode }) {
   const { meta, log, violations, autoEndGroups } = useSession();
+  const text = useText();
+  const t = text.history;
+  const dt = useDomainText();
+  const { lang } = useLang();
   const { undoLast, undoTo } = useDispatch();
   const { go } = useNav();
   const exportSession = useExportSession();
@@ -41,7 +43,7 @@ export function History({ extraActions }: { extraActions?: ReactNode }) {
   const history = useMemo(() => groupHistory(log), [log]);
   const byId = useMemo(() => new Map(history.map((h) => [h.group.id, h])), [history]);
   // Round sections, newest first (feature 011, US4); each lists its entries newest first.
-  const sections = useMemo(() => [...roundSections(meta.game, history)].reverse(), [meta.game, history]);
+  const sections = useMemo(() => [...roundSections(meta.game, history, lang)].reverse(), [meta.game, history, lang]);
   const newestId = useMemo(() => newestUndoable(log)?.id, [log]);
   const badGroups = new Set(violations.map((v) => v.firstBadGroupId));
   // Feature 013: company names render as badges.
@@ -55,24 +57,25 @@ export function History({ extraActions }: { extraActions?: ReactNode }) {
   return (
     <main className="screen">
       <header className="topbar">
-        <button className="ghost" aria-label="Volver" onClick={() => go({ name: "table" })}>
+        <button className="ghost" aria-label={text.common.back} onClick={() => go({ name: "table" })}>
           ←
         </button>
-        <h1 className="topbar-center">Historial</h1>
-        <button onClick={() => void exportSession()}>Exportar</button>
+        <h1 className="topbar-center">{t.title}</h1>
+        <button onClick={() => void exportSession()}>{t.export}</button>
         {extraActions}
       </header>
       <div className="screen-body">
         {violations.length > 0 ? (
           <div className="toast-warning" role="alert">
-            ⚠ El dinero o las acciones no cuadran: {violations.map((v) => v.detail).join("; ")}
+            {t.notBalanced}
+            {violations.map((v) => v.detail).join("; ")}
           </div>
         ) : null}
-        {history.length === 0 ? <p className="muted">Todavía no hay entradas.</p> : null}
+        {history.length === 0 ? <p className="muted">{t.empty}</p> : null}
         {sections.map((section) => (
           <section key={`${section.key}@${section.groupIds[0] ?? ""}`} className="round-section" aria-label={section.title}>
             <h2 className="round-header">
-              {section.icon} {section.title} · {section.finished ? "terminada" : "en curso"}
+              {section.icon} {section.title} · {section.finished ? t.finished : t.inProgress}
             </h2>
             <ol className="history-list">
               {[...section.groupIds].reverse().map((id) => {
@@ -85,7 +88,7 @@ export function History({ extraActions }: { extraActions?: ReactNode }) {
                     item={h}
                     bad={badGroups.has(h.group.id)}
                     autoEnd={autoEndGroups.includes(h.group.id)}
-                    summary={(a, events) => summaryEs(a, ctx, events)}
+                    summary={(a, events) => dt.summary(a, ctx, events)}
                     log={log}
                     ctx={ctx}
                     onUndo={h.group.id === newestId ? () => void undoLast() : undefined}
@@ -94,7 +97,10 @@ export function History({ extraActions }: { extraActions?: ReactNode }) {
                 );
               })}
             </ol>
-            <p className="round-start">Inicio · {section.title}</p>
+            <p className="round-start">
+              {t.start}
+              {section.title}
+            </p>
           </section>
         ))}
       </div>
@@ -134,7 +140,11 @@ function HistoryItem({
   onUndoBackTo?: (() => void) | undefined;
 }) {
   const { group, status, versions } = item;
-  const source = SOURCE_ICON[group.source];
+  const text = useText();
+  const t = text.history;
+  const { lang } = useLang();
+  const dt = useDomainText();
+  const source = { icon: SOURCE_ICON[group.source], label: t.sources[group.source] };
   const original = versions[0];
   const latest = versions[versions.length - 1];
   const [open, setOpen] = useState(false);
@@ -147,10 +157,10 @@ function HistoryItem({
               {source.icon}
             </span>
             <span className="muted">{time(group.at)}</span>
-            {status === "reverted" ? <span className="badge">deshecha</span> : null}
-            {status === "amended" ? <span className="badge">corregida</span> : null}
-            {bad ? <span className="badge danger">descuadre desde acá</span> : null}
-            {autoEnd ? <span className="badge">Fin de la partida (automático)</span> : null}
+            {status === "reverted" ? <span className="badge">{t.reverted}</span> : null}
+            {status === "amended" ? <span className="badge">{t.amended}</span> : null}
+            {bad ? <span className="badge danger">{t.badFromHere}</span> : null}
+            {autoEnd ? <span className="badge">{t.autoEnd}</span> : null}
           </div>
           {status === "amended" && original && latest ? (
             <div className="history-summary">
@@ -180,19 +190,19 @@ function HistoryItem({
           {group.transcript ? <p className="muted transcript">«{group.transcript}»</p> : null}
           {group.warnings.map((w) => (
             <p key={w.code} className="toast-warning">
-              ⚠ {w.messageEs}
+              ⚠ {renderWarning(w, ctx, lang)}
             </p>
           ))}
           {onUndoBackTo ? (
             <div className="row">
-              <button onClick={onUndoBackTo}>{UNDO_RANGE_ES.undoBackToHere}</button>
+              <button onClick={onUndoBackTo}>{dt.undoRange.undoBackToHere}</button>
             </div>
           ) : null}
         </div>
       </details>
       {onUndo ? (
         <div className="row">
-          <button onClick={onUndo}>Deshacer</button>
+          <button onClick={onUndo}>{t.undo}</button>
         </div>
       ) : null}
     </li>
@@ -201,27 +211,29 @@ function HistoryItem({
 
 /** "Movimientos" and "Saldos" (feature 010, US3); an empty section is left out. */
 function Breakdown({ log, groupId, ctx }: { log: readonly LogEntry[]; groupId: string; ctx: SummaryContext }) {
+  const t = useText().history;
+  const dt = useDomainText();
   const breakdown = useMemo(() => entryBreakdown(ctx.game, ctx.players, log, groupId), [ctx.game, ctx.players, log, groupId]);
   if (!breakdown) return null;
   const moves = breakdown.movements.flatMap((m, i) => {
-    const line = movementLineEs(m, ctx);
+    const line = dt.movementLine(m, ctx);
     return line ? [<li key={i}><RichText text={line} /></li>] : [];
   });
   return (
     <>
       {moves.length > 0 ? (
         <section className="history-moves">
-          <h3>Movimientos</h3>
+          <h3>{t.movements}</h3>
           <ul>{moves}</ul>
         </section>
       ) : null}
       {breakdown.balances.length > 0 ? (
         <section className="history-balances">
-          <h3>Saldos</h3>
+          <h3>{t.balances}</h3>
           <ul>
             {breakdown.balances.map((b) => (
               <li key={b.holder}>
-                <RichText text={balanceLineEs(b, ctx)} />
+                <RichText text={dt.balanceLine(b, ctx)} />
               </li>
             ))}
           </ul>

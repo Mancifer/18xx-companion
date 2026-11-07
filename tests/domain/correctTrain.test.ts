@@ -1,3 +1,4 @@
+import { renderMessage } from "../../src/i18n/render";
 import { describe, expect, it } from "vitest";
 import { SessionStore } from "../../src/app/SessionStore";
 import { cashOf } from "../../src/domain/events/state";
@@ -44,7 +45,7 @@ function run(s: TestSession, action: unknown): readonly PrimitiveEvent[] {
 
 const reason = (s: TestSession, action: unknown) => {
   const r = s.tryDo(action);
-  return r.kind === "unavailable" ? r.reasonEs : r.kind;
+  return r.kind === "unavailable" ? renderMessage(r.reason, s, "es") : r.kind;
 };
 const codes = (s: TestSession) => s.lastWarnings.map((w) => w.code);
 

@@ -1,4 +1,5 @@
-import { colorNameEs } from "../games/chips";
+import { domainText } from "../../i18n/domainText";
+import type { Lang } from "../../i18n/lang";
 import type { GameDefinition } from "../games/schema";
 import type { ChipSet } from "../types";
 import { boundedFewest } from "./chips";
@@ -252,21 +253,12 @@ export function setupPlan(
   };
 }
 
-/** "verde" → "verdes", "azul" → "azules". */
-const pluralEs = (word: string) => (/[aeiou]$/.test(word) ? `${word}s` : `${word}es`);
-
 /**
  * "Faltan 8 fichas verdes (500), 1 roja (100)" (US5): per value, highest first, with the color's
- * Spanish name, or "de {value}" for a color outside the defaults. null when nothing is missing.
+ * name in `lang`. null when nothing is missing.
  */
-export function missingWarningEs(plan: SetupPlan, chipSet: ChipSet): string | null {
-  if (plan.missing.length === 0) return null;
-  const parts = plan.missing.map(({ value, count }, i) => {
-    const color = chipSet.chips.find((c) => c.value === value)?.color;
-    const name = color === undefined ? undefined : colorNameEs(color);
-    const what = name === undefined ? `de ${value}` : `${count === 1 ? name : pluralEs(name)} (${value})`;
-    const noun = i === 0 ? (count === 1 ? " ficha" : " fichas") : "";
-    return `${count}${noun} ${what}`;
-  });
-  return `Faltan ${parts.join(", ")}`;
+export function missingWarning(plan: SetupPlan, chipSet: ChipSet, lang: Lang): string | null {
+  return domainText(lang).missingChips(
+    plan.missing.map(({ value, count }) => ({ value, count, color: chipSet.chips.find((c) => c.value === value)?.color })),
+  );
 }

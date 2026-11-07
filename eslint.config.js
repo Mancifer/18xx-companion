@@ -44,6 +44,11 @@ export default defineConfig(
               group: ["**/ui/**", "**/voice/**", "**/persistence/**", "**/app/**"],
               message: "src/domain must not import ui, voice, persistence or app.",
             },
+            {
+              // Feature 014 (research R2): the domain reads only its own text from src/i18n.
+              group: ["**/i18n/*/ui", "**/i18n/*/ui/**", "**/i18n/*/voice", "**/i18n/contract/ui", "**/i18n/contract/voice"],
+              message: "src/domain must not import UI or voice text from src/i18n.",
+            },
           ],
         },
       ],

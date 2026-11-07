@@ -1,3 +1,5 @@
+import { message, type Message } from "../i18n/contract/domain";
+import { renderMessage } from "../i18n/render";
 import { runPipeline } from "../domain/actions/pipeline";
 import type { Warning } from "../domain/actions/schemas";
 import type { SessionState } from "../domain/events/state";
@@ -29,13 +31,19 @@ export interface StoreSnapshot {
   readonly autoEndGroups: readonly GroupId[];
 }
 
+/**
+ * A failure. `message` is what the UI shows, in the display language (feature 014); `messageEs`
+ * is the same text in Spanish, for logs and tests only.
+ */
+type Failure<E extends string> = { readonly ok: false; readonly error: E; readonly message: Message; readonly messageEs: string };
+
 export type StoreError =
-  | { readonly ok: false; readonly error: "invalid"; readonly messageEs: string; readonly issues: readonly string[] }
-  | { readonly ok: false; readonly error: "unavailable"; readonly messageEs: string }
-  | { readonly ok: false; readonly error: "persist"; readonly messageEs: string }
-  | { readonly ok: false; readonly error: "notFound"; readonly messageEs: string }
+  | (Failure<"invalid"> & { readonly issues: readonly string[] })
+  | Failure<"unavailable">
+  | Failure<"persist">
+  | Failure<"notFound">
   /** Feature 010 (FR-003): more than one entry would be undone; call again with `confirmed: true`. */
-  | { readonly ok: false; readonly error: "confirmRange"; readonly messageEs: string; readonly range: UndoRange };
+  | (Failure<"confirmRange"> & { readonly range: UndoRange });
 
 export type DispatchResult =
   | { readonly ok: true; readonly group: GroupEntry; readonly warnings: readonly Warning[] }
@@ -113,7 +121,7 @@ export class SessionStore {
   undoLast(): Promise<UndoResult> {
     return this.enqueue(() => {
       const target = newestUndoable(this.snapshot.log);
-      if (!target) return Promise.resolve({ ok: false, error: "notFound", messageEs: "No hay nada que deshacer" } as const);
+      if (!target) return Promise.resolve(this.fail("notFound", message("store.nothingToUndo", {})));
       return this.writeUndo([target]);
     });
   }
@@ -128,7 +136,7 @@ export class SessionStore {
       const range = undoRangeOf(log, groupId);
       if (!range) return Promise.resolve(this.notUndoable(groupId));
       if (range.count > 1 && !options.confirmed) {
-        return Promise.resolve({ ok: false, error: "confirmRange", messageEs: `Se van a deshacer ${range.count} entradas`, range } as const);
+        return Promise.resolve({ ...this.fail("confirmRange", message("store.confirmRange", { count: range.count })), range });
       }
       return this.writeUndo(range.groups);
     });
@@ -144,7 +152,7 @@ export class SessionStore {
       try {
         await this.writer.updateMeta?.(meta.id, patch);
       } catch {
-        return { ok: false, error: "persist", messageEs: "No se pudo guardar. Inténtalo de nuevo." } as const;
+        return this.fail("persist", message("store.persistFailed", {}));
       }
       this.snapshot = { ...this.snapshot, meta: { ...meta, ...patch } };
       for (const listener of this.listeners) listener();
@@ -162,10 +170,10 @@ export class SessionStore {
     const { meta, state, log, gameEnd } = this.snapshot;
     const result = runPipeline({ game: meta.game, players: meta.players, state, gameEnd }, action);
     if (result.kind === "invalid") {
-      return { ok: false, error: "invalid", messageEs: "Acción no válida", issues: result.issues };
+      return { ...this.fail("invalid", message("store.invalidAction", {})), issues: result.issues };
     }
     if (result.kind === "unavailable") {
-      return { ok: false, error: "unavailable", messageEs: result.reasonEs };
+      return this.fail("unavailable", result.reason);
     }
     const seq = nextSeq(log);
     const group: GroupEntry = {
@@ -186,13 +194,19 @@ export class SessionStore {
 
   private notUndoable(groupId: string): StoreError {
     const group = this.snapshot.log.find((e) => e.kind === "group" && e.id === groupId);
-    const messageEs =
+    const why =
       group?.kind !== "group"
-        ? "Esa entrada no existe"
+        ? message("store.noSuchEntry", {})
         : isSetup(group)
-          ? "Esa entrada no se puede deshacer"
-          : "Esa entrada ya está deshecha";
-    return { ok: false, error: "notFound", messageEs };
+          ? message("store.setupNotUndoable", {})
+          : message("store.alreadyUndone", {});
+    return this.fail("notFound", why);
+  }
+
+  /** A failure with its message, and the Spanish text for logs and tests. */
+  private fail<E extends StoreError["error"]>(error: E, why: Message): Failure<E> {
+    const { meta, state } = this.snapshot;
+    return { ok: false, error, message: why, messageEs: renderMessage(why, { game: meta.game, players: meta.players, state }, "es") };
   }
 
   /** One entry per undo intent (R1): `groups` newest first. */
@@ -221,7 +235,7 @@ export class SessionStore {
     try {
       await this.writer.appendEntry(meta.id, entry, metaPatch);
     } catch {
-      return { ok: false, error: "persist", messageEs: "No se pudo guardar. Inténtalo de nuevo." };
+      return this.fail("persist", message("store.persistFailed", {}));
     }
     const nextMeta = { ...meta, ...metaPatch, updatedAt: entry.at, entryCount: meta.entryCount + 1 };
 

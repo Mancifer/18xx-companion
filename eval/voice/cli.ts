@@ -19,6 +19,8 @@ export interface EvalOptions {
   readonly apiKey: string;
   /** --cache on|off (feature 009): passed as options.cache; omitted follows EXPLICIT_CACHE_MODELS. */
   readonly cache?: boolean;
+  /** --lang es|en|all (feature 014): which cases run; default all. */
+  readonly lang: "es" | "en" | "all";
 }
 
 export const KEY_VARIABLES: Readonly<Record<ProviderId, string>> = {
@@ -43,8 +45,11 @@ export function parseEvalArgs(argv: readonly string[], env: Readonly<Record<stri
       rpm: { type: "string" },
       free: { type: "boolean", default: false },
       cache: { type: "string" },
+      lang: { type: "string", default: "all" },
     },
   });
+  if (values.lang !== "es" && values.lang !== "en" && values.lang !== "all") throw new Error(`--lang must be es, en or all, got ${values.lang}`);
+  const lang = values.lang;
   if (values.provider !== undefined && !isProviderId(values.provider)) {
     throw new Error(`--provider must be one of ${PROVIDER_IDS.join(", ")}, got ${values.provider}`);
   }
@@ -73,7 +78,7 @@ export function parseEvalArgs(argv: readonly string[], env: Readonly<Record<stri
   if (!apiKey) throw new Error(`Set ${variable} to run the eval on ${PROVIDERS[provider].label}.`);
 
   const only = values.only?.split(",").map((s) => s.trim()).filter((s) => s !== "");
-  return { provider, model, runs, ...(only ? { only } : {}), ...(rpm !== undefined ? { rpm } : {}), free: values.free, apiKey, ...cache };
+  return { provider, model, runs, lang, ...(only ? { only } : {}), ...(rpm !== undefined ? { rpm } : {}), free: values.free, apiKey, ...cache };
 }
 
 export const MAX_ATTEMPTS = 6;

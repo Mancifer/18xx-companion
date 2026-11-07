@@ -21,10 +21,10 @@ export const corporateRound: Mechanic<Record<string, never>> = {
     validate: (ctx, a) => {
       const warnings: Warning[] = [];
       if (unitsOf(ctx.state, `player:${a.player}`, a.give.company) < a.give.units) {
-        warnings.push(warning("notEnoughShares", "El jugador no tiene esos certificados."));
+        warnings.push(warning(ctx, "notEnoughShares", { side: "player" }));
       }
       if (unitsOf(ctx.state, `company:${a.company}`, a.take.company) < a.take.units) {
-        warnings.push(warning("notEnoughShares", "La tesorería no tiene esos certificados."));
+        warnings.push(warning(ctx, "notEnoughShares", { side: "treasury" }));
       }
       return warnings;
     },
@@ -46,8 +46,8 @@ export const corporateRound: Mechanic<Record<string, never>> = {
     /** Voice only: the CR end step (§10.3), at most once per CR (feature 003). */
     endCR: {
       available: (ctx) => {
-        if (ctx.state.turn.round !== "CR") return unavailable("Solo en la ronda corporativa");
-        if (ctx.state.turn.roundEnded) return unavailable("Ya se aplicó el fin de la ronda corporativa");
+        if (ctx.state.turn.round !== "CR") return unavailable("round.onlyCR", {});
+        if (ctx.state.turn.roundEnded) return unavailable("round.crEnded", {});
         return AVAILABLE;
       },
       expand: (ctx) => roundEndEvents(ctx.game, ctx.state),

@@ -3,6 +3,9 @@
 exports[`recorded Claude responses baseline (T002) > amend 1`] = `
 {
   "kind": "notUnderstood",
+  "reason": {
+    "code": "voice.correctByUndo",
+  },
   "reasonEs": "Para corregir, deshacé hasta esa entrada y volvé a anotarla.",
   "transcript": "orden",
 }
@@ -12,6 +15,9 @@ exports[`recorded Claude responses baseline (T002) > bad-input 1`] = `
 {
   "hint": "runAndPayout",
   "kind": "notUnderstood",
+  "reason": {
+    "code": "voice.incomplete",
+  },
   "reasonEs": "La orden llegó incompleta.",
   "transcript": "orden",
 }
@@ -57,7 +63,6 @@ exports[`recorded Claude responses baseline (T002) > buy-private 1`] = `
     },
   ],
   "kind": "proposal",
-  "summaryEs": "Anabel compra la privada Schuylkill Valley por $20",
   "transcript": "orden",
   "warnings": [],
 }
@@ -220,12 +225,14 @@ exports[`recorded Claude responses baseline (T002) > compound 1`] = `
     },
   ],
   "kind": "proposal",
-  "summaryEs": "PRR compra un 4 al banco; PRR paga $290 ($29/acción) · PRR → $112 · fase 4 · fuera del juego: 6 × 2",
   "transcript": "orden",
   "warnings": [
     {
       "code": "trainOrder",
       "messageEs": "Aún quedan trenes 2 en el banco.",
+      "params": {
+        "type": "2",
+      },
       "severity": "warn",
     },
   ],
@@ -242,6 +249,9 @@ exports[`recorded Claude responses baseline (T002) > confirm 1`] = `
 exports[`recorded Claude responses baseline (T002) > max-tokens 1`] = `
 {
   "kind": "notUnderstood",
+  "reason": {
+    "code": "voice.truncated",
+  },
   "reasonEs": "La respuesta quedó incompleta.",
   "transcript": "orden",
 }
@@ -287,12 +297,15 @@ exports[`recorded Claude responses baseline (T002) > next-company 1`] = `
   ],
   "flows": [],
   "kind": "proposal",
-  "summaryEs": "PRR no corrió · Fin de la OR 1.1 · empieza la OR 1.2 · PRR → $90 · turno de PRR",
   "transcript": "orden",
   "warnings": [
     {
       "code": "noRunRecorded",
       "messageEs": "No se registró la operación de PRR: cuenta como que no corrió y su acción baja.",
+      "params": {
+        "company": "PRR",
+        "ran": 1,
+      },
       "severity": "warn",
     },
   ],
@@ -302,6 +315,9 @@ exports[`recorded Claude responses baseline (T002) > next-company 1`] = `
 exports[`recorded Claude responses baseline (T002) > no-tool 1`] = `
 {
   "kind": "notUnderstood",
+  "reason": {
+    "code": "voice.noOrder",
+  },
   "reasonEs": "No reconocí ninguna orden.",
   "transcript": "orden",
 }
@@ -310,6 +326,12 @@ exports[`recorded Claude responses baseline (T002) > no-tool 1`] = `
 exports[`recorded Claude responses baseline (T002) > not-understood 1`] = `
 {
   "kind": "notUnderstood",
+  "reason": {
+    "code": "_text",
+    "params": {
+      "text": "charla de mesa",
+    },
+  },
   "reasonEs": "charla de mesa",
   "transcript": "orden",
 }
@@ -372,7 +394,6 @@ exports[`recorded Claude responses baseline (T002) > payout 1`] = `
     },
   ],
   "kind": "proposal",
-  "summaryEs": "PRR paga $240 ($24/acción) · PRR → $112",
   "transcript": "orden",
   "warnings": [],
 }
@@ -382,7 +403,10 @@ exports[`recorded Claude responses baseline (T002) > query 1`] = `
 {
   "answer": {
     "kind": "cash",
-    "textEs": "Ana tiene $600",
+    "text": {
+      "en": "Ana has $600",
+      "es": "Ana tiene $600",
+    },
   },
   "kind": "query",
   "transcript": "orden",
@@ -392,6 +416,9 @@ exports[`recorded Claude responses baseline (T002) > query 1`] = `
 exports[`recorded Claude responses baseline (T002) > refusal 1`] = `
 {
   "kind": "notUnderstood",
+  "reason": {
+    "code": "voice.refused",
+  },
   "reasonEs": "La orden fue rechazada.",
   "transcript": "orden",
 }
@@ -408,6 +435,9 @@ exports[`recorded Claude responses baseline (T002) > unknown-entity 1`] = `
 {
   "hint": "runAndPayout",
   "kind": "notUnderstood",
+  "reason": {
+    "code": "voice.unknownEntity",
+  },
   "reasonEs": "La orden nombra algo que no existe.",
   "transcript": "orden",
 }

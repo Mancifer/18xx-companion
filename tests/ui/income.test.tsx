@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { INCOME_ES } from "../../src/domain/i18n/es";
+import { INCOME_ES } from "../../src/i18n/es/domain";
 import { openSeededTable } from "./helpers";
 
 /** Feature 012: the OR income summary (contracts/ui.md). */

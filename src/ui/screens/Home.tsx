@@ -1,3 +1,6 @@
+import { useText } from "../../app/language";
+import type { Message } from "../../i18n/contract/domain";
+import { usePlainMessageText } from "../useMessage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAppActions, useServices } from "../../app/AppProvider";
 import { backfillOutcome, deleteSession } from "../../app/sessions";
@@ -9,11 +12,9 @@ import { exportSessionFile } from "../useExport";
 
 type Ready = Extract<ParsedImport, { ok: true }>;
 
-/** "Ganó Ana", "Ganaron Ana y Bruno", "Ganaron Ana, Bruno y Carla" (feature 007). */
-function winnersEs(meta: SessionMeta, winners: readonly string[]): string {
-  const names = winners.map((id) => meta.players.find((p) => p.id === id)?.name ?? id);
-  if (names.length === 1) return `Ganó ${names[0] ?? ""}`;
-  return `Ganaron ${names.slice(0, -1).join(", ")} y ${names.at(-1) ?? ""}`;
+/** The players who won, by name ("Ganó Ana", "Ana and Bruno won") (features 007, 014). */
+function winnerNames(meta: SessionMeta, winners: readonly string[]): string[] {
+  return winners.map((id) => meta.players.find((p) => p.id === id)?.name ?? id);
 }
 
 /**
@@ -21,12 +22,14 @@ function winnersEs(meta: SessionMeta, winners: readonly string[]): string {
  * delete a past session after a confirmation (feature 006).
  */
 export function Home() {
+  const t = useText();
+  const plainText = usePlainMessageText();
   const { sessions, settings } = useServices();
   const { openSession } = useAppActions();
   const { go } = useNav();
   const [list, setList] = useState<SessionMeta[] | null>(null);
   const [lastId, setLastId] = useState<string | undefined>();
-  const [importError, setImportError] = useState<string | null>(null);
+  const [importError, setImportError] = useState<Message | "notJson" | null>(null);
   const [pending, setPending] = useState<{ parsed: Ready; exists: boolean } | null>(null);
   const [toDelete, setToDelete] = useState<SessionMeta | null>(null);
   const [busy, setBusy] = useState<"export" | "delete" | null>(null);
@@ -83,7 +86,7 @@ export function Home() {
       await deleteSession(sessions, settings, target.id);
       setToDelete(null);
     } catch {
-      setDeleteError("No se pudo eliminar la partida.");
+      setDeleteError(t.home.deleteFailed);
     } finally {
       await reload();
       setBusy(null);
@@ -96,7 +99,7 @@ export function Home() {
     try {
       await exportSessionFile(sessions, target.id);
     } catch {
-      setDeleteError("No se pudo exportar la partida.");
+      setDeleteError(t.home.exportFailed);
     } finally {
       setBusy(null);
     }
@@ -114,12 +117,12 @@ export function Home() {
     try {
       json = JSON.parse(await file.text());
     } catch {
-      setImportError("El archivo no es JSON.");
+      setImportError("notJson");
       return;
     }
     const parsed = await parseImport(json);
     if (!parsed.ok) {
-      setImportError(parsed.errorEs);
+      setImportError(parsed.error);
       return;
     }
     const exists = (await sessions.loadSession(parsed.file.session.id)) !== undefined;
@@ -128,7 +131,7 @@ export function Home() {
 
   const finish = async (mode: "replace" | "copy") => {
     if (!pending) return;
-    const meta = await importSession(sessions, pending.parsed, { mode });
+    const meta = await importSession(sessions, pending.parsed, { mode, copyName: t.home.copyName });
     setPending(null);
     await open(meta.id, isFinished(meta));
   };
@@ -141,20 +144,20 @@ export function Home() {
         <h1>18xx Companion</h1>
         {last ? (
           <button className="primary big" onClick={() => void open(last.id, isFinished(last))}>
-            Continuar · {last.name}
+            {t.home.continue} {last.name}
           </button>
         ) : null}
         <div className="choice-grid">
-          <button onClick={() => go({ name: "newSession" })}>Nueva partida</button>
-          <button onClick={() => go({ name: "customGame" })}>Juego personalizado</button>
-          <button onClick={() => fileInput.current?.click()}>Importar partida</button>
-          <button onClick={() => go({ name: "settings" })}>Ajustes</button>
+          <button onClick={() => go({ name: "newSession" })}>{t.home.newSession}</button>
+          <button onClick={() => go({ name: "customGame" })}>{t.home.customGame}</button>
+          <button onClick={() => fileInput.current?.click()}>{t.home.importSession}</button>
+          <button onClick={() => go({ name: "settings" })}>{t.home.settings}</button>
         </div>
         <input
           ref={fileInput}
           type="file"
           accept="application/json,.json"
-          aria-label="Archivo de partida"
+          aria-label={t.home.fileLabel}
           hidden
           onChange={(e) => {
             const file = e.target.files?.[0];
@@ -164,12 +167,12 @@ export function Home() {
         />
         {importError ? (
           <p className="toast-warning" role="alert">
-            {importError}
+            {importError === "notJson" ? t.home.notJson : plainText(importError)}
           </p>
         ) : null}
         {list && list.length > 0 ? (
           <section className="stack">
-            <h2>Partidas</h2>
+            <h2>{t.home.sessions}</h2>
             <ul className="session-list">
               {list.map((s) => (
                 <li key={s.id}>
@@ -177,15 +180,15 @@ export function Home() {
                     <button className="session-item" onClick={() => void open(s.id, isFinished(s))}>
                       <span>
                         {s.name}
-                        {s.outcome ? <span className="badge ok">Completa</span> : null}
+                        {s.outcome ? <span className="badge ok">{t.home.finished}</span> : null}
                       </span>
-                      {s.outcome?.winners.length ? <span>{winnersEs(s, s.outcome.winners)}</span> : null}
+                      {s.outcome?.winners.length ? <span>{t.home.winners(winnerNames(s, s.outcome.winners))}</span> : null}
                       <span className="muted">
-                        {s.players.map((p) => p.name).join(", ")} · {s.entryCount} entradas
+                        {s.players.map((p) => p.name).join(", ")} · {s.entryCount} {t.home.entries}
                       </span>
                     </button>
-                    <button className="danger" aria-label={`Eliminar partida «${s.name}»`} onClick={() => setToDelete(s)}>
-                      Eliminar
+                    <button className="danger" aria-label={t.home.deleteSession(s.name)} onClick={() => setToDelete(s)}>
+                      {t.home.delete}
                     </button>
                   </div>
                 </li>
@@ -195,32 +198,33 @@ export function Home() {
         ) : null}
       </div>
       {pending ? (
-        <Sheet title={`Importar «${pending.parsed.file.session.name}»`} onClose={() => setPending(null)}>
-          {pending.parsed.warningEs ? (
+        <Sheet title={t.home.importTitle(pending.parsed.file.session.name)} onClose={() => setPending(null)}>
+          {pending.parsed.warning ? (
             <p className="toast-warning" role="alert">
-              ⚠ {pending.parsed.warningEs}. Se importa igualmente: el historial manda.
+              ⚠ {plainText(pending.parsed.warning)}
+              {t.home.importAnyway}
             </p>
           ) : null}
           <p className="muted">
-            {pending.parsed.file.session.game.name} · {pending.parsed.file.entries.length} entradas
+            {pending.parsed.file.session.game.name} · {pending.parsed.file.entries.length} {t.home.entries}
           </p>
-          {pending.exists ? <p>Ya tienes esta partida en el dispositivo.</p> : null}
+          {pending.exists ? <p>{t.home.alreadyHere}</p> : null}
           <div className="row">
-            <button onClick={() => setPending(null)}>Cancelar</button>
+            <button onClick={() => setPending(null)}>{t.common.cancel}</button>
             <span className="spacer" />
-            {pending.exists ? <button onClick={() => void finish("copy")}>Importar como copia</button> : null}
+            {pending.exists ? <button onClick={() => void finish("copy")}>{t.home.importCopy}</button> : null}
             <button className="primary" onClick={() => void finish("replace")}>
-              {pending.exists ? "Reemplazar" : "Importar"}
+              {pending.exists ? t.home.replace : t.home.import}
             </button>
           </div>
         </Sheet>
       ) : null}
       {toDelete ? (
-        <Sheet title={`¿Eliminar «${toDelete.name}»?`} onClose={closeDelete}>
+        <Sheet title={t.home.deleteTitle(toDelete.name)} onClose={closeDelete}>
           <p className="muted">
-            {toDelete.game.name} · {toDelete.players.map((p) => p.name).join(", ")} · {toDelete.entryCount} entradas
+            {toDelete.game.name} · {toDelete.players.map((p) => p.name).join(", ")} · {toDelete.entryCount} {t.home.entries}
           </p>
-          <p>Esta acción no se puede deshacer.</p>
+          <p>{t.home.cannotUndo}</p>
           {deleteError ? (
             <p className="toast-warning" role="alert">
               {deleteError}
@@ -228,14 +232,14 @@ export function Home() {
           ) : null}
           <div className="row">
             <button disabled={busy !== null} onClick={closeDelete}>
-              Cancelar
+              {t.common.cancel}
             </button>
             <span className="spacer" />
             <button disabled={busy !== null} onClick={() => void exportFirst(toDelete)}>
-              Exportar antes
+              {t.home.exportFirst}
             </button>
             <button className="primary danger" disabled={busy !== null} onClick={() => void confirmDelete(toDelete)}>
-              Eliminar
+              {t.home.delete}
             </button>
           </div>
         </Sheet>

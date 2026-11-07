@@ -4,7 +4,7 @@ import { loadFixture } from "../../eval/voice/load";
 import { VoiceProviderError } from "../../src/voice/errors";
 import type { CacheEvent, InterpreterOptions } from "../../src/voice/interpreter";
 import { createGeminiInterpreter, dispose, EXPLICIT_CACHE_MODELS } from "../../src/voice/providers/gemini";
-import { systemPromptEs } from "../../src/voice/prompt";
+import { systemPrompt } from "../../src/voice/prompt";
 import type { ModelReply } from "../../src/voice/reply";
 import { buildToolSpecs, toGeminiTools, type VoiceSession } from "../../src/voice/tools";
 
@@ -262,7 +262,7 @@ describe("009 T009 equivalence (FR-002)", () => {
 describe("009 T010 caching off", () => {
   const OTHER = "gemini-test-model";
   const literal = (s: VoiceSession, message: string) =>
-    `{"systemInstruction":${JSON.stringify({ parts: [{ text: systemPromptEs(s) }] })}` +
+    `{"systemInstruction":${JSON.stringify({ parts: [{ text: systemPrompt(s) }] })}` +
     `,"tools":${JSON.stringify(toGeminiTools(buildToolSpecs(s)))}` +
     `,"toolConfig":{"functionCallingConfig":{"mode":"ANY"}}` +
     `,"contents":${JSON.stringify([{ role: "user", parts: [{ text: message }] }])}` +

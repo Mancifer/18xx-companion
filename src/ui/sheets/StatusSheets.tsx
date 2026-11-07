@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
-import { COUNTER_LABELS } from "../../domain/i18n/es";
-import { formatMoney } from "../../domain/i18n/format";
+import { useDomainText, useLang, useText } from "../../app/language";
+import { formatMoney } from "../../i18n/format";
 import type { HolderRef } from "../../domain/types";
 import { HolderName } from "../components/CompanyBadge";
 import { Keypad } from "../components/Keypad";
@@ -25,13 +25,14 @@ export function ConfirmSheet({
   next?: { readonly label: string; readonly onClick: () => void };
 }) {
   const { dispatch } = useDispatch();
+  const text = useText();
   const [done, setDone] = useState(false);
   if (done && next) {
     return (
       <Sheet title={title} onClose={onClose}>
-        <p>Registrado.</p>
+        <p>{text.sheets.status.recorded}</p>
         <div className="row">
-          <button onClick={onClose}>Seguir jugando</button>
+          <button onClick={onClose}>{text.sheets.status.keepPlaying}</button>
           <span className="spacer" />
           <button className="primary" onClick={next.onClick}>
             {next.label}
@@ -44,7 +45,7 @@ export function ConfirmSheet({
     <Sheet title={title} onClose={onClose}>
       {typeof body === "string" ? <p>{body}</p> : body}
       <div className="row">
-        <button onClick={onClose}>Cancelar</button>
+        <button onClick={onClose}>{text.common.cancel}</button>
         <span className="spacer" />
         <button
           className="primary danger"
@@ -69,26 +70,37 @@ const KEYS = ["debt", "eastWestTokens"] as const;
 export function CounterSheet({ subject, initialKey = "debt", onClose }: { subject: HolderRef; initialKey?: string; onClose: () => void }) {
   const { meta } = useSession();
   const { dispatch } = useDispatch();
+  const t = useText().sheets.status;
+  const dt = useDomainText();
+  const { lang } = useLang();
   const [key, setKey] = useState(initialKey);
   const [amount, setAmount] = useState<number | null>(null);
   const [negative, setNegative] = useState(false);
   const isMoney = key === "debt";
   const delta = (negative ? -1 : 1) * (amount ?? 0);
   return (
-    <Sheet title={<>Ajustar contador · <HolderName holder={subject} game={meta.game} players={meta.players} /></>} onClose={onClose}>
+    <Sheet
+      title={
+        <>
+          {t.counterTitle[0]}
+          <HolderName holder={subject} game={meta.game} players={meta.players} />
+          {t.counterTitle[1]}
+        </>
+      }
+      onClose={onClose}>
       <div className="row">
         {KEYS.map((k) => (
           <button key={k} aria-pressed={key === k} onClick={() => setKey(k)}>
-            {COUNTER_LABELS[k] ?? k}
+            {dt.counterLabels[k] ?? k}
           </button>
         ))}
       </div>
       <div className="row">
         <button aria-pressed={!negative} onClick={() => setNegative(false)}>
-          + Suma
+          {t.add}
         </button>
         <button aria-pressed={negative} onClick={() => setNegative(true)}>
-          − Resta
+          {t.subtract}
         </button>
       </div>
       <Keypad value={amount} onChange={setAmount} game={isMoney ? meta.game : { currency: { symbol: "" } }} />
@@ -101,7 +113,7 @@ export function CounterSheet({ subject, initialKey = "debt", onClose }: { subjec
           })
         }
       >
-        Ajustar {isMoney ? formatMoney(delta, meta.game) : delta}
+        {t.adjust} {isMoney ? formatMoney(delta, meta.game, lang) : delta}
       </button>
     </Sheet>
   );

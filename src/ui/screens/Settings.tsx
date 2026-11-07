@@ -1,21 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServices } from "../../app/AppProvider";
+import { useLang, useText } from "../../app/language";
 import { useHasSession } from "../../app/useSession";
 import { SETTINGS_CHANGED } from "../../app/useVoice";
+import { LANGUAGES, voiceEnabled, type Lang } from "../../i18n/lang";
 import type { Settings as StoredSettings } from "../../persistence/settingsRepo";
 import { PROVIDER_IDS, PROVIDERS, type ProviderId } from "../../voice/providers";
 import { useNav } from "../nav";
-
-const LOCALES: readonly { readonly id: string; readonly label: string }[] = [
-  { id: "es-ES", label: "España" },
-  { id: "es-MX", label: "México" },
-  { id: "es-AR", label: "Argentina" },
-  { id: "es-CO", label: "Colombia" },
-  { id: "es-CL", label: "Chile" },
-  { id: "es-PE", label: "Perú" },
-  { id: "es-UY", label: "Uruguay" },
-  { id: "es-US", label: "Estados Unidos" },
-];
 
 interface Draft {
   provider: ProviderId;
@@ -23,32 +14,50 @@ interface Draft {
   apiKeys: Record<ProviderId, string>;
   models: Record<ProviderId, string>;
   rememberKey: boolean;
+  /** The speech region of the display language (feature 014, FR-014a). */
   voiceLocale: string;
 }
 
 const perProvider = (value: (id: ProviderId) => string) =>
   Object.fromEntries(PROVIDER_IDS.map((id) => [id, value(id)])) as Record<ProviderId, string>;
 
-const draftOf = (s: StoredSettings): Draft => ({
+const draftOf = (s: StoredSettings, lang: Lang): Draft => ({
   provider: s.provider,
   apiKeys: perProvider((id) => s.apiKeys[id] ?? ""),
   models: perProvider((id) => s.models[id]),
   rememberKey: s.rememberKey,
-  voiceLocale: s.voiceLocale,
+  voiceLocale: s.voiceLocales[lang],
 });
 
-/** Provider, per-provider key and model, voice locale (FR-076; feature 005), with the privacy notes. */
+/**
+ * The display language (feature 014, contracts/ui.md), then the provider, per-provider key and
+ * model and the voice region (FR-076; feature 005), with the privacy notes. The language applies
+ * at once and saves on its own; the provider section keeps its draft until "Guardar".
+ */
 export function Settings() {
   const { settings } = useServices();
   const { go } = useNav();
   const hasSession = useHasSession();
+  const text = useText();
+  const t = text.settings;
+  const { lang, setLang } = useLang();
   const [draft, setDraft] = useState<Draft | null>(null);
+  const regionLang = useRef<Lang>(lang);
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    void settings.get().then((s) => setDraft(draftOf(s)));
+    void settings.get().then((s) => setDraft(draftOf(s, lang)));
+    // Loaded once: a language switch must not reset the unsaved fields (FR-003).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings]);
+
+  // A language switch shows that language's saved region; the key and model drafts stay.
+  useEffect(() => {
+    if (regionLang.current === lang) return;
+    regionLang.current = lang;
+    void settings.get().then((s) => setDraft((d) => (d ? { ...d, voiceLocale: s.voiceLocales[lang] } : d)));
+  }, [lang, settings]);
 
   const edit = (patch: Partial<Draft>) => {
     setSaved(false);
@@ -62,47 +71,52 @@ export function Settings() {
       provider: draft.provider,
       rememberKey: draft.rememberKey,
       apiKeys: draft.apiKeys,
-      voiceLocale: draft.voiceLocale,
+      voiceLocales: { [lang]: draft.voiceLocale },
       models: draft.models,
     });
-    setDraft(draftOf(next));
+    setDraft(draftOf(next, lang));
     setSaved(true);
     window.dispatchEvent(new Event(SETTINGS_CHANGED));
   };
 
   const provider = PROVIDERS[draft?.provider ?? "anthropic"];
-  const locales = draft && !LOCALES.some((l) => l.id === draft.voiceLocale)
-    ? [...LOCALES, { id: draft.voiceLocale, label: draft.voiceLocale }]
-    : LOCALES;
+  const regions = Object.entries(t.regions).map(([id, label]) => ({ id, label }));
+  const locales =
+    draft && !regions.some((l) => l.id === draft.voiceLocale) ? [...regions, { id: draft.voiceLocale, label: draft.voiceLocale }] : regions;
 
   return (
     <main className="screen">
       <header className="topbar">
-        <button className="ghost" aria-label="Volver" onClick={() => go({ name: hasSession ? "table" : "home" })}>
+        <button className="ghost" aria-label={text.common.back} onClick={() => go({ name: hasSession ? "table" : "home" })}>
           ←
         </button>
-        <h1 className="topbar-center">Ajustes</h1>
+        <h1 className="topbar-center">{t.title}</h1>
       </header>
       {draft ? (
         <div className="screen-body">
           <section className="stack">
-            <h2>Voz</h2>
+            <h2 id="settings-language">{t.language}</h2>
+            <div className="row segmented" role="radiogroup" aria-labelledby="settings-language">
+              {LANGUAGES.map((l) => (
+                <button key={l.id} role="radio" lang={l.id} aria-checked={lang === l.id} onClick={() => void setLang(l.id)}>
+                  {l.nativeName}
+                </button>
+              ))}
+            </div>
+          </section>
+          <section className="stack">
+            <h2>{t.voice}</h2>
             <span className="label" id="settings-provider">
-              Proveedor
+              {t.provider}
             </span>
             <div className="row segmented" role="radiogroup" aria-labelledby="settings-provider">
               {PROVIDER_IDS.map((id) => (
-                <button
-                  key={id}
-                  role="radio"
-                  aria-checked={draft.provider === id}
-                  onClick={() => edit({ provider: id })}
-                >
+                <button key={id} role="radio" aria-checked={draft.provider === id} onClick={() => edit({ provider: id })}>
                   {PROVIDERS[id].label}
                 </button>
               ))}
             </div>
-            <label htmlFor="settings-key">Clave de {provider.shortLabel}</label>
+            <label htmlFor="settings-key">{t.keyOf(provider.shortLabel)}</label>
             <div className="row">
               <input
                 id="settings-key"
@@ -114,29 +128,31 @@ export function Settings() {
                 value={draft.apiKeys[draft.provider]}
                 onChange={(e) => edit({ apiKeys: { ...draft.apiKeys, [draft.provider]: e.target.value } })}
               />
-              <button onClick={() => setShowKey((v) => !v)}>{showKey ? "Ocultar" : "Mostrar"}</button>
+              <button onClick={() => setShowKey((v) => !v)}>{showKey ? t.hide : t.show}</button>
             </div>
-            <p className="muted">{provider.keyHelpEs}</p>
+            <p className="muted">{t.keyHelp[provider.id]}</p>
             <label className="checkbox">
-              <input
-                type="checkbox"
-                checked={!draft.rememberKey}
-                onChange={(e) => edit({ rememberKey: !e.target.checked })}
-              />
-              No recordar las claves en este dispositivo
+              <input type="checkbox" checked={!draft.rememberKey} onChange={(e) => edit({ rememberKey: !e.target.checked })} />
+              {t.noRemember}
             </label>
+            {voiceEnabled(lang) ? (
+              <label>
+                {t.region}
+                <select value={draft.voiceLocale} onChange={(e) => edit({ voiceLocale: e.target.value })}>
+                  {locales.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.label} ({l.id})
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <p className="muted" role="note">
+                {t.voiceUnavailable}
+              </p>
+            )}
             <label>
-              Variante de español
-              <select value={draft.voiceLocale} onChange={(e) => edit({ voiceLocale: e.target.value })}>
-                {locales.map((l) => (
-                  <option key={l.id} value={l.id}>
-                    {l.label} ({l.id})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Modelo
+              {t.model}
               <input
                 spellCheck={false}
                 placeholder={provider.defaultModel}
@@ -144,28 +160,29 @@ export function Settings() {
                 onChange={(e) => edit({ models: { ...draft.models, [draft.provider]: e.target.value } })}
               />
             </label>
-            {provider.notesEs.map((note) => (
+            {t.notes[provider.id].map((note) => (
               <p key={note} className="muted">
                 {note}
               </p>
             ))}
             <div className="row">
               <button className="primary" onClick={() => void save()}>
-                Guardar
+                {text.common.save}
               </button>
               {saved ? (
                 <span className="muted" role="status">
-                  Guardado
+                  {t.saved}
                 </span>
               ) : null}
             </div>
           </section>
           <section className="stack">
-            <h2>Privacidad</h2>
-            <p className="muted">El audio se procesa en el servicio de voz del navegador.</p>
+            <h2>{t.privacy}</h2>
+            <p className="muted">{t.audio}</p>
             <p className="muted">
-              La transcripción y el estado de la partida se envían a <strong>{provider.label}</strong> para interpretar la
-              orden. Las claves solo se guardan en este dispositivo y nunca se incluyen al exportar una partida.
+              {t.sent[0]}
+              <strong>{provider.label}</strong>
+              {t.sent[1]}
             </p>
           </section>
         </div>

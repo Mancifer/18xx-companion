@@ -4,8 +4,8 @@ import type { PrimitiveEvent } from "../../src/domain/events/types";
 import type { HolderRef } from "../../src/domain/types";
 import { applyOptions, getBuiltInGame } from "../../src/domain/games";
 import type { GameDefinition } from "../../src/domain/games/schema";
-import { balanceLineEs, formatMoney, movementLineEs, summaryEs, trainsLineEs, type SummaryContext } from "../../src/domain/i18n/es";
-import { markMention, stripMentions } from "../../src/domain/i18n/mentions";
+import { balanceLineEs, formatMoney, movementLineEs, summaryEs, trainsLineEs, type SummaryContext } from "../../src/i18n/es/domain";
+import { markMention, stripMentions } from "../../src/i18n/mentions";
 import { trainLimitFor } from "../../src/domain/mechanics/phases";
 import type { Movement } from "../../src/domain/ledger/breakdown";
 import { TestSession, makePlayers } from "../helpers/dispatch";
@@ -389,7 +389,7 @@ describe("one money transfer: the summary carries the amount (feature 010, FR-01
         const [only] = transfers;
         if (transfers.length !== 1 || only?.t !== "moneyTransfer" || PAYOUTS.has(action.type)) continue;
         const summary = summaryEs(action, before, s.lastEvents);
-        if (!summary.includes(formatMoney(only.amount, game))) missing.set(action.type, summary);
+        if (!summary.includes(formatMoney(only.amount, game, "es"))) missing.set(action.type, summary);
       }
     }
     expect(Object.fromEntries(missing)).toEqual({});

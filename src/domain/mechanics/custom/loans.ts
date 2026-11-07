@@ -64,13 +64,13 @@ export const loans: Mechanic<Record<string, never>> = {
     takeLoan: {
       available: (ctx, a) => {
         const def = ctx.game.loans;
-        if (!def) return unavailable("Este juego no tiene préstamos");
+        if (!def) return unavailable("loan.none", {});
         if (!phaseReached(ctx.game, ctx.state, def.availableFromPhase)) {
-          return unavailable(`Los préstamos empiezan en la fase ${def.availableFromPhase}`);
+          return unavailable("loan.notYet", { phase: def.availableFromPhase });
         }
         const target = companyTarget(ctx, a?.company);
         if (!target.ok) return target;
-        if (markersWith(ctx, def.lender as HolderRef).length === 0) return unavailable("No quedan préstamos");
+        if (markersWith(ctx, def.lender as HolderRef).length === 0) return unavailable("loan.noneLeft", {});
         return AVAILABLE;
       },
       validate: (ctx, a) => {
@@ -80,12 +80,10 @@ export const loans: Mechanic<Record<string, never>> = {
         const warnings: Warning[] = [];
         const held = markersWith(ctx, `company:${company}`).length;
         if (held + a.count > def.voluntaryLimit) {
-          warnings.push(
-            warning("loanLimit", `Tendría ${held + a.count} préstamos; el límite voluntario es ${def.voluntaryLimit}.`),
-          );
+          warnings.push(warning(ctx, "loanLimit", { count: held + a.count, limit: def.voluntaryLimit }));
         }
         const left = markersWith(ctx, def.lender as HolderRef).length;
-        if (left < a.count) warnings.push(warning("loanSupply", `Solo quedan ${left} préstamos.`));
+        if (left < a.count) warnings.push(warning(ctx, "loanSupply", { left }));
         warnings.push(...payWarnings(ctx, def.lender as HolderRef, def.amount * Math.min(left, a.count)));
         return warnings;
       },

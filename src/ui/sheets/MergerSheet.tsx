@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
 import type { CompanyId } from "../../domain/types";
-import { formatMoney } from "../../domain/i18n/format";
+import { formatMoney } from "../../i18n/format";
+import { useLang, useText } from "../../app/language";
 import { mergePreview } from "../../domain/mechanics/custom/mergers";
 import { operatingOrder } from "../../domain/mechanics/operatingOrder";
 import { CompanyBadge } from "../components/CompanyBadge";
@@ -15,6 +16,8 @@ import { Sheet } from "../components/Sheet";
 export function MergerSheet({ onClose }: { onClose: () => void }) {
   const { meta, state } = useSession();
   const { dispatch } = useDispatch();
+  const t = useText().sheets.merger;
+  const { lang } = useLang();
   const [minors, setMinors] = useState<CompanyId[]>([]);
   const [into, setInto] = useState<CompanyId | null>(null);
   const [identity, setIdentity] = useState<"primary" | "alt">("primary");
@@ -24,9 +27,9 @@ export function MergerSheet({ onClose }: { onClose: () => void }) {
   const majors = game.companies.filter((c) => c.tier === "major" && state.companies[c.id]?.status === "unstarted");
   const [a, b] = minors;
   const preview = a && b ? mergePreview(game, meta.players, state, a, b) : undefined;
-  const money = (n: number) => formatMoney(n, game);
+  const money = (n: number) => formatMoney(n, game, lang);
   const holderLabel = (h: string) =>
-    h === "treasury" ? "tesorería" : h === "pool" ? "pool" : (meta.players.find((p) => `player:${p.id}` === h)?.name ?? h);
+    h === "treasury" ? t.treasury : h === "pool" ? t.pool : (meta.players.find((p) => `player:${p.id}` === h)?.name ?? h);
 
   const toggleMinor = (id: CompanyId) =>
     setMinors((chosen) => (chosen.includes(id) ? chosen.filter((m) => m !== id) : [...chosen, id].slice(-2)));
@@ -38,8 +41,8 @@ export function MergerSheet({ onClose }: { onClose: () => void }) {
   const major = into ? def(into) : undefined;
 
   return (
-    <Sheet title="Fusionar minors" onClose={onClose}>
-      <div className="choice-grid" role="group" aria-label="Minors">
+    <Sheet title={t.title} onClose={onClose}>
+      <div className="choice-grid" role="group" aria-label={t.minors}>
         {inPlay.map((id) => {
           const c = def(id);
           return c ? (
@@ -49,7 +52,7 @@ export function MergerSheet({ onClose }: { onClose: () => void }) {
           ) : null;
         })}
       </div>
-      <div className="choice-grid" role="group" aria-label="Corporación">
+      <div className="choice-grid" role="group" aria-label={t.corporation}>
         {majors.map((c) => (
           <button
             key={c.id}
@@ -65,7 +68,7 @@ export function MergerSheet({ onClose }: { onClose: () => void }) {
         ))}
       </div>
       {major?.altName ? (
-        <div className="row" role="group" aria-label="Identidad">
+        <div className="row" role="group" aria-label={t.identity}>
           <button aria-pressed={identity === "primary"} onClick={() => setIdentity("primary")}>
             {major.name}
           </button>
@@ -77,21 +80,21 @@ export function MergerSheet({ onClose }: { onClose: () => void }) {
       {preview ? (
         <div className="stack merge-preview" data-testid="merge-preview">
           <p>
-            Presidencia: {meta.players.find((p) => p.id === preview.president)?.name ?? "—"}
-            {preview.tie ? <span className="badge">desempate por orden</span> : null}
+            {t.presidency}
+            {meta.players.find((p) => p.id === preview.president)?.name ?? "—"}
+            {preview.tie ? <span className="badge">{t.tie}</span> : null}
           </p>
           <p>{preview.holdings.map(([h, units]) => `${holderLabel(h)} ${units}`).join(" · ")}</p>
           <p>
-            Precio {money(preview.price)} · Tesorería {money(preview.treasury)} · {preview.trains.length}{" "}
-            {preview.trains.length === 1 ? "tren" : "trenes"}
+            {t.line(money(preview.price), money(preview.treasury), preview.trains.length)}
           </p>
-          {preview.overLimit ? <p className="toast-warning">⚠ Supera el límite de trenes: tendrá que retirar uno.</p> : null}
+          {preview.overLimit ? <p className="toast-warning">{t.overLimit}</p> : null}
         </div>
       ) : (
-        <p className="muted">Elige dos minors.</p>
+        <p className="muted">{t.pickTwo}</p>
       )}
       <button className="primary big" disabled={!a || !b || !into} onClick={() => void merge()}>
-        Fusionar
+        {t.merge}
       </button>
     </Sheet>
   );

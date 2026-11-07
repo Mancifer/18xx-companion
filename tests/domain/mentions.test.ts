@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { markMention, splitMentions, stripMentions } from "../../src/domain/i18n/mentions";
+import { markMention, splitMentions, stripMentions } from "../../src/i18n/mentions";
 
 /** Feature 013: company mentions inside summary strings (data-model.md "Mention"). */
 

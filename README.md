@@ -17,7 +17,7 @@ It handles the bookkeeping that slows games down (bank, player cash, company tre
   <img src="docs/screenshots/history.png" alt="History" width="260">
 </p>
 
-> The interface and voice commands are currently in **Spanish**. Strings live in `src/domain/i18n`.
+> The app is in **English and Spanish**: it follows the device's language and can be switched in Settings. Voice commands follow the display language (English voice is turned on once it passes its evaluation). Text lives in `src/i18n/<language>/`.
 
 ## Features
 
@@ -26,6 +26,7 @@ It handles the bookkeeping that slows games down (bank, player cash, company tre
 - **Operating rounds:** dividends (full payout, withhold, half-pay where the game allows it), stock market price moves with manual override, an income summary at the end of each OR
 - **History:** every change is recorded in an append-only ledger, with undo and a history view that shows where the money went
 - **Voice commands (optional):** hold a button, speak, review the proposed action, confirm with one tap
+- **Two languages:** English and Spanish, everywhere from the menus to the history, with money written the way each language writes it
 - **Offline and installable:** all data stays on the device, with export/import of games and a game results page
 
 ## Supported games
@@ -92,12 +93,13 @@ CI runs type-check, lint, tests and `npm audit` on every push and pull request.
 
 ## Voice evaluation
 
-`eval/voice` contains 91 Spanish voice-command cases with game-state fixtures, used to compare models and prompts. The committed results show, for example, a run on 2026-10-13 with `gemini-3.6-flash` scoring 98.9% overall across the 91 cases. Treat these numbers as a snapshot of one run, not a guarantee.
+`eval/voice` contains 93 Spanish voice-command cases, the same 93 in English (written by players until real transcripts replace them), and game-state fixtures, used to compare models and prompts. `npm run eval:voice -- --lang es|en|all` reports each language on its own. A Spanish run on 2026-10-19 with `gemini-3.6-flash` scored 97.8% overall across the 93 Spanish cases. Treat these numbers as a snapshot of one run, not a guarantee.
 
 ## Project structure
 
 ```
-src/domain       game definitions, actions, event ledger, mechanics, i18n
+src/domain       game definitions, actions, event ledger, mechanics
+src/i18n         English and Spanish text, one folder per language
 src/persistence  IndexedDB repositories, export/import
 src/voice        speech capture, prompt, providers (Anthropic, Gemini)
 src/ui, src/app  screens, sheets, components, stores
@@ -110,7 +112,7 @@ specs, docs      feature specs and the product spec
 
 This project uses spec-driven development with [GitHub Spec Kit](https://github.com/github/spec-kit) and Claude Code (VS Code extension). The process is visible in the repository:
 
-- `specs/` has 13 numbered feature specs, each with plan, tasks and research
+- `specs/` has 14 numbered feature specs, each with plan, tasks and research
 - `.specify/memory/constitution.md` holds the project principles (versioned)
 - `.specify/bugs/` documents bugs found while playing and testing, each with an assessment, a fix and a regression test
 - `docs/spec.md` is the overall product spec

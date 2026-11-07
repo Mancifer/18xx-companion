@@ -14,7 +14,7 @@ Modos de pago permitidos: full, withhold.
 Reglas especiales activas: privateGrants, bankDebt, forcedWithhold.
 buyShare sin origen dicho = source ipo; en compras de acciones, «del banco» / «del pool» = source pool.
 Trenes: 2 $80; 3 $180; 4 $300; 5 $450; 6 $630; D $1.100.
-Privadas: SV = Schuylkill Valley (schuylkill); CS = Champlain & St. Lawrence (champlain); DH = Delaware & Hudson (delaware); MH = Mohawk & Hudson (mohawk); CA = Camden & Amboy (camden); BO = Baltimore & Ohio (privada) (privada baltimore).
+Privadas: SV = Schuylkill Valley (schuylkill, schuylkill valley); CS = Champlain & St. Lawrence (champlain, champlain and st lawrence); DH = Delaware & Hudson (delaware, delaware and hudson, d and h); MH = Mohawk & Hudson (mohawk, mohawk and hudson); CA = Camden & Amboy (camden, camden and amboy); BO = Baltimore & Ohio (privada) (privada baltimore, baltimore private, b and o private).
 
 Jugadores (id = nombre; alias):
 - p1 = Ana
@@ -23,11 +23,11 @@ Jugadores (id = nombre; alias):
 - p4 = Carla; canadiense
 
 Compañías (id = nombre; alias):
-- PRR = Pennsylvania Railroad; pennsylvania, pennsy, la pennsy, pe erre erre
-- NYC = New York Central; new york central, nueva york, ene i ce
-- CPR = Canadian Pacific; canadian, canadiense, pacific
+- PRR = Pennsylvania Railroad; pennsylvania, pennsy, la pennsy, pe erre erre, p r r
+- NYC = New York Central; new york central, nueva york, ene i ce, new york, n y c
+- CPR = Canadian Pacific; canadian, canadiense, pacific, canadian pacific, c p r
 - B&O = Baltimore & Ohio; baltimore, be y o, b and o, bi and ou
-- C&O = Chesapeake & Ohio; chesapeake, ce y o, c and o
+- C&O = Chesapeake & Ohio; chesapeake, ce y o, c and o, chessie
 - Erie = Erie Railroad; erie, la erie, la iri, iri
-- NNH = New York, New Haven & Hartford; new haven, ene ene hache
-- B&M = Boston & Maine; boston, be y eme, b and m
+- NNH = New York, New Haven & Hartford; new haven, ene ene hache, n n h, new york new haven
+- B&M = Boston & Maine; boston, be y eme, b and m, boston and maine

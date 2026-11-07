@@ -1,10 +1,13 @@
+import { useMessageText } from "../useMessage";
 import { useState } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
 import { availabilityOf } from "../../domain/actions/availability";
 import type { ActionContext } from "../../domain/actions/context";
-import { shareSources, type ShareSource } from "../../domain/actions/expand/stock";
+import { shareSources } from "../../domain/actions/expand/stock";
 import { cashOf, isPlayerBankrupt, presidencyHolder, unitsOf } from "../../domain/events/state";
-import { formatMoney } from "../../domain/i18n/format";
+import { formatMoney } from "../../i18n/format";
+import { useLang, useText } from "../../app/language";
+import { gameText } from "../../i18n/gameText";
 import { floatPending } from "../../domain/mechanics/capitalization";
 import { isEnabled } from "../../domain/mechanics/custom";
 import { floatConditionConfig } from "../../domain/mechanics/custom/manualFloatCondition";
@@ -13,8 +16,6 @@ import type { CompanyId, HolderRef } from "../../domain/types";
 import { CompanyBadge, CompanyName } from "../components/CompanyBadge";
 import { Sheet } from "../components/Sheet";
 import { LaunchSheet } from "./LaunchSheet";
-
-const SOURCE_LABEL: Readonly<Record<ShareSource["source"], string>> = { ipo: "IPO", treasury: "Tesorería", pool: "Pool" };
 
 /**
  * Stock round by touch (US4, T113). From the company card, one tap on "IPO", "Pool" or "Vender"
@@ -32,6 +33,10 @@ export function StockSheet({
   onOperate?: () => void;
   onDetails?: () => void;
 }) {
+  const reasonText = useMessageText();
+  const text = useText();
+  const t = text.sheets.stock;
+  const { lang } = useLang();
   const { meta, state } = useSession();
   const { dispatch } = useDispatch();
   const [count, setCount] = useState(1);
@@ -41,7 +46,7 @@ export function StockSheet({
   const def = meta.game.companies.find((c) => c.id === companyId);
   const record = state.companies[companyId];
   if (!def || !record) return null;
-  const money = (n: number) => formatMoney(n, meta.game);
+  const money = (n: number) => formatMoney(n, meta.game, lang);
   const price = priceOf(meta.game, state, companyId);
 
   const run = async (action: unknown) => {
@@ -67,14 +72,14 @@ export function StockSheet({
 
   const footer = (
     <div className="choice-grid">
-      {onOperate ? <button onClick={onOperate}>Operar…</button> : null}
-      {onDetails ? <button onClick={onDetails}>Detalles y ajustes…</button> : null}
+      {onOperate ? <button onClick={onOperate}>{text.table.operateMenu}</button> : null}
+      {onDetails ? <button onClick={onDetails}>{text.sheets.operate.details}</button> : null}
     </div>
   );
 
   const title = (
     <span className="row">
-      <CompanyBadge company={def} /> {price !== undefined ? money(price) : "sin abrir"}
+      <CompanyBadge company={def} /> {price !== undefined ? money(price) : t.notOpen}
     </span>
   );
 
@@ -84,9 +89,9 @@ export function StockSheet({
   if (record.status === "unstarted" && def.kind !== "national") {
     const prices = parPricesFor(meta.game, companyId);
     return (
-      <Sheet title={<>Abrir · {title}</>} onClose={onClose}>
+      <Sheet title={<>{t.openTitle} · {title}</>} onClose={onClose}>
         <fieldset className="choice-fieldset">
-          <legend className="muted">Precio de salida</legend>
+          <legend className="muted">{t.parPrice}</legend>
           <div className="choice-grid">
             {prices.map((p) => (
               <button key={p} aria-pressed={parPrice === p} onClick={() => setParPrice(p)}>
@@ -97,7 +102,7 @@ export function StockSheet({
         </fieldset>
         {parPrice !== null ? (
           <fieldset className="choice-fieldset">
-            <legend className="muted">Quién abre ({money(parPrice * def.presidencyUnits)})</legend>
+            <legend className="muted">{t.whoOpens(money(parPrice * def.presidencyUnits))}</legend>
             <div className="choice-grid">
               {meta.players.filter((p) => !isPlayerBankrupt(state, p.id)).map((p) => (
                 <button key={p.id} onClick={() => void run({ type: "parCompany", player: p.id, company: companyId, price: parPrice })}>
@@ -118,7 +123,7 @@ export function StockSheet({
       <button
         key={label}
         disabled={!ok.ok}
-        title={ok.ok ? undefined : ok.reasonEs}
+        title={ok.ok ? undefined : reasonText(ok.reason)}
         aria-label={`${label} ${traderName((action["buyer"] ?? action["seller"]) as HolderRef)}`}
         onClick={() => void run(action)}
       >
@@ -136,35 +141,35 @@ export function StockSheet({
     <Sheet title={title} onClose={onClose}>
       {askCondition ? (
         <div className="row toast-warning">
-          <span>{condition.question}</span>
+          <span>{gameText(meta.game, lang).ruleText("manualFloatCondition", "question") || condition.question}</span>
           <span className="spacer" />
           <button className="primary" onClick={() => void run({ type: "confirmFloatCondition", company: companyId })}>
-            Sí
+            {t.yes}
           </button>
         </div>
       ) : null}
-      <ul className="share-sources" aria-label="Acciones disponibles">
+      <ul className="share-sources" aria-label={t.available}>
         {sources.map((s) => (
           <li key={s.source} className={s.units === 0 ? "share-source empty" : "share-source"} data-testid={`source-${s.source}`}>
-            <span className="share-source-label">{SOURCE_LABEL[s.source]}</span>
+            <span className="share-source-label">{t.sources[s.source]}</span>
             <span className="share-source-units">
               {s.units}
-              {s.units === 0 ? " agotada" : ""}
+              {s.units === 0 ? t.soldOut : ""}
             </span>
-            <span className="share-source-price">{s.price !== undefined ? `a ${money(s.price)}` : "—"}</span>
+            <span className="share-source-price">{s.price !== undefined ? t.at(money(s.price)) : "—"}</span>
           </li>
         ))}
       </ul>
       <div className="row">
-        <span className="muted">Cantidad</span>
+        <span className="muted">{t.count}</span>
         <span className="spacer" />
-        <button aria-label="Menos" onClick={() => setCount((n) => Math.max(1, n - 1))}>
+        <button aria-label={t.less} onClick={() => setCount((n) => Math.max(1, n - 1))}>
           −
         </button>
-        <span className="money stepper-value" aria-label="Cantidad de acciones">
+        <span className="money stepper-value" aria-label={t.shareCount}>
           {count}
         </span>
-        <button aria-label="Más" onClick={() => setCount((n) => n + 1)}>
+        <button aria-label={t.more} onClick={() => setCount((n) => n + 1)}>
           +
         </button>
       </div>
@@ -181,26 +186,26 @@ export function StockSheet({
                   {money(cashOf(state, h))}
                 </span>
               </span>
-              {showIpo ? button("IPO", { type: "buyShare", buyer: h, company: companyId, source: "ipo", count }) : null}
+              {showIpo ? button(t.sources.ipo, { type: "buyShare", buyer: h, company: companyId, source: "ipo", count }) : null}
               {treasuryShares > 0 && h !== `company:${companyId}`
-                ? button("Tesorería", { type: "buyShare", buyer: h, company: companyId, source: "treasury", count })
+                ? button(t.sources.treasury, { type: "buyShare", buyer: h, company: companyId, source: "treasury", count })
                 : null}
-              {button("Pool", { type: "buyShare", buyer: h, company: companyId, source: "pool", count })}
-              {units > 0 || h === `company:${companyId}` ? button("Vender", { type: "sellShares", seller: h, company: companyId, count }) : null}
+              {button(t.sources.pool, { type: "buyShare", buyer: h, company: companyId, source: "pool", count })}
+              {units > 0 || h === `company:${companyId}` ? button(t.sell, { type: "sellShares", seller: h, company: companyId, count }) : null}
             </li>
           );
         })}
       </ul>
       {isEnabled(meta.game, "corporateRound") && state.turn.round === "CR" ? (
         <div className="row">
-          <button aria-label="Menos a emitir" onClick={() => setIssue((n) => Math.max(1, n - 1))}>
+          <button aria-label={t.lessIssue} onClick={() => setIssue((n) => Math.max(1, n - 1))}>
             −
           </button>
           <span className="money stepper-value">{issue}</span>
-          <button aria-label="Más a emitir" onClick={() => setIssue((n) => n + 1)}>
+          <button aria-label={t.moreIssue} onClick={() => setIssue((n) => n + 1)}>
             +
           </button>
-          <button onClick={() => void run({ type: "issueShares", company: companyId, count: issue })}>Emitir {issue}</button>
+          <button onClick={() => void run({ type: "issueShares", company: companyId, count: issue })}>{t.issueN(issue)}</button>
         </div>
       ) : null}
       <SwapRow companyId={companyId} run={run} />
@@ -212,6 +217,7 @@ export function StockSheet({
 /** 21Moon §9.2.2: the president swaps a certificate with the company treasury. */
 function SwapRow({ companyId, run }: { companyId: CompanyId; run: (action: unknown) => Promise<void> }) {
   const { meta, state } = useSession();
+  const t = useText().sheets.stock;
   const treasury = `company:${companyId}` as const;
   const president = presidencyHolder(state, companyId);
   if (!isEnabled(meta.game, "corporateRound") || !president?.startsWith("player:")) return null;
@@ -220,7 +226,7 @@ function SwapRow({ companyId, run }: { companyId: CompanyId; run: (action: unkno
   const player = president.slice("player:".length);
   return (
     <fieldset className="choice-fieldset">
-      <legend className="muted">Cambiar con la tesorería (sin dinero)</legend>
+      <legend className="muted">{t.swapLegend}</legend>
       <div className="choice-grid">
         {held.map((c) => (
           <button
@@ -235,7 +241,11 @@ function SwapRow({ companyId, run }: { companyId: CompanyId; run: (action: unkno
               })
             }
           >
-            1 <CompanyName game={meta.game} id={companyId} /> por 1 <CompanyBadge company={c} size="inline" />
+            {t.swap[0]}
+            <CompanyName game={meta.game} id={companyId} />
+            {t.swap[1]}
+            <CompanyBadge company={c} size="inline" />
+            {t.swap[2]}
           </button>
         ))}
       </div>

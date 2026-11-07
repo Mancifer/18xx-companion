@@ -1,9 +1,8 @@
+import { messageWith } from "../../../i18n/contract/domain";
 import { reduceAll } from "../../events/reduce";
 import { hasOperated, unitsOf, type SessionState } from "../../events/state";
 import type { PrimitiveEvent } from "../../events/types";
 import type { GameDefinition } from "../../games/schema";
-import { holderName } from "../../i18n/es";
-import { formatMoney } from "../../i18n/format";
 import { hooksOf, isEnabled } from "../../mechanics/custom";
 import { moveTarget, parCellFor, parPricesFor, priceOf } from "../../mechanics/market";
 import { parseHolder, type CompanyId, type HolderRef } from "../../types";
@@ -120,19 +119,19 @@ function parEvents(ctx: ActionContext, a: ParCompany): PrimitiveEvent[] {
 function parAvailable(ctx: ActionContext, a?: ParCompany): AvailabilityResult {
   if (!a) return AVAILABLE;
   const company = def(ctx.game, a.company);
-  if (!company || company.kind === "national") return unavailable("Esta compañía no se abre");
-  if (company.start === "auction") return unavailable("Esta compañía se abre por subasta");
-  if (company.start === "merger") return unavailable("Esta compañía solo nace de una fusión");
-  if (ctx.state.companies[a.company]?.status !== "unstarted") return unavailable("La compañía ya está abierta");
+  if (!company || company.kind === "national") return unavailable("par.notOpenable", {});
+  if (company.start === "auction") return unavailable("par.byAuction", {});
+  if (company.start === "merger") return unavailable("par.onlyByMerger", {});
+  if (ctx.state.companies[a.company]?.status !== "unstarted") return unavailable("par.alreadyOpen", {});
   if (!parPricesFor(ctx.game, a.company).includes(a.price) || !parCellFor(ctx.game, a.price)) {
-    return unavailable(`Precio de salida no válido: ${formatMoney(a.price, ctx.game)}`);
+    return unavailable("par.invalidPrice", { price: a.price });
   }
   return AVAILABLE;
 }
 
 function companyTraderAvailable(ctx: ActionContext, trader: string): AvailabilityResult {
   if (parseHolder(trader as HolderRef).kind === "company" && !isEnabled(ctx.game, "corporateRound")) {
-    return unavailable("Las compañías solo compran y venden en la ronda corporativa");
+    return unavailable("trade.onlyInCR", {});
   }
   return AVAILABLE;
 }
@@ -143,13 +142,12 @@ function buyAvailable(ctx: ActionContext, a?: BuyShare): AvailabilityResult {
   if (!trader.ok) return trader;
   const status = ctx.state.companies[a.company]?.status;
   if (status === "unstarted" || sharePrice(ctx.game, ctx.state, a.company, a.source) === undefined) {
-    return unavailable("La compañía no está abierta");
+    return unavailable("buy.notOpen", {});
   }
-  if (status === "bankrupt" || status === "closed") return unavailable("La compañía ya no existe");
+  if (status === "bankrupt" || status === "closed") return unavailable("buy.gone", {});
   const left = unitsOf(ctx.state, sourceHolder(a.company, a.source), a.company);
   if (left < (a.count ?? 1)) {
-    const where = a.source === "ipo" ? "la IPO" : a.source === "pool" ? "el pool" : "la tesorería";
-    return unavailable(left === 0 ? `No quedan acciones en ${where}` : `Solo quedan ${left} en ${where}`);
+    return left === 0 ? unavailable("buy.noneLeft", { source: a.source }) : unavailable("buy.onlyLeft", { left, source: a.source });
   }
   return AVAILABLE;
 }
@@ -158,7 +156,7 @@ function sellAvailable(ctx: ActionContext, a?: SellShares): AvailabilityResult {
   if (!a) return AVAILABLE;
   const trader = companyTraderAvailable(ctx, a.seller);
   if (!trader.ok) return trader;
-  if (priceOf(ctx.game, ctx.state, a.company) === undefined) return unavailable("La compañía no tiene precio");
+  if (priceOf(ctx.game, ctx.state, a.company) === undefined) return unavailable("sell.noPrice", {});
   return AVAILABLE;
 }
 
@@ -177,7 +175,7 @@ function buyWarnings(ctx: ActionContext, a: BuyShare, assumed: number | null = n
   ];
   const buyer = parseHolder(a.buyer);
   if (buyer.kind === "player" && ctx.state.turn.round === "SR" && ctx.state.soldThisSR[buyer.id]?.includes(a.company)) {
-    warnings.push(warning("boughtAfterSelling", "Ya vendió esta compañía en esta ronda de acciones."));
+    warnings.push(warning(ctx, "boughtAfterSelling", {}));
   }
   return warnings;
 }
@@ -185,7 +183,7 @@ function buyWarnings(ctx: ActionContext, a: BuyShare, assumed: number | null = n
 function sellWarnings(ctx: ActionContext, a: SellShares): Warning[] {
   const warnings: Warning[] = [];
   const held = unitsOf(ctx.state, a.seller, a.company);
-  if (held < a.count) warnings.push(warning("notEnoughShares", `Solo tiene ${held}.`));
+  if (held < a.count) warnings.push(warning(ctx, "notEnoughShares", { held }));
   warnings.push(...unoperatedSaleWarnings(ctx, a.seller, a.company));
   const after = reduceAll(ctx.state, sellEvents(ctx, a, null));
   warnings.push(...poolWarnings(ctx, after, a.company));
@@ -200,7 +198,7 @@ function parWarnings(ctx: ActionContext, a: ParCompany): Warning[] {
   const from = def(ctx.game, a.company)?.availableFrom;
   const sr = /^SR(\d+)$/.exec(from ?? "");
   if (sr && ctx.state.turn.srNumber < Number(sr[1])) {
-    warnings.push(warning("notYetAvailable", `Esta compañía no se puede abrir hasta la ${from}.`));
+    warnings.push(warning(ctx, "notYetAvailable", { from: from ?? "" }));
   }
   return warnings;
 }
@@ -229,7 +227,7 @@ function walkBatch(ctx: ActionContext, a: ActionOf<"stockBatch">) {
   for (const [i, item] of a.items.entries()) {
     const step = { ...ctx, state };
     const ok = itemAvailable(step, item);
-    if (!ok.ok) return { unavailable: `Fila ${i + 1}: ${ok.reasonEs}`, events, warnings };
+    if (!ok.ok) return { unavailable: messageWith("stock.batchRowUnavailable", { row: i + 1 }, ok.reason), events, warnings };
     const assumed = a.assumedPrices[i] ?? null;
     if (item.type === "buyShare") warnings.push(...buyWarnings(step, item, assumed));
     else if (item.type === "sellShares") warnings.push(...sellWarnings(step, item));
@@ -285,16 +283,13 @@ export const stockHandlers: HandlerMap = {
     available: (ctx, a) => {
       if (!a) return AVAILABLE;
       const holder = ctx.state.assets[`private:${a.private}`];
-      if (!holder) return unavailable(`Privada desconocida: ${a.private}`);
-      if (holder === "removed") return unavailable("Esa privada está cerrada");
-      if (holder === `player:${a.buyer}`) return unavailable("Ya es suya");
+      if (!holder) return unavailable("private.unknown", { private: a.private });
+      if (holder === "removed") return unavailable("private.closed", {});
+      if (holder === `player:${a.buyer}`) return unavailable("private.alreadyYours", {});
       if (holder !== "bank" && !privateResaleOpen(ctx.game, ctx.state)) {
-        const owner = holderName(holder, ctx.game, ctx.players);
-        return unavailable(
-          ctx.game.privateTrading === "none"
-            ? `La ${a.private} ya es de ${owner}; en ${ctx.game.name} las privadas no se traspasan`
-            : `La ${a.private} ya es de ${owner}; solo se traspasa en una ronda de acciones a partir de la segunda`,
-        );
+        return ctx.game.privateTrading === "none"
+          ? unavailable("private.noTrading", { private: a.private, owner: holder })
+          : unavailable("private.tradeLater", { private: a.private, owner: holder });
       }
       return AVAILABLE;
     },
@@ -324,7 +319,7 @@ export const stockHandlers: HandlerMap = {
     available: (ctx, a) => {
       if (!a) return AVAILABLE;
       const walked = walkBatch(ctx, a);
-      return walked.unavailable ? unavailable(walked.unavailable) : AVAILABLE;
+      return walked.unavailable ? { ok: false, reason: walked.unavailable } : AVAILABLE;
     },
     validate: (ctx, a) => walkBatch(ctx, a).warnings,
     expand: (ctx, a) => walkBatch(ctx, a).events,

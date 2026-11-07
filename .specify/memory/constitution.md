@@ -1,23 +1,3 @@
-<!--
-Sync Impact Report
-- Version change: 2.0.0 → 2.1.0 (MINOR: voice guidance expanded from Spanish only to Spanish and
-  English; no principle removed or redefined)
-- Modified principles:
-  - V. Voice and Touch Parity, Minimal Screen Time: parity holds in every supported voice language
-  - VI. Test-First Domain Logic: the eval set covers every supported voice language; a new language
-    may start from player-written phrasings that real transcripts later replace
-- Modified sections:
-  - Platform & Technology Constraints: speech-to-text follows the display language (Spanish `es-*`
-    or English `en-*`), and the "in v1" qualifier on the Spanish locale is removed; provider/model
-    pairs are measured in every supported voice language before being offered
-- Added sections: none
-- Removed sections: none
-- Rationale: feature 014-multi-language-support adds English as the default display language and
-  makes voice follow it
-- Templates: plan/spec/tasks templates read the constitution at runtime; no edits needed
-- Follow-up TODOs: none. The other "v1" rules (no backend, later iterations) are unchanged on
-  purpose.
--->
 # 18xx Companion Constitution
 
 ## Core Principles

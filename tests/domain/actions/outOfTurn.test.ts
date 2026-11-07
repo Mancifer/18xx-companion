@@ -24,7 +24,7 @@ const forNYC: Record<string, unknown> = {
   discardTrain: { type: "discardTrain", company: "NYC", train: "train:2:2" },
 };
 
-const outOfTurn = { code: "outOfTurn", messageEs: "NYC opera fuera de turno (le toca a PRR).", severity: "warn" };
+const outOfTurn: unknown = expect.objectContaining({ code: "outOfTurn", messageEs: "NYC opera fuera de turno (le toca a PRR).", severity: "warn" });
 
 describe("outOfTurn warning (FR-012)", () => {
   for (const [type, action] of Object.entries(forNYC)) {

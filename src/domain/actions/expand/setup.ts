@@ -17,9 +17,7 @@ export const setupHandlers: HandlerMap = {
       const warnings: Warning[] = [];
       const { min, max } = ctx.game.playerCount;
       if (a.players.length < min || a.players.length > max) {
-        warnings.push(
-          warning("playerCount", `${ctx.game.name} se juega con ${min}–${max} jugadores; hay ${a.players.length}.`),
-        );
+        warnings.push(warning(ctx, "playerCount", { min, max, count: a.players.length }));
       }
       const seen = new Map<string, string>();
       const owners: [string, string][] = [
@@ -35,7 +33,7 @@ export const setupHandlers: HandlerMap = {
         else seen.set(key, owner);
       }
       if (duplicates.size > 0) {
-        warnings.push(warning("duplicateAlias", `Alias repetidos: ${[...duplicates].join(", ")}. La voz preguntará.`, "info"));
+        warnings.push(warning(ctx, "duplicateAlias", { aliases: [...duplicates].join(", ") }, "info"));
       }
       return warnings;
     },

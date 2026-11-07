@@ -38,7 +38,7 @@ export function holdingWarnings(ctx: ActionContext, after: SessionState, holder:
   const limit = ctx.game.limits.certificates[n];
   const certs = limitedCertificates(ctx.game, after, h.id);
   if (limit !== undefined && certs > limit) {
-    warnings.push(warning("certificateLimit", `Tendría ${certs} certificados; el límite es ${limit}.`));
+    warnings.push(warning(ctx, "certificateLimit", { certs, limit }));
   }
   const zone = zoneOf(ctx.game, after, company);
   const percentLimit = ctx.game.limits.perCompanyPercentByPlayers?.[n] ?? ctx.game.limits.perCompanyPercent;
@@ -46,7 +46,7 @@ export function holdingWarnings(ctx: ActionContext, after: SessionState, holder:
   const percent = (unitsOf(after, holder, company) * 100) / shareCount;
   const national = def(ctx.game, company)?.kind === "national";
   if (!national && percent > percentLimit && zone !== "orange" && zone !== "brown") {
-    warnings.push(warning("companyLimit", `Tendría el ${percent}% de la compañía; el límite es ${percentLimit}%.`));
+    warnings.push(warning(ctx, "companyLimit", { percent, limit: percentLimit }));
   }
   return warnings;
 }
@@ -56,10 +56,10 @@ export function poolWarnings(ctx: ActionContext, after: SessionState, company: C
   const units = unitsOf(after, "pool", company);
   const shareCount = after.companies[company]?.shareCount ?? 10;
   if (maxCerts !== undefined && units > maxCerts) {
-    return [warning("poolLimit", `El pool tendría ${units} certificados; el máximo es ${maxCerts}.`)];
+    return [warning(ctx, "poolLimit", { units, maxCerts })];
   }
   if (maxPercent !== undefined && (units * 100) / shareCount > maxPercent) {
-    return [warning("poolLimit", `El pool tendría el ${(units * 100) / shareCount}%; el máximo es ${maxPercent}%.`)];
+    return [warning(ctx, "poolLimit", { percent: (units * 100) / shareCount, maxPercent })];
   }
   return [];
 }
@@ -68,20 +68,19 @@ export function poolWarnings(ctx: ActionContext, after: SessionState, company: C
 export function sharesPerBuyWarnings(ctx: ActionContext, count: number): Warning[] {
   const max = ctx.game.limits.maxSharesPerBuy;
   if (max === undefined || count <= max) return [];
-  return [warning("maxSharesPerBuy", `Se compra ${max === 1 ? "una acción" : `hasta ${max} acciones`} cada vez.`)];
+  return [warning(ctx, "maxSharesPerBuy", { max })];
 }
 
 /** RotLA B p.10: a player sells a company only after it has operated (sell.warnUnlessOperated). */
 export function unoperatedSaleWarnings(ctx: ActionContext, seller: HolderRef, company: CompanyId): Warning[] {
   if (!ctx.game.market.moves.sell.warnUnlessOperated || parseHolder(seller).kind !== "player") return [];
   if (hasOperated(ctx.state, company)) return [];
-  return [warning("notOperated", "Esta compañía aún no ha operado: no se vende hasta que opere.")];
+  return [warning(ctx, "notOperated", {})];
 }
 
 /** A player out of the game after a bankruptcy (RotLA B p.17) is named in an action: warn only. */
 export function eliminatedWarnings(ctx: ActionContext, holder: HolderRef): Warning[] {
   const h = parseHolder(holder);
   if (h.kind !== "player" || !isPlayerBankrupt(ctx.state, h.id)) return [];
-  const name = ctx.players.find((p) => p.id === h.id)?.name ?? h.id;
-  return [warning("eliminatedPlayer", `${name} ya no está en la partida (quiebra).`)];
+  return [warning(ctx, "eliminatedPlayer", { player: h.id })];
 }

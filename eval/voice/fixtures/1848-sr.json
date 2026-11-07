@@ -66,7 +66,9 @@
             "banco de inglaterra",
             "bank of england",
             "el banco de inglaterra",
-            "be o e"
+            "be o e",
+            "b o e",
+            "the bank of england"
           ],
           "color": "#5b5b5b",
           "textColor": "#ffffff",
@@ -93,7 +95,9 @@
           "name": "Queensland Government Railway",
           "aliases": [
             "queensland",
-            "cu erre"
+            "cu erre",
+            "q r",
+            "queensland railway"
           ],
           "color": "#7b1f3a",
           "textColor": "#ffffff",
@@ -124,7 +128,8 @@
           "name": "Commonwealth Railways",
           "aliases": [
             "commonwealth",
-            "la com"
+            "la com",
+            "the commonwealth"
           ],
           "color": "#1c3f8f",
           "textColor": "#ffffff",
@@ -155,7 +160,9 @@
           "name": "Federal Territory Railway",
           "aliases": [
             "federal",
-            "la federal"
+            "la federal",
+            "fed",
+            "the federal"
           ],
           "color": "#2f7d4f",
           "textColor": "#ffffff",
@@ -187,7 +194,8 @@
           "aliases": [
             "victoria",
             "victorian",
-            "la victoria"
+            "la victoria",
+            "v r"
           ],
           "color": "#e7c32b",
           "textColor": "#1b1b1b",
@@ -251,7 +259,9 @@
           "aliases": [
             "west australian",
             "australia occidental",
-            "uve a"
+            "uve a",
+            "w a",
+            "western australian"
           ],
           "color": "#111111",
           "textColor": "#ffffff",
@@ -282,7 +292,8 @@
           "name": "New South Wales Railway",
           "aliases": [
             "new south wales",
-            "nueva gales"
+            "nueva gales",
+            "n s w"
           ],
           "color": "#ef7d1a",
           "textColor": "#1b1b1b",
@@ -1888,7 +1899,11 @@
         {
           "code": "noRunRecorded",
           "messageEs": "No se registró la operación de BoE: cuenta como que operó.",
-          "severity": "info"
+          "severity": "info",
+          "params": {
+            "company": "BOE",
+            "ran": 0
+          }
         }
       ]
     },
@@ -2142,7 +2157,8 @@
         {
           "code": "setComplete",
           "messageEs": "Fin de las rondas de operaciones.",
-          "severity": "info"
+          "severity": "info",
+          "params": {}
         }
       ]
     },

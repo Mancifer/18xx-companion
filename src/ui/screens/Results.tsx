@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useAppActions } from "../../app/AppProvider";
 import { useDispatch, useSession } from "../../app/useSession";
-import { END_TRIGGER_LABELS } from "../../domain/i18n/es";
-import { formatMoney } from "../../domain/i18n/format";
+import { useDomainText, useLang, useText } from "../../app/language";
+import type { DomainText } from "../../i18n/contract/domain";
+import type { UiText } from "../../i18n/contract/ui";
+import { formatMoney } from "../../i18n/format";
 import type { GameEnd } from "../../domain/mechanics/gameEnd";
 import { finalResults, type PlayerResult } from "../../domain/mechanics/scores";
 import { CompanyName } from "../components/CompanyBadge";
@@ -10,23 +12,10 @@ import { Sheet } from "../components/Sheet";
 import { UndoToast } from "../components/UndoToast";
 import { useNav } from "../nav";
 
-/** "10/10 20:15" */
-function when(iso: string): string {
-  const d = new Date(iso);
-  const two = (n: number) => String(n).padStart(2, "0");
-  return `${two(d.getDate())}/${two(d.getMonth() + 1)} ${two(d.getHours())}:${two(d.getMinutes())}`;
-}
-
 /** "automático", the fired conditions, or "sin condición de fin". */
-function howItEnded(end: GameEnd): string {
-  if (end.auto) return "automático";
-  return end.triggers.length > 0 ? end.triggers.map((t) => END_TRIGGER_LABELS[t]).join(", ") : "sin condición de fin";
-}
-
-function laterEntriesEs(n: number): string {
-  return n === 1
-    ? "Hay 1 entrada posterior al final que no cuenta en esta clasificación."
-    : `Hay ${n} entradas posteriores al final que no cuentan en esta clasificación.`;
+function howItEnded(end: GameEnd, t: UiText["results"], dt: DomainText): string {
+  if (end.auto) return t.auto;
+  return end.triggers.length > 0 ? end.triggers.map((x) => dt.endTriggerLabels[x]).join(", ") : t.noEndCondition;
 }
 
 /** "1", or "=1" when another player shares the rank; "—" when eliminated. */
@@ -44,12 +33,16 @@ export function Results({ from }: { from: "table" | "home" }) {
   const { go } = useNav();
   const { closeSession } = useAppActions();
   const { dispatch } = useDispatch();
+  const text = useText();
+  const t = text.results;
+  const dt = useDomainText();
+  const { lang } = useLang();
   const [reopening, setReopening] = useState(false);
   const { end, laterEntries } = gameEnd;
   const results = end
     ? finalResults(meta.game, meta.players, end.state, end.eliminationOrder)
     : finalResults(meta.game, meta.players, state, eliminationOrder);
-  const money = (n: number) => formatMoney(n, meta.game);
+  const money = (n: number) => formatMoney(n, meta.game, lang);
   const name = (id: string) => meta.players.find((p) => p.id === id)?.name ?? id;
 
   /** FR-005a: its own entry; on failure the toast shows the store's message and the results stay. */
@@ -71,29 +64,29 @@ export function Results({ from }: { from: "table" | "home" }) {
   return (
     <main className="screen">
       <header className="topbar">
-        <button className="ghost" aria-label="Volver" onClick={back}>
+        <button className="ghost" aria-label={text.common.back} onClick={back}>
           ←
         </button>
-        <h1 className="topbar-center">{end ? "Resultados" : "Clasificación provisional"}</h1>
+        <h1 className="topbar-center">{end ? t.title : t.provisional}</h1>
       </header>
       <div className="screen-body results-layout">
         <section>
           <p className="muted results-subtitle">
-            {end ? `${meta.game.name} · terminó ${when(end.at)} · ${howItEnded(end)}` : "La partida no terminó todavía."}
+            {end ? t.subtitle(meta.game.name, t.when(new Date(end.at)), howItEnded(end, t, dt)) : t.notEnded}
           </p>
           <table className="score-table">
             <thead>
               <tr>
-                <th scope="col">Puesto</th>
-                <th scope="col">Jugador</th>
+                <th scope="col">{t.rank}</th>
+                <th scope="col">{t.player}</th>
                 <th scope="col" className="num">
-                  Dinero
+                  {t.cash}
                 </th>
                 <th scope="col" className="num">
-                  Acciones
+                  {t.shares}
                 </th>
                 <th scope="col" className="num">
-                  Total
+                  {t.total}
                 </th>
               </tr>
             </thead>
@@ -106,23 +99,23 @@ export function Results({ from }: { from: "table" | "home" }) {
                     {r.winner ? (
                       <>
                         {" "}
-                        <span className="badge winner">🏆 Ganador</span>
+                        <span className="badge winner">{t.winner}</span>
                       </>
                     ) : null}
                     {r.status === "bankrupt" ? (
                       <>
                         {" "}
-                        <span className="badge danger">Quiebra</span>
+                        <span className="badge danger">{t.bankrupt}</span>
                       </>
                     ) : null}
                   </td>
-                  <td className="num" data-label="Dinero">
+                  <td className="num" data-label={t.cash}>
                     {money(r.cash)}
                   </td>
-                  <td className="num" data-label="Acciones">
+                  <td className="num" data-label={t.shares}>
                     {money(r.sharesValue)}
                   </td>
-                  <td className="num">{r.total !== null ? money(r.total) : "Eliminado"}</td>
+                  <td className="num">{r.total !== null ? money(r.total) : t.eliminated}</td>
                 </tr>
               ))}
             </tbody>
@@ -131,30 +124,34 @@ export function Results({ from }: { from: "table" | "home" }) {
         <section>
           {end && laterEntries > 0 ? (
             <p className="results-notice" role="note">
-              {laterEntriesEs(laterEntries)}
+              {t.laterEntries(laterEntries)}
             </p>
           ) : null}
           {results
             .filter((r) => r.tieBreak)
             .map((r) => (
               <p key={r.player} className="muted tie-break">
-                {name(r.player)} · <span>desempate: presidente de <CompanyName game={meta.game} id={r.tieBreak ?? ""} /></span>
+                {name(r.player)} · <span>
+                  {t.tieBreak[0]}
+                  <CompanyName game={meta.game} id={r.tieBreak ?? ""} />
+                  {t.tieBreak[1]}
+                </span>
               </p>
             ))}
           <div className="results-actions">
-            {from === "home" ? <button onClick={() => go({ name: "table" })}>Ver mesa</button> : null}
-            {end ? <button onClick={() => setReopening(true)}>Reabrir partida</button> : null}
+            {from === "home" ? <button onClick={() => go({ name: "table" })}>{t.viewTable}</button> : null}
+            {end ? <button onClick={() => setReopening(true)}>{t.reopenGame}</button> : null}
           </div>
         </section>
       </div>
       {reopening ? (
-        <Sheet title="¿Reabrir la partida?" onClose={() => setReopening(false)}>
-          <p>La partida deja de estar completa y se pueden registrar o corregir entradas. El final queda en el historial.</p>
+        <Sheet title={t.reopenTitle} onClose={() => setReopening(false)}>
+          <p>{t.reopenBody}</p>
           <div className="row">
-            <button onClick={() => setReopening(false)}>Cancelar</button>
+            <button onClick={() => setReopening(false)}>{text.common.cancel}</button>
             <span className="spacer" />
             <button className="primary" onClick={() => void reopen()}>
-              Reabrir
+              {t.reopen}
             </button>
           </div>
         </Sheet>

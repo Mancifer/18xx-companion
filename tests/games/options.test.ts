@@ -107,7 +107,7 @@ describe("RotLA options other than mode and expansion (US1)", () => {
 
   it("a minors count different from the mode's size is a warning only", () => {
     const options = { mode: "long", minorsInPlay: "AGR,EXP,TUN,RES,SUB,NPT" };
-    expect(optionWarnings(rotla, options, 4).map((w) => w.code)).toEqual(["minorsInPlay"]);
+    expect(optionWarnings(rotla, options, 4).map((w) => w.code)).toEqual(["subsetSize"]);
     expect(() => applyOptions(rotla, options)).not.toThrow();
     expect(optionWarnings(rotla, { mode: "short" }, 4)).toEqual([]);
   });

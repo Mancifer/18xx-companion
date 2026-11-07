@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import { builtInGames, applyOptions, getBuiltInGame, hasUnverified } from "../../src/domain/games";
 import { createCustomGame } from "../../src/domain/games/customGame";
 import { validateDefinition } from "../../src/domain/games/validateDefinition";
-import { DEFAULT_CHIPS, colorNameEs } from "../../src/domain/games/chips";
+import { DEFAULT_CHIPS } from "../../src/domain/games/chips";
+import { domainText } from "../../src/i18n";
+
+const colorNameEs = domainText("es").chipColor;
 import type { GameDefinition } from "../../src/domain/games/schema";
 
 const game = (id: string): GameDefinition => getBuiltInGame(id);

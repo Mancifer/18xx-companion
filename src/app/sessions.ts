@@ -7,6 +7,8 @@ import type { SessionMeta } from "../domain/session";
 import type { ChipSet, Player, WalletMode } from "../domain/types";
 import type { SessionRepo } from "../persistence/sessionRepo";
 import type { SettingsRepo } from "../persistence/settingsRepo";
+import { UI_TEXT } from "../i18n";
+import type { Lang } from "../i18n/lang";
 import { SessionStore } from "./SessionStore";
 
 export interface NewSessionInput {
@@ -19,12 +21,13 @@ export interface NewSessionInput {
   /** The bank counts the table set on the new-session screen (feature 008). */
   readonly bankPins?: Record<string, number>;
   readonly name?: string;
+  /** The display language, for the default name (feature 014). */
+  readonly lang?: Lang;
 }
 
-/** "1830 · 07/10 20:15" */
-export function defaultSessionName(game: GameDefinition, at: Date): string {
-  const two = (n: number) => String(n).padStart(2, "0");
-  return `${game.name} · ${two(at.getDate())}/${two(at.getMonth() + 1)} ${two(at.getHours())}:${two(at.getMinutes())}`;
+/** "1830 · 07/10 20:15", "1830 · 7 Oct 20:15": stored as the session's name, so it never changes after. */
+export function defaultSessionName(game: GameDefinition, at: Date, lang: Lang = "es"): string {
+  return `${game.name} · ${UI_TEXT[lang].results.when(at)}`;
 }
 
 /**
@@ -44,7 +47,7 @@ export async function startSession(
   const bankPins = cleanPins(input.bankPins, chipSet);
   const meta: SessionMeta = {
     id: crypto.randomUUID(),
-    name: input.name?.trim() || defaultSessionName(game, now),
+    name: input.name?.trim() || defaultSessionName(game, now, input.lang),
     game,
     options,
     players: input.players,

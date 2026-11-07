@@ -8,6 +8,7 @@ import { entryBreakdown } from "../../src/domain/ledger/breakdown";
 import { effectiveLog, groupHistory } from "../../src/domain/ledger/effectiveLog";
 import { operatingPhase } from "../../src/domain/ledger/operatingPhase";
 import { roundSections } from "../../src/domain/ledger/rounds";
+import { domainText } from "../../src/i18n";
 import { replay } from "../../src/domain/ledger/replay";
 import { replayFromSnapshot, snapshotsFor } from "../../src/domain/ledger/snapshots";
 import { openCompanionDb } from "../../src/persistence/db";
@@ -156,10 +157,20 @@ describe("performance (T163)", () => {
     expect(timeIt(() => entryBreakdown(game, players, undone, first.id))).toBeLessThan(budget(50));
   });
 
-  it("computes History's round sections of a 300-group game in under 20 ms (feature 011, US4)", () => {
-    const history = groupHistory(log.slice(0, 300));
-    expect(roundSections(game, history).length).toBeGreaterThan(1);
-    expect(timeIt(() => roundSections(game, history))).toBeLessThan(budget(20));
+  // Feature 014 T060: History builds its text at render time, in either language, within the same budget.
+  describe.each(["es", "en"] as const)("History text in %s", (lang) => {
+    it("computes the round sections of a 300-group game in under 20 ms (feature 011, US4)", () => {
+      const history = groupHistory(log.slice(0, 300));
+      expect(roundSections(game, history, lang).length).toBeGreaterThan(1);
+      expect(timeIt(() => roundSections(game, history, lang))).toBeLessThan(budget(20));
+    });
+
+    it("writes every summary of a 300-group game in under 20 ms", () => {
+      const groups = log.slice(0, 300).filter((e): e is GroupEntry => e.kind === "group");
+      const ctx = { game, players, marks: true as const };
+      const text = domainText(lang);
+      expect(timeIt(() => groups.map((g) => text.summary(g.action, ctx, g.events)))).toBeLessThan(budget(20));
+    });
   });
 
   it("computes the OR income summary of a 300-group game in under 20 ms (feature 012, G6)", () => {

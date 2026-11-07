@@ -1,3 +1,5 @@
+import type { Message } from "../../src/i18n/contract/domain";
+import { renderMessage } from "../../src/i18n/render";
 import { describe, expect, it } from "vitest";
 import { getBuiltInGame } from "../../src/domain/games";
 import type { GameDefinition } from "../../src/domain/games/schema";
@@ -11,6 +13,9 @@ import { rotlaGame, rotlaSession, seedCompany as seedRotla } from "../helpers/ro
 const players = makePlayers(["Ana", "Bruno", "Carla", "Dani"]);
 const start = (id: string) => TestSession.start(getBuiltInGame(id), players);
 const types = (s: TestSession) => endTriggers(s.game, s.state).map((t) => t.type);
+
+/** Feature 014: a trigger's notice as the Spanish UI shows it. */
+const esText = (s: TestSession, m: Message | undefined) => (m ? renderMessage(m, s, "es") : undefined);
 
 describe("endTriggers", () => {
   it("none at the start", () => {
@@ -57,7 +62,7 @@ describe("endTriggers", () => {
 
   it("each trigger has a Spanish message", () => {
     const s = start("1830").apply({ t: "moneyTransfer", from: "bank", to: "player:p1", amount: 9600 });
-    expect(endTriggers(s.game, s.state)[0]?.messageEs).toMatch(/banca/i);
+    expect(esText(s, endTriggers(s.game, s.state)[0]?.message)).toMatch(/banca/i);
   });
 });
 
@@ -68,7 +73,7 @@ describe("cyclesComplete (RotLA, US8)", () => {
   it("fires after OR 4.2 of a Short game in yellow (no Merger Round due)", () => {
     const s = at(short(), { round: "OR", srNumber: 4, orSet: 4, orIndex: 2, orsInSet: 2 });
     expect(types(s)).toEqual(["cyclesComplete"]);
-    expect(endTriggers(s.game, s.state)[0]?.messageEs).toBe("Fin de la partida: se completaron los 4 ciclos.");
+    expect(esText(s, endTriggers(s.game, s.state)[0]?.message)).toBe("Fin de la partida: se completaron los 4 ciclos.");
   });
 
   it("waits for MR 4 when one is due, and fires in it", () => {
@@ -128,7 +133,7 @@ describe("scheduleComplete (21Moon, feature 007)", () => {
   it("fires after OR 5.3, the last slot of the fixed schedule, once the OR set is complete", () => {
     const s = afterOR(3, 21);
     expect(types(s)).toContain("scheduleComplete");
-    expect(endTriggers(s.game, s.state).find((t) => t.type === "scheduleComplete")?.messageEs).toBe(
+    expect(esText(s, endTriggers(s.game, s.state).find((t) => t.type === "scheduleComplete")?.message)).toBe(
       "Fin de la partida: se jugó la última ronda de operaciones.",
     );
   });

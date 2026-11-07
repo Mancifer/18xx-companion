@@ -6,6 +6,9 @@ import { DEFAULT_SETTINGS, type Settings } from "../persistence/settingsRepo";
 import { useServices } from "./AppProvider";
 import { SessionContext } from "./contexts";
 import { useDispatch } from "./useSession";
+import { SETTINGS_CHANGED } from "./settingsEvents";
+import { message, type Message } from "../i18n/contract/domain";
+import { useLang } from "./language";
 import { VoiceController, type VoicePhase } from "./voiceController";
 
 /** What the voice layer needs from the outside world; tests swap these (T121). */
@@ -23,20 +26,20 @@ export const defaultVoiceDeps: VoiceDeps = {
 
 export const VoiceDepsContext = createContext<VoiceDeps>(defaultVoiceDeps);
 
-/** Fired by the Settings screen after a save, so the mic picks up a new key at once. */
-export const SETTINGS_CHANGED = "companion:settings";
+export { SETTINGS_CHANGED };
 
-export type VoiceAvailability = { readonly ok: true } | { readonly ok: false; readonly reasonEs: string };
+/** `reason` is shown in the display language (feature 014). */
+export type VoiceAvailability = { readonly ok: true } | { readonly ok: false; readonly reason: Message };
 
 /**
  * FR-075: the mic is unavailable without the selected provider's key, offline, or without speech
  * recognition. Another provider's key is never used instead (feature 005).
  */
 export function voiceAvailability(deps: VoiceDeps, settings: Settings | null): VoiceAvailability {
-  if (!speechAvailable(deps.recognizer)) return { ok: false, reasonEs: "Este navegador no reconoce la voz" };
-  if (!deps.online()) return { ok: false, reasonEs: "Sin conexión: la voz no está disponible" };
+  if (!speechAvailable(deps.recognizer)) return { ok: false, reason: message("voice.noSpeech", {}) };
+  if (!deps.online()) return { ok: false, reason: message("voice.offline", {}) };
   const { provider, apiKey } = activeCredentials(settings ?? DEFAULT_SETTINGS);
-  if (!apiKey) return { ok: false, reasonEs: `Añade tu clave de ${PROVIDERS[provider].shortLabel} en Ajustes` };
+  if (!apiKey) return { ok: false, reason: message("voice.noKey", { provider: PROVIDERS[provider].shortLabel }) };
   return { ok: true };
 }
 
@@ -45,6 +48,7 @@ export function useVoice(): { controller: VoiceController; phase: VoicePhase; av
   const store = useContext(SessionContext);
   const { settings: repo } = useServices();
   const { dispatch, undoLast, undoTo } = useDispatch();
+  const { lang: displayLang } = useLang();
   const [settings, setSettings] = useState<Settings | null>(null);
   const [online, setOnline] = useState(deps.online());
 
@@ -72,7 +76,16 @@ export function useVoice(): { controller: VoiceController; phase: VoicePhase; av
   const provider = credentials?.provider;
   const apiKey = credentials?.apiKey;
   const model = credentials?.model;
-  const lang = settings?.voiceLocale ?? "es-ES";
+  // Feature 014: speech in the display language, with that language's saved region (FR-014a).
+  const lang = settings?.voiceLocales[displayLang] ?? DEFAULT_SETTINGS.voiceLocales[displayLang];
+  // Read when a command starts, so a language switch keeps an open card and applies to the next command.
+  const langRef = useRef(lang);
+  // The session's language for the prompt, tools and snapshot of the next command (feature 014).
+  const displayLangRef = useRef(displayLang);
+  useEffect(() => {
+    langRef.current = lang;
+    displayLangRef.current = displayLang;
+  }, [lang, displayLang]);
   // A key or model change makes a new interpreter, so a prompt cache is never shared (009 FR-004).
   // In development, cache events (no name, no key) go to the console.
   const interpreter = useMemo(
@@ -98,14 +111,23 @@ export function useVoice(): { controller: VoiceController; phase: VoicePhase; av
     if (!store) throw new Error("useVoice needs an open session");
     return new VoiceController({
       recognizer: deps.recognizer,
-      lang,
-      interpreter: (session, message) => {
+      get lang() {
+        return langRef.current;
+      },
+      interpreter: (session, userMessage) => {
         const current = interpreterRef.current;
-        return current ? current(session, message) : Promise.reject(new Error("Sin clave de API"));
+        return current ? current(session, userMessage) : Promise.reject(new Error("no API key"));
       },
       context: () => {
         const snap = store.getSnapshot();
-        return { game: snap.meta.game, players: snap.meta.players, state: snap.state, effective: snap.effective, gameEnd: snap.gameEnd };
+        return {
+          game: snap.meta.game,
+          players: snap.meta.players,
+          state: snap.state,
+          effective: snap.effective,
+          gameEnd: snap.gameEnd,
+          lang: displayLangRef.current,
+        };
       },
       effects: {
         dispatch: (action, options) => dispatch(action, options),
@@ -114,9 +136,9 @@ export function useVoice(): { controller: VoiceController; phase: VoicePhase; av
       },
       ...(import.meta.env.DEV ? { log: (m: string) => console.info(m) } : {}),
     });
-    // The effects close over the store; a new controller per session/locale is enough.
+    // The effects close over the store; a new controller per session is enough.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [store, deps, lang]);
+  }, [store, deps]);
 
   const phase = useSyncExternalStore(controller.subscribe, controller.getSnapshot);
   const availability = voiceAvailability({ ...deps, online: () => online }, settings);

@@ -3,6 +3,15 @@ import type { GameDefinition } from "../../src/domain/games/schema";
 import type { Player } from "../../src/domain/types";
 import { miniGame, miniPlayers } from "./miniGame";
 
+/**
+ * Feature 014: the device languages the app sees. tests/setup.ts resets them to Spanish before
+ * every test, so a test that switches needs no cleanup of its own.
+ */
+export function setNavigatorLanguages(list: readonly string[]): void {
+  Object.defineProperty(navigator, "languages", { value: [...list], configurable: true });
+  Object.defineProperty(navigator, "language", { value: list[0] ?? "", configurable: true });
+}
+
 let counter = 0;
 
 /** A unique IndexedDB name per test, so fake-indexeddb state never leaks between tests. */

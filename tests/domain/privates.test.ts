@@ -1,3 +1,4 @@
+import { renderMessage } from "../../src/i18n/render";
 import { describe, expect, it } from "vitest";
 import { getBuiltInGame } from "../../src/domain/games";
 import { TestSession, makePlayers } from "../helpers/dispatch";
@@ -22,7 +23,7 @@ describe.each([
     const before = s.state;
     const result = s.tryDo(buyPrivate("p2", priv, cost + 20));
     expect(result.kind).toBe("unavailable");
-    expect(result.kind === "unavailable" && result.reasonEs).toMatch(/ya es de Ana; en .+ las privadas no se traspasan/);
+    expect(result.kind === "unavailable" && renderMessage(result.reason, s, "es")).toMatch(/ya es de Ana; en .+ las privadas no se traspasan/);
     expect(s.state).toBe(before);
     expect(s.state.assets[`private:${priv}`]).toBe("player:p1");
   });
@@ -34,7 +35,7 @@ describe("1830: player-to-player sales only in a stock round after the first", (
     if (round === "SR") toSR(s, sr);
     const result = s.tryDo(buyPrivate("p2", "SV", 40));
     expect(result.kind).toBe("unavailable");
-    expect(result.kind === "unavailable" && result.reasonEs).toMatch(/ya es de Ana; solo se traspasa/);
+    expect(result.kind === "unavailable" && renderMessage(result.reason, s, "es")).toMatch(/ya es de Ana; solo se traspasa/);
     expect(s.state.assets["private:SV"]).toBe("player:p1");
   });
 
@@ -64,12 +65,12 @@ describe("unchanged refusals and bank sales", () => {
 
   it("the owner is told it is already theirs", () => {
     const s = start("1848").do(buyPrivate("p1", "P1", 30));
-    expect(s.tryDo(buyPrivate("p1", "P1", 30))).toEqual({ kind: "unavailable", reasonEs: "Ya es suya" });
+    expect(s.reasonEs(buyPrivate("p1", "P1", 30))).toBe("Ya es suya");
   });
 
   it("a closed private stays refused", () => {
     const s = start("1848").apply({ t: "assetTransfer", asset: "private:P1", from: "bank", to: "removed" });
-    expect(s.tryDo(buyPrivate("p1", "P1", 30))).toEqual({ kind: "unavailable", reasonEs: "Esa privada está cerrada" });
+    expect(s.reasonEs(buyPrivate("p1", "P1", 30))).toBe("Esa privada está cerrada");
   });
 
   it("a game without privateTrading defaults to player sales in SR2+", () => {

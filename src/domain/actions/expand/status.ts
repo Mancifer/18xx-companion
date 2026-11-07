@@ -10,7 +10,7 @@ export const statusHandlers: HandlerMap = {
   enterReceivership: {
     available: (ctx, a) => {
       if (!a) return AVAILABLE;
-      return ctx.state.companies[a.company]?.status === "receivership" ? unavailable("Ya está en administración") : AVAILABLE;
+      return ctx.state.companies[a.company]?.status === "receivership" ? unavailable("receivership.already", {}) : AVAILABLE;
     },
     expand: (ctx, a) => {
       for (const hook of hooksOf(ctx.game, "enterReceivership")) {
@@ -23,8 +23,8 @@ export const statusHandlers: HandlerMap = {
 
   declareBankruptcy: {
     available: (ctx, a) => {
-      if (a?.player && !ctx.players.some((p) => p.id === a.player)) return unavailable("Jugador desconocido");
-      if (a?.company && ctx.state.companies[a.company]?.status === "bankrupt") return unavailable("Ya está en quiebra");
+      if (a?.player && !ctx.players.some((p) => p.id === a.player)) return unavailable("player.unknown", {});
+      if (a?.company && ctx.state.companies[a.company]?.status === "bankrupt") return unavailable("bankruptcy.already", {});
       return AVAILABLE;
     },
     expand: (ctx, a) =>

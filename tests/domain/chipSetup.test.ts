@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { applyOptions, builtInGames, getBuiltInGame, resolveOptions } from "../../src/domain/games";
 import { DEFAULT_CHIPS } from "../../src/domain/games/chips";
 import type { GameDefinition } from "../../src/domain/games/schema";
-import { cleanPins, fill, missingWarningEs, setupPlan, type ChipPortion, type SetupPlan } from "../../src/domain/mechanics/chipSetup";
+import { cleanPins, fill, missingWarning, setupPlan, type ChipPortion, type SetupPlan } from "../../src/domain/mechanics/chipSetup";
 import type { Chip, ChipSet } from "../../src/domain/types";
 
 /** Feature 008: the setup plan (contracts/domain.md, data-model §4, research R4–R6, R16). */
@@ -202,11 +202,11 @@ describe("missing chips and their warning (US5, FR-023, R6)", () => {
     expect(bank.portion.missing).toEqual(cc("8×500, 1×100"));
     expect(bank.setAside).toEqual([]);
     expect(plan.missing).toEqual(cc("8×500, 1×100"));
-    expect(missingWarningEs(plan, set)).toBe("Faltan 8 fichas verdes (500), 1 roja (100)");
+    expect(missingWarning(plan, set, "es")).toBe("Faltan 8 fichas verdes (500), 1 roja (100)");
   });
 
   it("no warning for the default plan", () => {
-    expect(missingWarningEs(setupPlan(g1830, 4, defaults), defaults)).toBeNull();
+    expect(missingWarning(setupPlan(g1830, 4, defaults), defaults, "es")).toBeNull();
   });
 
   it("green count 0: each player gets 6×100 and green is never missing", () => {
@@ -220,7 +220,7 @@ describe("missing chips and their warning (US5, FR-023, R6)", () => {
     const plan = setupPlan(game("1848"), 4, set);
     expect(plan.perPlayer).toEqual({ amount: 630, owned: cc("1×500, 1×100, 1×25"), missing: cc("1×5") });
     expect(countOf(plan.missing, 5)).toBeGreaterThanOrEqual(4);
-    expect(missingWarningEs(plan, set)).toMatch(/^Faltan \d+ fichas azules \(5\)/);
+    expect(missingWarning(plan, set, "es")).toMatch(/^Faltan \d+ fichas azules \(5\)/);
   });
 
   it("an unlimited color is never missing", () => {
@@ -244,7 +244,7 @@ describe("missing chips and their warning (US5, FR-023, R6)", () => {
       bank: { kind: "unlimited", owned: [], unlimitedValues: [1] },
       missing: cc("1×500, 3×50"),
     };
-    expect(missingWarningEs(plan, set)).toBe("Faltan 1 ficha verde (500), 3 de 50");
-    expect(missingWarningEs({ ...plan, missing: cc("2×50") }, set)).toBe("Faltan 2 fichas de 50");
+    expect(missingWarning(plan, set, "es")).toBe("Faltan 1 ficha verde (500), 3 de 50");
+    expect(missingWarning({ ...plan, missing: cc("2×50") }, set, "es")).toBe("Faltan 2 fichas de 50");
   });
 });

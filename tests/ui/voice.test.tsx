@@ -2,7 +2,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { act, screen, waitFor, within } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { readFileSync } from "node:fs";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { SETTINGS_CHANGED, type VoiceDeps } from "../../src/app/useVoice";
 import { openCompanionDb } from "../../src/persistence/db";
 import { SettingsRepo } from "../../src/persistence/settingsRepo";
@@ -12,7 +12,7 @@ import { geminiReply } from "../../src/voice/providers/gemini";
 import { anthropicReply } from "../../src/voice/providers/anthropic";
 import type { ModelReply } from "../../src/voice/reply";
 import type { RecognizerLike } from "../../src/voice/speech";
-import { byLine, cashText, openSeededTable } from "./helpers";
+import { byLine, cashText, openMenuItem, openSeededTable } from "./helpers";
 
 /** US5 by touch and voice, with a fake recognizer and recorded model responses (no network). */
 
@@ -401,5 +401,59 @@ describe("company badges on the confirmation card (feature 013, US1)", () => {
     expect([...summary.querySelectorAll(".company-badge")].some((b) => b.textContent === "PRR")).toBe(true);
     expect(summary.textContent).toMatch(/^PRR paga \$240/);
     expect(/[\uE000-\uE002]/.test(summary.textContent)).toBe(false);
+  });
+});
+
+/** Feature 014 T063: voice in the display language, once English is in the voice gate. */
+describe("voice in English (feature 014)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const failing: VoiceDeps = {
+    recognizer: () => new FakeRecognizer(),
+    online: () => true,
+    createInterpreter: () => () => Promise.reject(new VoiceProviderError("rateLimit", "x")),
+  };
+
+  async function hold(user: User, name: string) {
+    const mic = await screen.findByRole("button", { name });
+    await waitFor(() => expect(mic).toHaveProperty("disabled", false));
+    await user.pointer({ keys: "[MouseLeft>]", target: mic });
+    return mic;
+  }
+
+  it("listens with the English region; a failed interpreter shows the English error, the transcript and the touch way", async () => {
+    vi.stubEnv("VITE_VOICE_LANGUAGES", "es,en");
+    const { user } = await openSeededTable({
+      actions: OR_SETUP,
+      settings: { ...KEY, language: "en", voiceLocales: { en: "en-GB" } },
+      voiceDeps: failing,
+    });
+    await hold(user, "Hold to talk");
+    expect(FakeRecognizer.current?.lang).toBe("en-GB");
+    act(() => FakeRecognizer.current?.say("240, pays"));
+    await user.pointer({ keys: "[/MouseLeft]", target: screen.getByRole("button", { name: "Release to send" }) });
+    const card = await screen.findByRole("dialog", { name: "I didn't understand" });
+    expect(within(card).getByText("«240, pays»")).toBeTruthy();
+    expect(within(card).getByText("The usage limit was reached; try again in a moment.")).toBeTruthy();
+    expect(within(card).getByRole("button", { name: "Do it by hand" })).toBeTruthy();
+  });
+
+  it("with no saved English region it listens in en-US; after a switch to Spanish the next command uses the Spanish region", async () => {
+    vi.stubEnv("VITE_VOICE_LANGUAGES", "es,en");
+    const { user } = await openSeededTable({
+      actions: OR_SETUP,
+      settings: { ...KEY, language: "en", voiceLocales: { es: "es-UY" } },
+      voiceDeps: failing,
+    });
+    await hold(user, "Hold to talk");
+    expect(FakeRecognizer.current?.lang).toBe("en-US");
+    await user.pointer({ keys: "[/MouseLeft]", target: screen.getByRole("button", { name: "Release to send" }) });
+    await openMenuItem(user, "Settings");
+    await user.click(await screen.findByRole("radio", { name: "Español" }));
+    await user.click(screen.getByRole("button", { name: "Volver" }));
+    await hold(user, "Mantén pulsado para hablar");
+    expect(FakeRecognizer.current?.lang).toBe("es-UY");
   });
 });

@@ -2,7 +2,7 @@ import { readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { loadFixture } from "../../eval/voice/load";
 import { applyOptions, getBuiltInGame } from "../../src/domain/games";
-import { systemPromptEs } from "../../src/voice/prompt";
+import { systemPrompt } from "../../src/voice/prompt";
 import {
   ACTION_TOOLS,
   buildToolSpecs,
@@ -237,7 +237,33 @@ describe("Claude baseline snapshots (T001)", () => {
   it.each(FIXTURE_IDS)("%s: tools and system prompt", async (id) => {
     const { session } = loadFixture(FIXTURE_DIR, id);
     await expect(JSON.stringify(buildTools(session))).toMatchFileSnapshot(`./__snapshots__/tools-${id}.json`);
-    await expect(systemPromptEs(session)).toMatchFileSnapshot(`./__snapshots__/prompt-${id}.txt`);
+    await expect(systemPrompt(session)).toMatchFileSnapshot(`./__snapshots__/prompt-${id}.txt`);
+  });
+});
+
+/** Feature 014 T061 (FR-014b): Spanish stays byte-identical; English is a translation of the same tools. */
+describe("tools and prompt in both languages (feature 014)", () => {
+  it.each(FIXTURE_IDS)("%s: Spanish, asked for explicitly, is the same bytes as the baseline", async (id) => {
+    const { session } = loadFixture(FIXTURE_DIR, id);
+    const es = { ...session, lang: "es" as const };
+    await expect(JSON.stringify(buildTools(es))).toMatchFileSnapshot(`./__snapshots__/tools-${id}.json`);
+    await expect(systemPrompt(es)).toMatchFileSnapshot(`./__snapshots__/prompt-${id}.txt`);
+  });
+
+  it.each(FIXTURE_IDS)("%s: English tools and prompt", async (id) => {
+    const { session } = loadFixture(FIXTURE_DIR, id);
+    const en = { ...session, lang: "en" as const };
+    await expect(JSON.stringify(buildTools(en))).toMatchFileSnapshot(`./__snapshots__/tools-${id}.en.json`);
+    await expect(systemPrompt(en)).toMatchFileSnapshot(`./__snapshots__/prompt-${id}.en.txt`);
+  });
+
+  it.each(FIXTURE_IDS)("%s: the same tool names, parameters, types and enums; only descriptions differ", (id) => {
+    const { session } = loadFixture(FIXTURE_DIR, id);
+    const es = buildToolSpecs({ ...session, lang: "es" });
+    const en = buildToolSpecs({ ...session, lang: "en" });
+    expect(en.map((t) => t.name)).toEqual(es.map((t) => t.name));
+    expect(en.map((t) => t.schema)).toEqual(es.map((t) => t.schema));
+    en.forEach((t, i) => expect(t.description, t.name).not.toBe(es[i]!.description));
   });
 });
 

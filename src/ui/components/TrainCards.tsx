@@ -1,5 +1,6 @@
 import { useSession } from "../../app/useSession";
-import { companyTrains } from "../../domain/i18n/es";
+import { useText } from "../../app/language";
+import { companyTrains } from "../../i18n/shared";
 import type { CompanyId } from "../../domain/types";
 
 /**
@@ -9,13 +10,14 @@ import type { CompanyId } from "../../domain/types";
  */
 export function TrainCards({ company, size = "md" }: { company: CompanyId; size?: "sm" | "md" }) {
   const { meta, state } = useSession();
+  const t = useText().table.trains;
   const { cards } = companyTrains(meta.game, state, company);
   return (
-    <span role="list" aria-label="Trenes" className={`train-cards train-cards-${size}`}>
+    <span role="list" aria-label={t.label} className={`train-cards train-cards-${size}`}>
       {cards.map((c) => (
         <span key={c.asset} role="listitem" className={c.rusted ? "train-card rusted" : "train-card"}>
           <span className="train-card-label">{c.label}</span>
-          {c.rusted ? <span className="train-card-note">oxidado</span> : null}
+          {c.rusted ? <span className="train-card-note">{t.rusted}</span> : null}
         </span>
       ))}
     </span>

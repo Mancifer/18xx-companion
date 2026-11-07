@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { boundedFewest, breakdown, change, isCanonical, validateChipSet } from "../../src/domain/mechanics/chips";
+import { boundedFewest, breakdown, change, isCanonical, validateChipSet as validateMessages } from "../../src/domain/mechanics/chips";
+import { plainSpanish } from "../../src/i18n/render";
+
+/** Feature 014: the chip set errors as Spanish text, as before. */
+const validateChipSet = (s: ChipSet) => validateMessages(s).map(plainSpanish);
 import type { ChipSet } from "../../src/domain/types";
 import { DEFAULT_CHIPS } from "../../src/domain/games/chips";
 

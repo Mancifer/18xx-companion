@@ -1,7 +1,8 @@
 import { useSession } from "../../app/useSession";
 import { assetsHeldBy, cashOf, presidentOf } from "../../domain/events/state";
-import { statusLabel } from "../../domain/i18n/es";
-import { formatMoney } from "../../domain/i18n/format";
+import { useDomainText, useLang, useText } from "../../app/language";
+import { gameText } from "../../i18n/gameText";
+import { formatMoney } from "../../i18n/format";
 import { floatPending } from "../../domain/mechanics/capitalization";
 import { floatConditionConfig } from "../../domain/mechanics/custom/manualFloatCondition";
 import { priceOf } from "../../domain/mechanics/market";
@@ -21,6 +22,9 @@ export function CompanyCard({
   current?: boolean;
 }) {
   const { meta, state } = useSession();
+  const t = useText().table.companyCard;
+  const dt = useDomainText();
+  const { lang } = useLang();
   const def = meta.game.companies.find((c) => c.id === companyId);
   const record = state.companies[companyId];
   if (!def || !record) return null;
@@ -35,7 +39,7 @@ export function CompanyCard({
     condition?.company === companyId &&
     record.status === "parred" &&
     floatPending({ game: meta.game, state }, companyId) === "condition";
-  const status = record.capitalPending ? "flotada (capital al final de la ronda)" : statusLabel[record.status];
+  const status = record.capitalPending ? t.capitalPending : dt.status[record.status];
   return (
     <button
       className={`company-card status-${record.status}${current ? " current" : ""}`}
@@ -49,26 +53,29 @@ export function CompanyCard({
       </span>
       <span className="company-figures">
         <span>
-          <span className="label">Caja</span>
+          <span className="label">{t.treasury}</span>
           <span className="money" data-testid={`treasury-${companyId}`}>
-            {formatMoney(cashOf(state, `company:${companyId}`), meta.game)}
+            {formatMoney(cashOf(state, `company:${companyId}`), meta.game, lang)}
           </span>
         </span>
         <span>
-          <span className="label">Precio</span>
+          <span className="label">{t.price}</span>
           <span className="money" data-testid={`price-${companyId}`}>
-            {price !== undefined ? formatMoney(price, meta.game) : "—"}
+            {price !== undefined ? formatMoney(price, meta.game, lang) : "—"}
           </span>
         </span>
       </span>
       <span className="company-meta muted">
-        {def.kind === "national" || !presidentName ? "Sin presidente" : `Pres.: ${presidentName}`}
+        {def.kind === "national" || !presidentName ? t.noPresident : t.president(presidentName)}
       </span>
-      {pendingCondition ? <span className="badge warn">{condition.question}</span> : null}
+      {pendingCondition ? <span className="badge warn">{gameText(meta.game, lang).ruleText("manualFloatCondition", "question") || condition.question}</span> : null}
       {hasTrains || loans > 0 ? (
         <span className="company-meta company-trains">
           {hasTrains ? <TrainCards company={companyId} size="sm" /> : null}
-          {loans > 0 ? <span>Préstamos: {loans}</span> : null}
+          {loans > 0 ? <span>
+              {t.loans}
+              {loans}
+            </span> : null}
         </span>
       ) : null}
     </button>

@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type { Interpreter, InterpreterOptions } from "../interpreter";
-import { systemPromptEs } from "../prompt";
+import { systemPrompt } from "../prompt";
 import type { ModelReply, ReplyStop } from "../reply";
 import { buildToolSpecs, toAnthropicTools, type VoiceSession } from "../tools";
 
@@ -11,7 +11,7 @@ export function supportsEffort(model: string): boolean {
 
 /** One system block with the cache breakpoint at its end (research R9). */
 export function systemBlocks(session: VoiceSession): Anthropic.TextBlockParam[] {
-  return [{ type: "text", text: systemPromptEs(session), cache_control: { type: "ephemeral" } }];
+  return [{ type: "text", text: systemPrompt(session), cache_control: { type: "ephemeral" } }];
 }
 
 const STOPS: Readonly<Record<string, ReplyStop>> = {

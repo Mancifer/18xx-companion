@@ -29,6 +29,8 @@ export const WarningSchema = z.object({
   code: z.string(),
   messageEs: z.string(),
   severity: z.enum(["info", "warn"]),
+  /** Feature 014: what the message needs to be rebuilt in any language. Absent before 0.2.0. */
+  params: z.record(z.string(), z.union([z.string(), z.number()])).optional(),
 });
 export type Warning = z.infer<typeof WarningSchema>;
 

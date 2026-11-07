@@ -1,8 +1,10 @@
+import { useMessageText } from "../useMessage";
 import { useEffect, type ReactNode } from "react";
 import { useFeedback } from "../../app/AppProvider";
 import { useDispatch, useSession } from "../../app/useSession";
-import { holderName, summaryEs, undoneEs } from "../../domain/i18n/es";
-import { formatMoney } from "../../domain/i18n/format";
+import { useDomainText, useLang, useText } from "../../app/language";
+import { renderWarning } from "../../i18n/render";
+import { formatMoney } from "../../i18n/format";
 import { moneyFlows } from "../../domain/ledger/flows";
 import type { HolderRef } from "../../domain/types";
 import { ChipStrip, flowLabel } from "./ChipStrip";
@@ -17,9 +19,14 @@ const VISIBLE_MS = 6000;
  * constitution IV). `extra` renders below the summary (the chip breakdown, US6).
  */
 export function UndoToast({ extra, undoOnly = false }: { extra?: (group: GroupEntry) => ReactNode; undoOnly?: boolean }) {
+  const reasonText = useMessageText();
   const { feedback, clear } = useFeedback();
   const { meta } = useSession();
   const { undoLast } = useDispatch();
+  const text = useText();
+  const t = { ...text.history, chips: text.components.chips };
+  const dt = useDomainText();
+  const { lang } = useLang();
 
   useEffect(() => {
     if (!feedback) return;
@@ -37,7 +44,7 @@ export function UndoToast({ extra, undoOnly = false }: { extra?: (group: GroupEn
   if (feedback.kind === "error") {
     return (
       <div className="toast" role="alert">
-        <span>{feedback.messageEs}</span>
+        <span>{reasonText(feedback.message)}</span>
       </div>
     );
   }
@@ -45,7 +52,7 @@ export function UndoToast({ extra, undoOnly = false }: { extra?: (group: GroupEn
     return (
       <div className="toast" role="status">
         <span>
-          <RichText text={undoneEs(feedback.groups, ctx)} />
+          <RichText text={dt.undone(feedback.groups, ctx)} />
         </span>
       </div>
     );
@@ -59,15 +66,15 @@ export function UndoToast({ extra, undoOnly = false }: { extra?: (group: GroupEn
       (e.t === "companyStatus" && (e.status === "receivership" || e.status === "bankrupt")) ||
       (e.t === "counterChange" && e.key === "bankrupt"),
   );
-  const name = (h: HolderRef) => holderName(h, meta.game, meta.players);
+  const name = (h: HolderRef) => dt.holderName(h, meta.game, meta.players);
   return (
     <div className="toast" role="status">
       <span className="toast-summary">
-        <RichText text={summaryEs(group.action, ctx, group.events)} />
+        <RichText text={dt.summary(group.action, ctx, group.events)} />
       </span>
       {group.warnings.map((w) => (
         <span key={w.code} className="toast-warning">
-          ⚠ {w.messageEs}
+          ⚠ {renderWarning(w, ctx, lang)}
         </span>
       ))}
       {multiStep && !chips ? (
@@ -77,7 +84,7 @@ export function UndoToast({ extra, undoOnly = false }: { extra?: (group: GroupEn
               ? [
                   <li key={i}>
                     <HolderName holder={e.from} game={meta.game} players={meta.players} /> →{" "}
-                    <HolderName holder={e.to} game={meta.game} players={meta.players} />: {formatMoney(e.amount, meta.game)}
+                    <HolderName holder={e.to} game={meta.game} players={meta.players} />: {formatMoney(e.amount, meta.game, lang)}
                   </li>,
                 ]
               : [],
@@ -86,14 +93,14 @@ export function UndoToast({ extra, undoOnly = false }: { extra?: (group: GroupEn
       ) : null}
       {chips
         ? moneyFlows(group.events).map((flow) => (
-            <ChipStrip key={`${flow.from}|${flow.to}`} flow={flow} set={meta.chipSet} game={meta.game} label={flowLabel(flow, name)} />
+            <ChipStrip key={`${flow.from}|${flow.to}`} flow={flow} set={meta.chipSet} game={meta.game} label={flowLabel(flow, name, t.chips)} />
           ))
         : null}
       {extra?.(group)}
       <div className="row">
         <span className="spacer" />
         {/* Undo only runs in order: this undoes the newest entry, which is this toast's group. */}
-        <button onClick={() => void undoLast()}>Deshacer</button>
+        <button onClick={() => void undoLast()}>{t.undo}</button>
       </div>
     </div>
   );

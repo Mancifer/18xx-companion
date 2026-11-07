@@ -3,7 +3,8 @@ import { useDispatch, useSession } from "../../app/useSession";
 import { availabilityOf } from "../../domain/actions/availability";
 import type { ActionContext } from "../../domain/actions/context";
 import { isPlayerBankrupt } from "../../domain/events/state";
-import { formatMoney } from "../../domain/i18n/format";
+import { formatMoney } from "../../i18n/format";
+import { useLang, useText } from "../../app/language";
 import { launchPrice } from "../../domain/mechanics/market";
 import type { CompanyId, PlayerId } from "../../domain/types";
 import { ChipStrip } from "../components/ChipStrip";
@@ -18,9 +19,11 @@ import { Sheet } from "../components/Sheet";
 export function LaunchSheet({ companyId, onClose }: { companyId?: CompanyId; onClose: () => void }) {
   const { meta, state } = useSession();
   const { dispatch } = useDispatch();
+  const t = useText().sheets.launch;
+  const { lang } = useLang();
   const ctx: ActionContext = { game: meta.game, players: meta.players, state };
   const game = meta.game;
-  const money = (n: number) => formatMoney(n, game);
+  const money = (n: number) => formatMoney(n, game, lang);
   const [player, setPlayer] = useState<PlayerId | null>(null);
   const [company, setCompany] = useState<CompanyId | null>(companyId ?? null);
   const [bid, setBid] = useState<number | null>(game.auction?.minBid ?? null);
@@ -45,9 +48,9 @@ export function LaunchSheet({ companyId, onClose }: { companyId?: CompanyId; onC
   };
 
   return (
-    <Sheet title="Abrir minor" onClose={onClose}>
+    <Sheet title={t.title} onClose={onClose}>
       <fieldset className="choice-fieldset">
-        <legend className="muted">Jugador</legend>
+        <legend className="muted">{t.player}</legend>
         <div className="choice-grid">
           {players.map((p) => (
             <button key={p.id} aria-pressed={player === p.id} onClick={() => setPlayer(p.id)}>
@@ -56,8 +59,8 @@ export function LaunchSheet({ companyId, onClose }: { companyId?: CompanyId; onC
           ))}
         </div>
       </fieldset>
-      <fieldset className="choice-fieldset" aria-label="Minor">
-        <legend className="muted">Minor</legend>
+      <fieldset className="choice-fieldset" aria-label={t.minor}>
+        <legend className="muted">{t.minor}</legend>
         <div className="choice-grid">
           {minors.map((c) => (
             <button key={c.id} aria-pressed={company === c.id} aria-label={`${c.shortName} ${c.name}`} onClick={() => setCompany(c.id)}>
@@ -73,21 +76,21 @@ export function LaunchSheet({ companyId, onClose }: { companyId?: CompanyId; onC
           setOverride(null);
         }}
         game={game}
-        label="Puja"
+        label={t.bid}
         quick={[5, 10, 50]}
       />
       {result ? (
         <div className="stack">
           <p className="row">
             <span data-testid="launch-preview">
-              Precio {money(result.price)} · Tesorería {money(treasury)} · {shares} {shares === 1 ? "acción" : "acciones"} en tesorería
+              {t.preview(money(result.price), money(treasury), shares)}
             </span>
           </p>
           <div className="row">
-            <button aria-label={`Precio ${money(result.price)} (cambiar)`} onClick={() => setChoosingPrice((x) => !x)}>
-              Precio {money(result.price)} ✎
+            <button aria-label={t.priceChange(money(result.price))} onClick={() => setChoosingPrice((x) => !x)}>
+              {t.priceEdit(money(result.price))}
             </button>
-            {result.clamped ? <span className="badge warn">Tope de fase {money(result.price)}</span> : null}
+            {result.clamped ? <span className="badge warn">{t.phaseCap(money(result.price))}</span> : null}
           </div>
           {choosingPrice ? (
             <div className="choice-grid">
@@ -110,13 +113,13 @@ export function LaunchSheet({ companyId, onClose }: { companyId?: CompanyId; onC
               flow={{ from: `player:${player ?? ""}`, to: `company:${company ?? ""}`, amount: bid }}
               set={meta.chipSet}
               game={game}
-              label={`${playerName} entrega`}
+              label={t.hands(playerName)}
             />
           ) : null}
         </div>
       ) : null}
       <button className="primary big" disabled={!player || !company || bid === null || bid <= 0} onClick={() => void confirm()}>
-        Abrir
+        {t.open}
       </button>
     </Sheet>
   );

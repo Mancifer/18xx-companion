@@ -9,7 +9,10 @@ import { VoiceProviderError, type ProviderErrorKind } from "../../src/voice/erro
 import { anthropicReply } from "../../src/voice/providers/anthropic";
 import { geminiReply } from "../../src/voice/providers/gemini";
 import type { ModelReply } from "../../src/voice/reply";
+import { domainText } from "../../src/i18n";
+import { renderPlain } from "../../src/i18n/render";
 import { resolveError, resolveResponse } from "../../src/voice/resolve";
+import { snapshotAndTranscript } from "../../src/voice/snapshot";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { seedCompany } from "../helpers/seed";
 
@@ -37,7 +40,7 @@ describe("resolveResponse", () => {
     if (r.kind !== "proposal") return;
     expect(r.transcript).toBe("240, paga");
     expect(r.actions).toEqual([{ type: "runAndPayout", company: null, parts: [{ part: "revenue", amount: 240 }], mode: "full" }]);
-    expect(r.summaryEs).toContain("PRR paga $240");
+    expect(domainText("es").proposalSummary(r.action, context(), r.events)).toContain("PRR paga $240");
     expect(r.flows).toEqual([{ from: "bank", to: "player:p1", amount: 144 }]);
   });
 
@@ -47,7 +50,7 @@ describe("resolveResponse", () => {
     if (r.kind !== "proposal") return;
     expect(r.actions.map((a) => a.type)).toEqual(["buyTrain", "runAndPayout"]);
     expect(r.action.type).toBe("compound");
-    expect(r.summaryEs).toMatch(/compra un 4.*; .*paga \$290/);
+    expect(domainText("es").proposalSummary(r.action, context(), r.events)).toMatch(/compra un 4.*; .*paga \$290/);
   });
 
   it("US5-3: askClarification → options to tap", () => {
@@ -64,7 +67,7 @@ describe("resolveResponse", () => {
 
   it("US5-4: a query is answered from state; the model's text is ignored", () => {
     const r = resolveResponse(recorded("query"), context(), "¿cuánto tiene Ana?");
-    expect(r).toMatchObject({ kind: "query", answer: { textEs: "Ana tiene $600" } });
+    expect(r).toMatchObject({ kind: "query", answer: { text: { es: "Ana tiene $600" } } });
   });
 
   it("undo and confirmProposal are ledger operations", () => {
@@ -78,7 +81,7 @@ describe("resolveResponse", () => {
     ["corregí eso", undoReply("amendLast", {})],
   ])("amendLast (%s) explains how to correct and changes nothing (FR-008)", (transcript, reply) => {
     const r = resolveResponse(reply, { ...context(), effective: effectiveLog(history()) }, transcript);
-    expect(r).toEqual({
+    expect(r).toMatchObject({
       kind: "notUnderstood",
       transcript,
       reasonEs: "Para corregir, deshacé hasta esa entrada y volvé a anotarla.",
@@ -127,7 +130,7 @@ describe("voice undo (feature 010, contracts/voice-undo.md)", () => {
     ["an undone entry", "g4", [...history(), undone]],
   ])("undo with %s is not understood, with the touch fallback", (_what, groupId, log) => {
     const r = resolveResponse(undoReply("undo", { groupId }), { ...context(), effective: effectiveLog(log) }, "deshacé hasta eso");
-    expect(r).toEqual({ kind: "notUnderstood", transcript: "deshacé hasta eso", reasonEs: "No encontré esa entrada. Usá el historial." });
+    expect(r).toMatchObject({ kind: "notUnderstood", transcript: "deshacé hasta eso", reasonEs: "No encontré esa entrada. Usá el historial." });
   });
 });
 
@@ -146,7 +149,7 @@ describe("correctTrain by voice (feature 011, US3)", () => {
     const r = resolveResponse(reply({ company: "PRR", train: "2", op: "remove", to: "bank", amount: null }), withTrain, "la PRR no tenía ese dos");
     expect(r.kind).toBe("proposal");
     if (r.kind !== "proposal") return;
-    expect(r.summaryEs).toMatch(/^Corrección: la PRR devuelve un 2 a la oferta y recibe \$80/);
+    expect(domainText("es").proposalSummary(r.action, withTrain, r.events)).toMatch(/^Corrección: la PRR devuelve un 2 a la oferta y recibe \$80/);
   });
 
   it("an unavailable correction is not a proposal", () => {
@@ -195,7 +198,7 @@ describe("neutral replies (005 T011)", () => {
   });
 
   it("a malformed reply is not understood: the order arrived incomplete", () => {
-    expect(resolveResponse(reply({ stop: "malformed", rawStop: "MALFORMED_FUNCTION_CALL" }), context(), "algo")).toEqual({
+    expect(resolveResponse(reply({ stop: "malformed", rawStop: "MALFORMED_FUNCTION_CALL" }), context(), "algo")).toMatchObject({
       kind: "notUnderstood",
       transcript: "algo",
       reasonEs: "La orden llegó incompleta.",
@@ -220,7 +223,7 @@ describe("resolveError with provider errors (005 T011)", () => {
     ["connection", "Sin conexión con el servicio de voz."],
     ["service", "Error del servicio de voz."],
   ])("%s → %s", (kind, message) => {
-    expect(resolveError(new VoiceProviderError(kind, "x"), "t")).toEqual({ kind: "notUnderstood", transcript: "t", reasonEs: message });
+    expect(resolveError(new VoiceProviderError(kind, "x"), "t")).toMatchObject({ kind: "notUnderstood", transcript: "t", reasonEs: message });
   });
 
   it("the Anthropic SDK's NotFoundError is an unavailable model; other SDK mappings are unchanged", () => {
@@ -268,7 +271,7 @@ describe("Gemini parity (005 T022)", () => {
 
   it("a blocked prompt and a safety stop are rejected orders", () => {
     for (const name of ["blocked-prompt", "refusal"]) {
-      expect(resolveResponse(gemini(name), context(), "algo")).toEqual({ kind: "notUnderstood", transcript: "algo", reasonEs: "La orden fue rechazada." });
+      expect(resolveResponse(gemini(name), context(), "algo")).toMatchObject({ kind: "notUnderstood", transcript: "algo", reasonEs: "La orden fue rechazada." });
     }
   });
 
@@ -298,5 +301,43 @@ describe("Gemini parity (005 T022)", () => {
 describe("recorded Claude responses baseline (T002)", () => {
   it.each(RECORDED)("%s", (name) => {
     expect(resolveResponse(recorded(name), context(), "orden")).toMatchSnapshot();
+  });
+});
+
+/** Feature 014 T062: an English session resolves the same calls to the same results; only the text is English. */
+describe("English twins (feature 014)", () => {
+  const en = () => ({ ...context(), lang: "en" as const });
+
+  it.each(RECORDED)("%s: the same model calls give the same result in an English session", (name) => {
+    expect(resolveResponse(recorded(name), en(), "order")).toEqual(resolveResponse(recorded(name), context(), "order"));
+  });
+
+  it("the proposal summary, query answer and reasons read in English", () => {
+    const payout = resolveResponse(recorded("payout"), en(), "240, pays");
+    if (payout.kind !== "proposal") throw new Error(payout.kind);
+    expect(domainText("en").proposalSummary(payout.action, en(), payout.events)).toMatch(/^PRR pays \$240/);
+    expect(resolveResponse(recorded("query"), en(), "how much does Ana have?")).toMatchObject({ answer: { text: { en: "Ana has $600" } } });
+    const amend = resolveResponse(recorded("amend"), { ...en(), effective: effectiveLog(history()) }, "no, it was 260");
+    if (amend.kind !== "notUnderstood") throw new Error(amend.kind);
+    expect(renderPlain(amend.reason, "en")).toBe("To correct it, undo back to that entry and record it again.");
+    expect(amend.reasonEs).toBe("Para corregir, deshacé hasta esa entrada y volvé a anotarla.");
+  });
+
+  it("provider errors read in English", () => {
+    const r = resolveError(new VoiceProviderError("rateLimit", "x"), "t");
+    if (r.kind !== "notUnderstood") throw new Error(r.kind);
+    expect(renderPlain(r.reason, "en")).toBe("The usage limit was reached; try again in a moment.");
+  });
+
+  it("the English snapshot has the same lines with English labels", () => {
+    const ctx = { ...context(history()), lang: "en" as const };
+    const text = snapshotAndTranscript({ ...ctx, transcript: "240, pays" });
+    expect(text).toContain("Round: OR 1.1. Phase 3. Operating: PRR.");
+    expect(text).toMatch(/^Bank: \$[\d,]+\.$/m);
+    expect(text).toContain("Players:");
+    expect(text).toContain("Latest entries (id in brackets, newest last):");
+    expect(text).toContain("- [g2] Note: a");
+    expect(text).toContain('Transcript: "240, pays"');
+    expect(text).not.toMatch(/Ronda|Banco|Jugadores|Transcripción/);
   });
 });

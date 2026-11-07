@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { counterOf, hasOperated } from "../../src/domain/events/state";
 import { getBuiltInGame } from "../../src/domain/games";
-import { roundLabel } from "../../src/domain/i18n/es";
+import { roundLabel } from "../../src/i18n/es/domain";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { eventsOf } from "../helpers/flows";
 import { seedCompany } from "../helpers/seed";
@@ -95,11 +95,13 @@ describe("startOR and nextCompany (US7-1, US7-2)", () => {
     ]);
     expect(eventsOf(s.lastEvents, "turnAdvance").at(-1)).toMatchObject({ company: "NYC" });
     expect(s.state.turn.currentCompany).toBe("NYC");
-    expect(s.lastWarnings).toContainEqual({
-      code: "noRunRecorded",
-      messageEs: "No se registró la operación de PRR: cuenta como que no corrió y su acción baja.",
-      severity: "warn",
-    });
+    expect(s.lastWarnings).toContainEqual(
+      expect.objectContaining({
+        code: "noRunRecorded",
+        messageEs: "No se registró la operación de PRR: cuenta como que no corrió y su acción baja.",
+        severity: "warn",
+      }),
+    );
     // Reverting the group means replaying without it: the previous company and cell come back.
     expect(before.turn.currentCompany).toBe("PRR");
     expect(before.companies["PRR"]?.position).toEqual({ row: 0, col: 8 });

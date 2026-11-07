@@ -57,9 +57,9 @@ export const g21moon: GameDefinition = {
   initialTreasuries: [],
   startingCash: { "2": 600, "3": 540, "4": 410, "5": 340 },
   companies: [
-    company("SWP", "Suijin Water Plants", "#1f5fbf", "#ffffff", ["suijin", "water plants"]),
-    company("HMQ", "Hematite Low-G Mining and Quarry", "#c62828", "#ffffff", ["hematite", "hache eme cu"]),
-    company("VH", "Varuna Hydroculture", "#f4c20d", "#1b1b1b", ["varuna", "uve hache", "la uve"]),
+    company("SWP", "Suijin Water Plants", "#1f5fbf", "#ffffff", ["suijin", "water plants", "s w p"]),
+    company("HMQ", "Hematite Low-G Mining and Quarry", "#c62828", "#ffffff", ["hematite", "hache eme cu", "h m q"]),
+    company("VH", "Varuna Hydroculture", "#f4c20d", "#1b1b1b", ["varuna", "uve hache", "la uve", "v h"]),
     company("ITC", "International Tritium Consortium", "#7b3fa0", "#ffffff", ["tritium", "i te ce"]),
     company("SSF", "Shamsum Solar Farms", "#ef7d1a", "#1b1b1b", ["shamsum", "solar"]),
     company("LG", "Lunar Geodynamics", "#2e7d32", "#ffffff", ["lunar", "geodynamics", "ele ge"]),

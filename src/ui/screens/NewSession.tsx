@@ -1,9 +1,12 @@
+import { useLang, useText } from "../../app/language";
+import { renderWarning } from "../../i18n/render";
+import { gameText } from "../../i18n/gameText";
 import { useEffect, useMemo, useState } from "react";
 import { useAppActions, useServices } from "../../app/AppProvider";
 import { ALL_COMPANIES, applyOptions, builtInGames, hasUnverified, optionWarnings, subsetIds } from "../../domain/games";
 import type { GameDefinition, OptionDef } from "../../domain/games/schema";
 import { trainCount } from "../../domain/events/state";
-import { formatMoney } from "../../domain/i18n/format";
+import { formatMoney } from "../../i18n/format";
 import { validateChipSet } from "../../domain/mechanics/chips";
 import { setupPlan } from "../../domain/mechanics/chipSetup";
 import type { ChipSet, Player, WalletMode } from "../../domain/types";
@@ -58,6 +61,8 @@ function SubsetChecklist(props: {
   options: Readonly<Record<string, string>>;
   onChange: (value: string) => void;
 }) {
+  const t = useText();
+  const { lang } = useLang();
   const { game, option, options, onChange } = props;
   const available = (patchedCopy(game, { ...options, [option.id]: ALL_COMPANIES })?.companies ?? []).filter((c) =>
     (option.from ?? []).includes(c.id),
@@ -72,9 +77,9 @@ function SubsetChecklist(props: {
   return (
     <fieldset className="choice-fieldset">
       <legend>
-        {option.label}{" "}
+        {gameText(game, lang).option(option.id)}{" "}
         <span className="muted" data-testid="minors-count">
-          {selected.length} de {option.from?.length ?? 0}
+          {selected.length} {t.newSession.of} {option.from?.length ?? 0}
         </span>
       </legend>
       <div className="choice-grid">
@@ -92,6 +97,8 @@ function SubsetChecklist(props: {
 
 /** Game, options, players (within the game's range, never more than 7) and wallet mode. */
 export function NewSession() {
+  const t = useText();
+  const { lang } = useLang();
   const { games } = useServices();
   const { newSession } = useAppActions();
   const { go } = useNav();
@@ -197,6 +204,7 @@ export function NewSession() {
         players,
         walletMode,
         name,
+        lang,
         chipSet: chips,
         bankPins: pins,
       });
@@ -210,19 +218,19 @@ export function NewSession() {
   return (
     <main className="screen">
       <header className="topbar">
-        <button className="ghost" aria-label="Volver" onClick={() => go({ name: "home" })}>
+        <button className="ghost" aria-label={t.common.back} onClick={() => go({ name: "home" })}>
           ←
         </button>
-        <h1 className="topbar-center">Nueva partida</h1>
+        <h1 className="topbar-center">{t.newSession.title}</h1>
       </header>
       <div className="screen-body">
         <fieldset className="choice-fieldset">
-          <legend>Juego</legend>
+          <legend>{t.newSession.game}</legend>
           <div className="choice-grid">
             {all.map((g) => (
               <button key={g.id} aria-pressed={g.id === gameId} onClick={() => chooseGame(g.id)}>
                 {g.name}
-                {hasUnverified(g) ? <span className="badge warn">reglas sin verificar</span> : null}
+                {hasUnverified(g) ? <span className="badge warn">{t.newSession.unverified}</span> : null}
               </button>
             ))}
           </div>
@@ -233,13 +241,13 @@ export function NewSession() {
             <SubsetChecklist key={o.id} game={game} option={o} options={options} onChange={(v) => setOption(o, v)} />
           ) : (
             <label key={o.id}>
-              {o.label}
+              {gameText(game, lang).option(o.id)}
               <select value={options[o.id] ?? ""} onChange={(e) => setOption(o, e.target.value)}>
-                {o.default === null ? <option value="">Al azar</option> : null}
+                {o.default === null ? <option value="">{t.newSession.random}</option> : null}
                 {o.choices.map((c) => (
                   <option key={c.value} value={c.value}>
-                    {c.label}
-                    {c.value === o.default ? " (por defecto)" : ""}
+                    {gameText(game, lang).choice(o.id, c.value)}
+                    {c.value === o.default ? t.newSession.byDefault : ""}
                   </option>
                 ))}
               </select>
@@ -250,23 +258,23 @@ export function NewSession() {
         {game && game.options.length > 0 && patched ? (
           <p className="muted">
             <span data-testid="cash-preview">
-              Dinero inicial: {startingCash !== undefined ? formatMoney(startingCash, patched) : "—"} por jugador
+              {t.newSession.startCash} {startingCash !== undefined ? formatMoney(startingCash, patched, lang) : "—"} {t.newSession.perPlayer}
             </span>
             <br />
-            Trenes: <span data-testid="train-preview">{trainPreview(patched, rows.length)}</span>
+            {t.newSession.trains} <span data-testid="train-preview">{trainPreview(patched, rows.length)}</span>
           </p>
         ) : null}
         {warnings.length > 0 ? (
           <ul className="warning-box" role="status">
             {warnings.map((w) => (
-              <li key={w.code + w.messageEs}>{w.messageEs}</li>
+              <li key={w.code + w.messageEs}>{game ? renderWarning(w, { game, players: [] }, lang) : w.messageEs}</li>
             ))}
           </ul>
         ) : null}
 
         <fieldset className="choice-fieldset">
           <legend>
-            Jugadores ({rows.length}, {min}–{max}) · en orden de asiento
+            {t.newSession.players}{rows.length}, {min}–{max}{t.newSession.seatOrder}
           </legend>
           <ol className="player-rows">
             {rows.map((r, i) => (
@@ -274,30 +282,30 @@ export function NewSession() {
                 <input
                   type="color"
                   value={r.color}
-                  aria-label={`Color del jugador ${i + 1}`}
+                  aria-label={t.newSession.playerColor(i + 1)}
                   onChange={(e) => update(r.key, { color: e.target.value })}
                 />
                 <input
-                  placeholder={`Jugador ${i + 1}`}
-                  aria-label={`Nombre del jugador ${i + 1}`}
+                  placeholder={t.newSession.playerPlaceholder(i + 1)}
+                  aria-label={t.newSession.playerName(i + 1)}
                   value={r.name}
                   onChange={(e) => update(r.key, { name: e.target.value })}
                 />
                 <input
-                  placeholder="Alias (separados por comas)"
-                  aria-label={`Alias del jugador ${i + 1}`}
+                  placeholder={t.newSession.aliasPlaceholder}
+                  aria-label={t.newSession.playerAliases(i + 1)}
                   value={r.aliases}
                   onChange={(e) => update(r.key, { aliases: e.target.value })}
                 />
                 <span className="row">
-                  <button aria-label="Subir" disabled={i === 0} onClick={() => move(i, -1)}>
+                  <button aria-label={t.newSession.up} disabled={i === 0} onClick={() => move(i, -1)}>
                     ↑
                   </button>
-                  <button aria-label="Bajar" disabled={i === rows.length - 1} onClick={() => move(i, 1)}>
+                  <button aria-label={t.newSession.down} disabled={i === rows.length - 1} onClick={() => move(i, 1)}>
                     ↓
                   </button>
                   <button
-                    aria-label="Quitar"
+                    aria-label={t.newSession.remove}
                     disabled={rows.length <= min}
                     onClick={() => setRows((rs) => rs.filter((x) => x.key !== r.key))}
                   >
@@ -308,30 +316,30 @@ export function NewSession() {
             ))}
           </ol>
           <button disabled={rows.length >= max} onClick={() => setRows((rs) => [...rs, newRow(rs.length)])}>
-            Añadir jugador
+            {t.newSession.addPlayer}
           </button>
         </fieldset>
 
         <fieldset className="choice-fieldset">
-          <legend>Dinero de los jugadores</legend>
+          <legend>{t.newSession.walletMode}</legend>
           <div className="choice-grid">
             <button aria-pressed={walletMode === "appTruth"} onClick={() => setWalletMode("appTruth")}>
-              La app lleva el dinero
+              {t.newSession.appTruth}
             </button>
             <button aria-pressed={walletMode === "bankOnly"} onClick={() => setWalletMode("bankOnly")}>
-              Solo banco
+              {t.newSession.bankOnly}
             </button>
           </div>
         </fieldset>
 
         <fieldset className="choice-fieldset">
-          <legend>Fichas</legend>
+          <legend>{t.newSession.chips}</legend>
           {editChips && game ? (
             <ChipSetEditor value={chipSet ?? { chips: game.chipPreset }} onChange={setChipSet} />
           ) : (
             <button className="chip-summary" onClick={() => setEditChips(true)}>
               {chips.chips.length === 0 ? (
-                "Sin fichas"
+                t.newSession.noChips
               ) : (
                 <span className="chip-discs">
                   {chips.chips.map((c) => (
@@ -342,20 +350,20 @@ export function NewSession() {
                   ))}
                 </span>
               )}{" "}
-              · Editar
+              {t.newSession.editChips}
             </button>
           )}
         </fieldset>
         {plan && patched ? <ChipSetupPlan plan={plan} set={chips} game={patched} pins={pins} onPinsChange={setPins} /> : null}
 
         <label>
-          Nombre (opcional)
+          {t.newSession.name}
           <input value={name} onChange={(e) => setName(e.target.value)} placeholder={game?.name} />
         </label>
 
         {error ? <p className="warning-box">{error}</p> : null}
         <button className="primary big" disabled={!valid || busy} onClick={() => void start()}>
-          Empezar
+          {t.newSession.start}
         </button>
       </div>
     </main>

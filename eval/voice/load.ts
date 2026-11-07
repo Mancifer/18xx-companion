@@ -6,6 +6,7 @@ import { replay } from "../../src/domain/ledger/replay";
 import { SessionExportSchema, upgradeExport } from "../../src/persistence/exportImport";
 import type { ResolveContext } from "../../src/voice/resolve";
 import type { VoiceSession } from "../../src/voice/tools";
+import type { Lang } from "../../src/i18n/lang";
 
 /** A fixture as the app would hold it after importing the file (research R18). */
 export interface LoadedFixture {
@@ -13,6 +14,11 @@ export interface LoadedFixture {
   /** Stable per fixture: tools and system prompt (the cached prefix) are built from it. */
   readonly session: VoiceSession;
   readonly ctx: ResolveContext;
+}
+
+/** The fixture as an eval case in `lang` sees it (feature 014): the same session, in that language. */
+export function inLanguage(f: LoadedFixture, lang: Lang): LoadedFixture {
+  return { ...f, session: { ...f.session, lang }, ctx: { ...f.ctx, lang } as ResolveContext };
 }
 
 export function loadFixture(dir: string, id: string): LoadedFixture {

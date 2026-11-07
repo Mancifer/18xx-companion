@@ -78,7 +78,8 @@
           "name": "Suijin Water Plants",
           "aliases": [
             "suijin",
-            "water plants"
+            "water plants",
+            "s w p"
           ],
           "color": "#1f5fbf",
           "textColor": "#ffffff",
@@ -109,7 +110,8 @@
           "name": "Hematite Low-G Mining and Quarry",
           "aliases": [
             "hematite",
-            "hache eme cu"
+            "hache eme cu",
+            "h m q"
           ],
           "color": "#c62828",
           "textColor": "#ffffff",
@@ -141,7 +143,8 @@
           "aliases": [
             "varuna",
             "uve hache",
-            "la uve"
+            "la uve",
+            "v h"
           ],
           "color": "#f4c20d",
           "textColor": "#1b1b1b",
@@ -1874,7 +1877,11 @@
         {
           "code": "outOfTurn",
           "messageEs": "SSF opera fuera de turno (le toca a VH).",
-          "severity": "warn"
+          "severity": "warn",
+          "params": {
+            "company": "SSF",
+            "current": "VH"
+          }
         }
       ]
     },
@@ -1936,12 +1943,17 @@
         {
           "code": "notFloated",
           "messageEs": "La compañía no está flotada.",
-          "severity": "warn"
+          "severity": "warn",
+          "params": {}
         },
         {
           "code": "outOfTurn",
           "messageEs": "SSF opera fuera de turno (le toca a VH).",
-          "severity": "warn"
+          "severity": "warn",
+          "params": {
+            "company": "SSF",
+            "current": "VH"
+          }
         }
       ]
     },
@@ -1984,12 +1996,17 @@
         {
           "code": "noRunRecorded",
           "messageEs": "No se registró la operación de VH: cuenta como que no corrió y su acción baja.",
-          "severity": "warn"
+          "severity": "warn",
+          "params": {
+            "company": "VH",
+            "ran": 1
+          }
         },
         {
           "code": "setComplete",
           "messageEs": "Fin de las rondas de operaciones.",
-          "severity": "info"
+          "severity": "info",
+          "params": {}
         }
       ]
     },

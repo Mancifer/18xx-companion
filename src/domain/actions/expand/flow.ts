@@ -5,7 +5,7 @@ import { phaseIndex } from "../../mechanics/phases";
 import { roundEndEvents } from "../../mechanics/roundEnd";
 import { endTriggers } from "../../mechanics/endTriggers";
 import { exportEvents, exportPreview, slotIndex, startOREvents } from "../../mechanics/schedule";
-import { exportInfoEs, GAME_END_ES } from "../../i18n/es";
+import { SYSTEM_NOTE_TEXT } from "../../../i18n/systemNotes";
 import { AVAILABLE, unavailable, warning, type ActionContext, type ActionHandler, type HandlerMap } from "../context";
 import type { Warning } from "../schemas";
 import { operatingHandlers, zeroRunAction } from "./operating";
@@ -54,10 +54,19 @@ export const flowHandlers: HandlerMap = {
     validate: (ctx) => {
       const warnings: Warning[] = [];
       if (endTriggers(ctx.game, ctx.state).some((t) => t.type === "cyclesComplete")) {
-        warnings.push(warning("gameOver", "La partida terminó."));
+        warnings.push(warning(ctx, "gameOver", {}));
       }
       const preview = ctx.state.turn.srNumber >= 1 ? exportPreview(ctx.game, reduceAll(ctx.state, roundEndEvents(ctx.game, ctx.state))) : undefined;
-      if (preview) warnings.push(warning("export", exportInfoEs(preview), "info"));
+      if (preview) {
+        warnings.push(
+          warning(
+            ctx,
+            "export",
+            { type: preview.type, displayName: preview.displayName, count: preview.count, phase: preview.phase?.id ?? "", rusts: preview.rusts.join(",") },
+            "info",
+          ),
+        );
+      }
       return warnings;
     },
     expand: (ctx) => {
@@ -76,8 +85,8 @@ export const flowHandlers: HandlerMap = {
   /** Voice only: the SR end step (1830 §6.3, §5.5), at most once per SR (feature 003). */
   endSR: {
     available: (ctx) => {
-      if (ctx.state.turn.round !== "SR") return unavailable("Solo en la ronda de acciones");
-      if (ctx.state.turn.roundEnded) return unavailable("Ya se aplicó el fin de la ronda de acciones");
+      if (ctx.state.turn.round !== "SR") return unavailable("round.onlySR", {});
+      if (ctx.state.turn.roundEnded) return unavailable("round.srEnded", {});
       return AVAILABLE;
     },
     expand: (ctx) => roundEndEvents(ctx.game, ctx.state),
@@ -90,7 +99,7 @@ export const flowHandlers: HandlerMap = {
   startOR: {
     validate: (ctx) =>
       ctx.state.turn.round === "OR" && ctx.state.turn.orIndex >= ctx.state.turn.orsInSet
-        ? [warning("newSet", "Las ORs de este set ya se jugaron: empieza un set nuevo sin ronda de acciones.", "info")]
+        ? [warning(ctx, "newSet", {}, "info")]
         : [],
     expand: (ctx) => {
       const end = roundEndEvents(ctx.game, ctx.state);
@@ -99,21 +108,20 @@ export const flowHandlers: HandlerMap = {
   },
 
   nextCompany: {
-    available: (ctx) => (ctx.state.turn.round === "OR" ? AVAILABLE : unavailable("Solo en la ronda de operaciones")),
+    available: (ctx) => (ctx.state.turn.round === "OR" ? AVAILABLE : unavailable("round.onlyOR", {})),
     validate: (ctx) => {
       const warnings: Warning[] = [];
       const missing = unrecordedRun(ctx);
       if (missing) {
-        const name = ctx.game.companies.find((c) => c.id === missing.company)?.shortName ?? missing.company;
         warnings.push(
           missing.run
-            ? warning("noRunRecorded", `No se registró la operación de ${name}: cuenta como que no corrió y su acción baja.`)
-            : warning("noRunRecorded", `No se registró la operación de ${name}: cuenta como que operó.`, "info"),
+            ? warning(ctx, "noRunRecorded", { company: missing.company, ran: 1 })
+            : warning(ctx, "noRunRecorded", { company: missing.company, ran: 0 }, "info"),
         );
         if (missing.run) warnings.push(...(runAndPayout.validate?.(ctx, missing.run) ?? []));
       }
       if (nextCompanyEvents(ctx).setComplete) {
-        warnings.push(warning("setComplete", "Fin de las rondas de operaciones.", "info"));
+        warnings.push(warning(ctx, "setComplete", {}, "info"));
       }
       return warnings;
     },
@@ -128,21 +136,21 @@ export const flowHandlers: HandlerMap = {
     normalize: (ctx, a) => (a.triggers !== null ? a : { ...a, triggers: endTriggers(ctx.game, ctx.state).map((t) => t.type) }),
     validate: (ctx) => {
       const warnings: Warning[] = [];
-      if (ctx.gameEnd?.end) warnings.push(warning("alreadyEnded", GAME_END_ES.alreadyEnded, "info"));
-      if (endTriggers(ctx.game, ctx.state).length === 0) warnings.push(warning("noEndCondition", GAME_END_ES.noEndCondition, "info"));
+      if (ctx.gameEnd?.end) warnings.push(warning(ctx, "alreadyEnded", {}, "info"));
+      if (endTriggers(ctx.game, ctx.state).length === 0) warnings.push(warning(ctx, "noEndCondition", {}, "info"));
       return warnings;
     },
-    expand: () => [{ t: "note", text: "Fin de la partida" }],
+    expand: () => [{ t: "note", text: SYSTEM_NOTE_TEXT.gameOver }],
   },
 
   /** Cancels the current end (feature 007, FR-005a): its own entry, so it can be undone. */
   reopenGame: {
-    available: (ctx) => (ctx.gameEnd?.end ? AVAILABLE : unavailable(GAME_END_ES.notEnded)),
-    expand: () => [{ t: "note", text: "Partida reabierta" }],
+    available: (ctx) => (ctx.gameEnd?.end ? AVAILABLE : unavailable("game.notEnded", {})),
+    expand: () => [{ t: "note", text: SYSTEM_NOTE_TEXT.gameReopened }],
   },
 
   setPhase: {
-    available: (ctx, a) => (a && phaseIndex(ctx.game, a.phase) < 0 ? unavailable(`Fase desconocida: ${a.phase}`) : AVAILABLE),
+    available: (ctx, a) => (a && phaseIndex(ctx.game, a.phase) < 0 ? unavailable("phase.unknown", { phase: a.phase }) : AVAILABLE),
     expand: (_ctx, a) => [{ t: "turnAdvance", phase: a.phase }],
   },
 

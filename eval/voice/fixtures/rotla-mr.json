@@ -2124,7 +2124,11 @@
         {
           "code": "launchPriceClamped",
           "messageEs": "La mitad de la puja ($100) queda fuera del rango de la fase: se usa $90.",
-          "severity": "info"
+          "severity": "info",
+          "params": {
+            "half": 100,
+            "price": 90
+          }
         }
       ]
     },
@@ -2266,7 +2270,10 @@
         {
           "code": "trainOrder",
           "messageEs": "Aún quedan trenes 2 en el banco.",
-          "severity": "warn"
+          "severity": "warn",
+          "params": {
+            "type": "2"
+          }
         }
       ]
     },
@@ -2394,7 +2401,11 @@
         {
           "code": "noRunRecorded",
           "messageEs": "No se registró la operación de TUN: cuenta como que no corrió y su acción baja.",
-          "severity": "warn"
+          "severity": "warn",
+          "params": {
+            "company": "TUN",
+            "ran": 1
+          }
         }
       ]
     },
@@ -2447,7 +2458,11 @@
         {
           "code": "noRunRecorded",
           "messageEs": "No se registró la operación de SPC: cuenta como que no corrió y su acción baja.",
-          "severity": "warn"
+          "severity": "warn",
+          "params": {
+            "company": "SPC",
+            "ran": 1
+          }
         }
       ]
     },
@@ -2495,7 +2510,11 @@
         {
           "code": "noRunRecorded",
           "messageEs": "No se registró la operación de EXP: cuenta como que no corrió y su acción baja.",
-          "severity": "warn"
+          "severity": "warn",
+          "params": {
+            "company": "EXP",
+            "ran": 1
+          }
         }
       ]
     },
@@ -2543,7 +2562,11 @@
         {
           "code": "noRunRecorded",
           "messageEs": "No se registró la operación de TUN: cuenta como que no corrió y su acción baja.",
-          "severity": "warn"
+          "severity": "warn",
+          "params": {
+            "company": "TUN",
+            "ran": 1
+          }
         }
       ]
     },
@@ -2586,12 +2609,17 @@
         {
           "code": "noRunRecorded",
           "messageEs": "No se registró la operación de SPC: cuenta como que no corrió y su acción baja.",
-          "severity": "warn"
+          "severity": "warn",
+          "params": {
+            "company": "SPC",
+            "ran": 1
+          }
         },
         {
           "code": "setComplete",
           "messageEs": "Fin de las rondas de operaciones.",
-          "severity": "info"
+          "severity": "info",
+          "params": {}
         }
       ]
     }

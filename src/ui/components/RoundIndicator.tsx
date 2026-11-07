@@ -1,5 +1,5 @@
 import { useSession } from "../../app/useSession";
-import { cycleRoundLabel, phaseName, roundLabel } from "../../domain/i18n/es";
+import { useDomainText, useText } from "../../app/language";
 import { CompanyBadge } from "./CompanyBadge";
 
 /**
@@ -8,14 +8,19 @@ import { CompanyBadge } from "./CompanyBadge";
  */
 export function RoundIndicator({ onOpen }: { onOpen?: () => void }) {
   const { meta, state } = useSession();
+  const dt = useDomainText();
+  const t = useText().table.round;
   const current = meta.game.companies.find((c) => c.id === state.turn.currentCompany);
-  const label = cycleRoundLabel(meta.game, state.turn) ?? roundLabel(state.turn);
+  const label = dt.cycleRoundLabel(meta.game, state.turn) ?? dt.roundLabel(state.turn);
   const content = (
     <>
       <span className="round-label" data-testid="round">
         {label}
       </span>
-      <span className="muted"> · fase {phaseName(meta.game, state.turn.phase)}</span>
+      <span className="muted">
+        {t.phase}
+        {dt.phaseName(meta.game, state.turn.phase)}
+      </span>
       {current ? (
         <>
           {" · "}
@@ -25,7 +30,7 @@ export function RoundIndicator({ onOpen }: { onOpen?: () => void }) {
     </>
   );
   return onOpen ? (
-    <button className="ghost round-indicator" onClick={onOpen} aria-label={`Turno: ${label}`}>
+    <button className="ghost round-indicator" onClick={onOpen} aria-label={t.turn(label)}>
       {content}
     </button>
   ) : (

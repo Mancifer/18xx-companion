@@ -1,10 +1,10 @@
 {
   "name": "18xx-companion",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "license": "MIT",
   "type": "module",
-  "description": "Offline-first PWA that keeps the money for 18xx games, by touch and Spanish voice",
+  "description": "Offline-first PWA that keeps the money for 18xx games, by touch and by voice, in English and Spanish",
   "engines": {
     "node": ">=22"
   },

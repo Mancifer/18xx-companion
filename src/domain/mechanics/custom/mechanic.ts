@@ -1,4 +1,5 @@
 import type { z } from "zod";
+import type { Message } from "../../../i18n/contract/domain";
 import type { ActionContext, HandlerMap, Trigger } from "../../actions/context";
 import type { Warning } from "../../actions/schemas";
 import type { PrimitiveEvent } from "../../events/types";
@@ -33,7 +34,7 @@ export interface HookResult {
  */
 export interface MechanicHooks {
   /** A run must be withheld (receivership). Returns the reason, or undefined. */
-  readonly forceWithhold?: (ctx: ActionContext, company: CompanyId) => string | undefined;
+  readonly forceWithhold?: (ctx: ActionContext, company: CompanyId) => Message | undefined;
   /**
    * A company is short of cash for a train from the bank or the pool (a forced purchase). The
    * events run before the company pays.

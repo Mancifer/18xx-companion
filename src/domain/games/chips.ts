@@ -12,15 +12,3 @@ export const DEFAULT_CHIPS: readonly Chip[] = [
   { value: 1, color: "#f5f5f5", countAvailable: 150 }, // white
 ];
 
-const COLOR_NAMES_ES: Readonly<Record<string, string>> = {
-  "#2e7d32": "verde",
-  "#c62828": "roja",
-  "#212121": "negra",
-  "#1565c0": "azul",
-  "#f5f5f5": "blanca",
-};
-
-/** The Spanish name of a default chip color, for the missing-chips warning; undefined otherwise. */
-export function colorNameEs(color: string): string | undefined {
-  return COLOR_NAMES_ES[color.toLowerCase()];
-}

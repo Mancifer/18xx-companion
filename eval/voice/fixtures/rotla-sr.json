@@ -2143,7 +2143,8 @@
         {
           "code": "notOperated",
           "messageEs": "Esta compañía aún no ha operado: no se vende hasta que opere.",
-          "severity": "warn"
+          "severity": "warn",
+          "params": {}
         }
       ]
     }

@@ -83,7 +83,8 @@
             "pennsylvania",
             "pennsy",
             "la pennsy",
-            "pe erre erre"
+            "pe erre erre",
+            "p r r"
           ],
           "color": "#32763f",
           "textColor": "#ffffff",
@@ -117,7 +118,9 @@
           "aliases": [
             "new york central",
             "nueva york",
-            "ene i ce"
+            "ene i ce",
+            "new york",
+            "n y c"
           ],
           "color": "#474548",
           "textColor": "#ffffff",
@@ -151,7 +154,9 @@
           "aliases": [
             "canadian",
             "canadiense",
-            "pacific"
+            "pacific",
+            "canadian pacific",
+            "c p r"
           ],
           "color": "#d1232a",
           "textColor": "#ffffff",
@@ -220,7 +225,8 @@
           "aliases": [
             "chesapeake",
             "ce y o",
-            "c and o"
+            "c and o",
+            "chessie"
           ],
           "color": "#a3d4e8",
           "textColor": "#0b2533",
@@ -288,7 +294,9 @@
           "name": "New York, New Haven & Hartford",
           "aliases": [
             "new haven",
-            "ene ene hache"
+            "ene ene hache",
+            "n n h",
+            "new york new haven"
           ],
           "color": "#f07c22",
           "textColor": "#1b1b1b",
@@ -322,7 +330,8 @@
           "aliases": [
             "boston",
             "be y eme",
-            "b and m"
+            "b and m",
+            "boston and maine"
           ],
           "color": "#8b5a2b",
           "textColor": "#ffffff",
@@ -355,7 +364,8 @@
           "id": "SV",
           "name": "Schuylkill Valley",
           "aliases": [
-            "schuylkill"
+            "schuylkill",
+            "schuylkill valley"
           ],
           "cost": 20,
           "income": 5,
@@ -376,7 +386,8 @@
           "id": "CS",
           "name": "Champlain & St. Lawrence",
           "aliases": [
-            "champlain"
+            "champlain",
+            "champlain and st lawrence"
           ],
           "cost": 40,
           "income": 10,
@@ -397,7 +408,9 @@
           "id": "DH",
           "name": "Delaware & Hudson",
           "aliases": [
-            "delaware"
+            "delaware",
+            "delaware and hudson",
+            "d and h"
           ],
           "cost": 70,
           "income": 15,
@@ -418,7 +431,8 @@
           "id": "MH",
           "name": "Mohawk & Hudson",
           "aliases": [
-            "mohawk"
+            "mohawk",
+            "mohawk and hudson"
           ],
           "cost": 110,
           "income": 20,
@@ -447,7 +461,8 @@
           "id": "CA",
           "name": "Camden & Amboy",
           "aliases": [
-            "camden"
+            "camden",
+            "camden and amboy"
           ],
           "cost": 160,
           "income": 25,
@@ -475,7 +490,9 @@
           "id": "BO",
           "name": "Baltimore & Ohio (privada)",
           "aliases": [
-            "privada baltimore"
+            "privada baltimore",
+            "baltimore private",
+            "b and o private"
           ],
           "cost": 220,
           "income": 30,
@@ -1418,7 +1435,10 @@
         {
           "code": "duplicateAlias",
           "messageEs": "Alias repetidos: \"canadiense\" (Carla / CPR). La voz preguntará.",
-          "severity": "info"
+          "severity": "info",
+          "params": {
+            "aliases": "\"canadiense\" (Carla / CPR)"
+          }
         }
       ]
     },
@@ -2259,7 +2279,8 @@
         {
           "code": "setComplete",
           "messageEs": "Fin de las rondas de operaciones.",
-          "severity": "info"
+          "severity": "info",
+          "params": {}
         }
       ]
     },

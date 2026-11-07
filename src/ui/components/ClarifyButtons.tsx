@@ -1,3 +1,5 @@
+import { useText } from "../../app/language";
+
 /** askClarification (FR-072, US5-3): the question with one button per option. */
 export function ClarifyButtons({
   question,
@@ -10,6 +12,7 @@ export function ClarifyButtons({
   onChoose: (option: { label: string; value: string }) => void;
   onCancel: () => void;
 }) {
+  const text = useText();
   return (
     <section className="voice-card" role="dialog" aria-label={question}>
       <p className="voice-summary">{question}</p>
@@ -20,7 +23,7 @@ export function ClarifyButtons({
           </button>
         ))}
       </div>
-      <button onClick={onCancel}>Cancelar</button>
+      <button onClick={onCancel}>{text.common.cancel}</button>
     </section>
   );
 }

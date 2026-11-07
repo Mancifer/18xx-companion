@@ -1,3 +1,4 @@
+import { useMessageText } from "../useMessage";
 import { useState, type ReactNode } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
 import { availabilityOf } from "../../domain/actions/availability";
@@ -5,7 +6,9 @@ import type { ActionContext } from "../../domain/actions/context";
 import { sharePrice } from "../../domain/actions/expand/stock";
 import { cashOf, unitsOf } from "../../domain/events/state";
 import type { CompanyDef } from "../../domain/games/schema";
-import { formatMoney } from "../../domain/i18n/format";
+import { formatMoney } from "../../i18n/format";
+import { useLang, useText } from "../../app/language";
+
 import { priceOf } from "../../domain/mechanics/market";
 import type { CompanyId, PlayerId } from "../../domain/types";
 import { CompanyBadge } from "../components/CompanyBadge";
@@ -33,11 +36,14 @@ export function PlayerSheet({
 }) {
   const { meta, state } = useSession();
   const { dispatch } = useDispatch();
+  const text = useText();
+  const t = text.sheets.player;
+  const { lang } = useLang();
   const [mode, setMode] = useState<Mode>("menu");
   const player = meta.players.find((p) => p.id === playerId);
   if (!player) return null;
   const ref = `player:${playerId}` as const;
-  const money = (n: number) => formatMoney(n, meta.game);
+  const money = (n: number) => formatMoney(n, meta.game, lang);
   const holdings = meta.game.companies.flatMap((c) => {
     const units = unitsOf(state, ref, c.id);
     const price = priceOf(meta.game, state, c.id);
@@ -50,7 +56,7 @@ export function PlayerSheet({
   };
   const back = (
     <button className="ghost" onClick={() => setMode("menu")}>
-      ← Volver
+      {text.sheets.operate.back}
     </button>
   );
 
@@ -63,18 +69,21 @@ export function PlayerSheet({
       {inSR
         ? holdings.map((h) => (
             <button key={h.company.id} onClick={() => void run({ type: "sellShares", seller: ref, company: h.company.id, count: 1 })}>
-              Vender 1 <CompanyBadge company={h.company} size="inline" /> · {money(h.price)}
+              {t.sellOne[0]}
+              <CompanyBadge company={h.company} size="inline" />
+              {t.sellOne[1]}
+              {money(h.price)}
             </button>
           ))
         : null}
       <button
         disabled={holdings.length === 0}
-        title={holdings.length === 0 ? "No tiene acciones para vender" : undefined}
+        title={holdings.length === 0 ? t.noSharesToSell : undefined}
         onClick={() => setMode("sell")}
       >
-        Vender acciones
+        {t.sellShares}
       </button>
-      <button onClick={() => setMode("buy")}>Comprar acción</button>
+      <button onClick={() => setMode("buy")}>{t.buyShare}</button>
     </>
   );
 
@@ -105,15 +114,16 @@ export function PlayerSheet({
 type Holding = { readonly company: CompanyDef; readonly units: number; readonly price: number };
 
 function Stepper({ value, onChange, min = 1, max }: { value: number; onChange: (n: number) => void; min?: number; max?: number }) {
+  const t = useText().sheets.stock;
   return (
     <div className="row">
-      <button aria-label="Menos" onClick={() => onChange(Math.max(min, value - 1))}>
+      <button aria-label={t.less} onClick={() => onChange(Math.max(min, value - 1))}>
         −
       </button>
-      <span className="money stepper-value" aria-label="Cantidad de acciones">
+      <span className="money stepper-value" aria-label={t.shareCount}>
         {value}
       </span>
-      <button aria-label="Más" onClick={() => onChange(max === undefined ? value + 1 : Math.min(max, value + 1))}>
+      <button aria-label={t.more} onClick={() => onChange(max === undefined ? value + 1 : Math.min(max, value + 1))}>
         +
       </button>
     </div>
@@ -135,12 +145,14 @@ function SellView({
   run: (action: unknown) => Promise<void>;
 }) {
   const { meta } = useSession();
+  const t = useText().sheets.player;
+  const { lang } = useLang();
   const [company, setCompany] = useState<CompanyId | null>(holdings.length === 1 ? (holdings[0]?.company.id ?? null) : null);
   const [count, setCount] = useState(1);
   const name = meta.players.find((p) => p.id === playerId)?.name ?? playerId;
   const chosen = holdings.find((h) => h.company.id === company);
   return (
-    <Sheet title={<>Vender · {name}</>} onClose={onClose}>
+    <Sheet title={<>{t.sellTitle} · {name}</>} onClose={onClose}>
       {back}
       <div className="choice-grid">
         {holdings.map((h) => (
@@ -152,7 +164,7 @@ function SellView({
               setCount(1);
             }}
           >
-            <CompanyBadge company={h.company} size="sm" /> {(h.units * 100) / h.company.shareCount}% · {formatMoney(h.price, meta.game)}
+            <CompanyBadge company={h.company} size="sm" /> {(h.units * 100) / h.company.shareCount}% · {formatMoney(h.price, meta.game, lang)}
           </button>
         ))}
       </div>
@@ -163,7 +175,7 @@ function SellView({
             className="primary"
             onClick={() => void run({ type: "sellShares", seller: `player:${playerId}`, company: chosen.company.id, count })}
           >
-            Vender {count} · cobra {formatMoney(chosen.price * count, meta.game)}
+            {t.sellN(count, formatMoney(chosen.price * count, meta.game, lang))}
           </button>
         </>
       ) : null}
@@ -183,7 +195,10 @@ function BuyView({
   onClose: () => void;
   run: (action: unknown) => Promise<void>;
 }) {
+  const reasonText = useMessageText();
   const { meta, state } = useSession();
+  const text = useText();
+  const { lang } = useLang();
   const open = meta.game.companies.filter((c) => {
     const status = state.companies[c.id]?.status;
     return status !== undefined && status !== "unstarted" && status !== "closed" && status !== "bankrupt";
@@ -192,21 +207,21 @@ function BuyView({
   const [count, setCount] = useState(1);
   const ctx: ActionContext = { game: meta.game, players: meta.players, state };
   const name = meta.players.find((p) => p.id === playerId)?.name ?? playerId;
-  const money = (n: number | undefined) => (n !== undefined ? ` ${formatMoney(n, meta.game)}` : "");
+  const money = (n: number | undefined) => (n !== undefined ? ` ${formatMoney(n, meta.game, lang)}` : "");
 
   const sources = (id: CompanyId) => {
     // The same sources as the company card's StockSheet (RotLA buys from the treasury).
     const treasuryShares = unitsOf(state, `company:${id}`, id);
     const showIpo = meta.game.defaultBuySource !== "treasury" && (unitsOf(state, `ipo:${id}`, id) > 0 || treasuryShares === 0);
     return [
-      ...(showIpo ? [{ source: "ipo" as const, label: "IPO" }] : []),
-      ...(treasuryShares > 0 ? [{ source: "treasury" as const, label: "Tesorería" }] : []),
-      { source: "pool" as const, label: "Pool" },
+      ...(showIpo ? [{ source: "ipo" as const, label: text.sheets.stock.sources.ipo }] : []),
+      ...(treasuryShares > 0 ? [{ source: "treasury" as const, label: text.sheets.stock.sources.treasury }] : []),
+      { source: "pool" as const, label: text.sheets.stock.sources.pool },
     ];
   };
 
   return (
-    <Sheet title={<>Comprar · {name}</>} onClose={onClose}>
+    <Sheet title={<>{text.sheets.player.buyTitle} · {name}</>} onClose={onClose}>
       {back}
       <div className="choice-grid">
         {open.map((c) => (
@@ -224,7 +239,7 @@ function BuyView({
               const action = { type: "buyShare", buyer: `player:${playerId}`, company, source, count } as const;
               const ok = availabilityOf(ctx, "buyShare", action);
               return (
-                <button key={source} disabled={!ok.ok} title={ok.ok ? undefined : ok.reasonEs} onClick={() => void run(action)}>
+                <button key={source} disabled={!ok.ok} title={ok.ok ? undefined : reasonText(ok.reason)} onClick={() => void run(action)}>
                   {label}
                   {money(sharePrice(meta.game, state, company, source))}
                 </button>

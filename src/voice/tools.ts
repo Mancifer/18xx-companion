@@ -7,6 +7,8 @@ import type { GameDefinition } from "../domain/games/schema";
 import { isEnabled } from "../domain/mechanics/custom";
 import { QUERY_KINDS } from "../domain/queries";
 import type { Player } from "../domain/types";
+import type { Lang } from "../i18n/lang";
+import { voiceText } from "../i18n/voiceText";
 
 /**
  * Strict Claude tools generated from the same Zod action schemas touch uses (research R5,
@@ -18,6 +20,8 @@ import type { Player } from "../domain/types";
 export interface VoiceSession {
   readonly game: GameDefinition;
   readonly players: readonly Player[];
+  /** The display language (feature 014): prompt, tool descriptions and snapshot. Absent = Spanish. */
+  readonly lang?: Lang;
 }
 
 /** Voice-reachable actions, in a fixed order (the order is part of the cached prefix). */
@@ -62,62 +66,6 @@ export const ACTION_TOOLS: readonly ActionType[] = [
 
 export const META_TOOLS = ["askClarification", "query", "notUnderstood", "undo", "amendLast", "confirmProposal"] as const;
 
-const DESCRIPTIONS: Readonly<Record<string, string>> = {
-  runAndPayout:
-    "Ingresos de la compañía que opera y cómo se reparten. company null = la que opera; mode null = pagar. «240, paga» · «retiene 180» · «media paga 300» · «local 120, puerto 240».",
-  buyTrain:
-    "Una compañía compra un tren: al banco, del pool o a otra compañía (con precio acordado). «compra un tres» · «la Pennsy le compra el 4 a la B&O por 300» · «diésel entregando el cuatro».",
-  payCost: "La compañía paga un costo al banco (terreno, estación, ficha). «paga 120 de montaña» · «80 de estación».",
-  bankPays: "El banco paga a una compañía un pago puntual. «el banco le paga 60 a la VH por el puente».",
-  privateIncome: "Pagar los ingresos de las privadas a sus dueños. «cobran las privadas» · «ingresos de privadas».",
-  buyPrivateByCompany: "Una compañía compra una privada a su dueño. «la PRR compra la Delaware por 140».",
-  takeLoan: "Una compañía pide préstamos (sin interés, no se devuelven). «la Victoria pide un préstamo» · «dos préstamos».",
-  nationalPayout: "Dividendo del banco nacional: mínimo de la fase más el extra de ciudades. «el banco de inglaterra paga 40 extra».",
-  parCompany: "Un jugador abre una compañía a un precio de salida. «Ana abre la NYC a 82» · «Bruno saca la Erie a 90».",
-  buyShare:
-    "Comprar acciones de la IPO, del pool o de la tesorería. count null = 1. «Bruno compra una B&O del pool» · «Carla compra dos de la IPO de la PRR».",
-  sellShares: "Vender acciones al pool. «Carla vende dos Erie» · «Ana vende una NYC».",
-  swapCertificates: "El presidente cambia un certificado con la tesorería, sin dinero. «Ana cambia una VH por una SSF de la tesorería».",
-  issueShares:
-    "La compañía emite acciones al pool y cobra su precio (en la ronda corporativa, o al operar si el juego lo permite). «la VH emite una» · «emite dos» · «emite una acción».",
-  redeemShare: "La compañía recompra una acción suya del pool al precio actual. company null = la que opera. «recompra una acción» · «la Express recompra una».",
-  launchCompany:
-    "Quien gana la subasta abre una minor: la puja entera va a su tesorería; price null = la mitad de la puja (la app la ajusta). «Ana abre Tunneling por 140» · «Bruno lanza Express en 165».",
-  mergeCompanies:
-    "Ronda de fusiones: dos minors se fusionan en una corporación sin abrir. identity alt = su segunda identidad (si nombran ese nombre). «Express y Tunneling se fusionan en Union» · «… en Conglomerate» (Consortium, alt).",
-  startMR: "Empieza la ronda de fusiones (tras la segunda ronda de operaciones, desde la fase verde). «ronda de fusiones».",
-  forcedTrainPurchase:
-    "Compra forzada: la compañía no tiene tren ni dinero; el presidente pone la diferencia, vendiendo acciones si hace falta (sales). «compra forzada de un 4, Ana vende dos de Express».",
-  namedPayment:
-    "Dinero de una habilidad de la compañía (Tunneling: montaña; Expansive: ficha extra; Sede). amount null = el de la habilidad. «bonificación de túnel» · «ficha extra de Expansive» · «sede, 40».",
-  rockFormation: "Formación rocosa (Landmarks): la acción de la compañía sube dos casillas, antes del pago. company null = la que opera. «formación rocosa».",
-  cliffSale:
-    "Acantilado (Landmarks): la compañía vende un tren al banco por la mitad de su precio impreso; el tren va al pool. train = tipo. «vende el 5 en el acantilado».",
-  canyonTrain: "Cañón (Landmarks): la compañía recibe un 2 oxidado que ya no se oxida. company null = la que opera. «tren del cañón».",
-  buyPrivate: "Un jugador compra una privada al precio pagado. «Ana compra la Camden por 160».",
-  exchangePrivate: "Canjear una privada por una acción, cerrándola. «Dani canjea la Mohawk por una NYC».",
-  stockBatch:
-    "Varias compras y ventas de la ronda de acciones de una vez, en el orden dicho. «Ana compró dos PRR, Bruno vendió tres B&O».",
-  startSR: "Empieza la ronda de acciones. «empieza la ronda de acciones».",
-  endSR: "Termina la ronda de acciones. «fin de la ronda de acciones».",
-  startCR: "Empieza la ronda corporativa. «ronda corporativa».",
-  endCR: "Termina la ronda corporativa. «fin de la ronda corporativa».",
-  startOR: "Empieza una ronda de operaciones. «empieza la ronda de operaciones» · «siguiente OR».",
-  nextCompany: "Pasa a la siguiente compañía. «siguiente compañía» · «siguiente».",
-  endGame: "Terminar la partida (fin del juego). Sin argumentos.",
-  transferMoney: "Pago directo entre el banco, jugadores y compañías. «Ana le paga 50 a Bruno» · «Carla paga 100 al banco».",
-  adjustMoney: "Corregir el dinero de alguien: sumar/restar (delta) o fijar (setTo). «Ana tiene 520» · «súmale 20 a Bruno».",
-  correctTrain:
-    "Corregir los trenes de una compañía por un error de registro (no es una compra ni un descarte). remove: el tren va a la oferta (bank, con devolución del precio de lista salvo amount), al pool o fuera de juego (removed). add: dar un tren de la oferta (amount = lo que paga, null = nada). «la PRR no tenía ese dos, devolvelo al banco» · «sacale el tres a la B&O, fuera de juego» · «dale un dos a la NYC sin pagar».",
-  setMarket: "Mover a mano la ficha de una compañía en el mercado. «pon la PRR en 90».",
-  askClarification:
-    "Pregunta al usuario cuando la orden es ambigua (dos jugadores parecidos, falta la compañía). Da de 2 a 6 opciones. «Ana compra una» (¿Ana o Anabel? ¿qué compañía?).",
-  query: "Pregunta sobre el estado; la app responde con sus datos. «¿cuánto tiene Ana?» · «¿quién preside la Erie?» · «¿a cuánto está la PRR?».",
-  notUnderstood: "Úsala cuando la frase no es una orden del juego o no se puede expresar con las herramientas. «charla de la mesa».",
-  undo: "Deshacer. Sin destino (null) = la última entrada. «deshacé hasta …» = el id de esa entrada en Últimas entradas. «deshacer» · «borrá eso» · «deshacé hasta la compra del tren de la EXP».",
-  amendLast: "Pedido de corregir una cantidad o una entrada anterior. La app no corrige: explica cómo deshacer. «no, eran 260» · «perdón, 300».",
-  confirmProposal: "Confirmar la propuesta que está en pantalla. «sí» · «confirmar» · «vale».",
-};
 
 // Keywords strict tool schemas do not accept; constraints stay enforced by Zod after the call.
 const DROP = new Set([
@@ -333,6 +281,7 @@ export interface ToolSpec {
 /** The session's tools: actions the game offers, then the meta tools. */
 export function buildToolSpecs(session: VoiceSession): ToolSpec[] {
   const e = enumsFor(session);
+  const descriptions = voiceText(session.lang ?? "es").toolDescriptions;
   const probe = { game: session.game, players: session.players, state: initialState(session.game, session.players) };
   const actions = ACTION_TOOLS.filter((type) => {
     const handler = handlerFor(probe, type);
@@ -343,7 +292,7 @@ export function buildToolSpecs(session: VoiceSession): ToolSpec[] {
     ...META_TOOLS.map((name) => ({ name, schema: metaSchema(name, e) })),
   ].map(({ name, schema }) => ({
     name,
-    description: DESCRIPTIONS[name] ?? name,
+    description: descriptions[name] ?? name,
     schema: sortKeys(sanitize(schema, name, e)) as Json,
   }));
 }

@@ -3,6 +3,7 @@ import { useFeedback } from "../../app/AppProvider";
 import { useSession } from "../../app/useSession";
 import { setupPlan } from "../../domain/mechanics/chipSetup";
 import { ChipSetupPlan } from "./ChipSetupPlan";
+import { useText } from "../../app/language";
 
 /**
  * "Fichas iniciales" (feature 008, contracts/ui.md §6, R9): the chips each player takes and, for a
@@ -14,6 +15,7 @@ export function StartChipsNotice({ onDismiss }: { onDismiss: () => void }) {
   const { meta } = useSession();
   const { feedback } = useFeedback();
   const titleId = useId();
+  const t = useText().components.startChips;
   const plan = useMemo(
     () => setupPlan(meta.game, meta.players.length, meta.chipSet, meta.bankPins),
     [meta.game, meta.players.length, meta.chipSet, meta.bankPins],
@@ -22,12 +24,12 @@ export function StartChipsNotice({ onDismiss }: { onDismiss: () => void }) {
   return (
     <div className="toast start-chips" role="status" aria-labelledby={titleId}>
       <span id={titleId} className="toast-summary">
-        Fichas iniciales
+        {t.title}
       </span>
       <ChipSetupPlan plan={plan} set={meta.chipSet} game={meta.game} variant="notice" />
       <div className="row">
         <span className="spacer" />
-        <button onClick={onDismiss}>Entendido</button>
+        <button onClick={onDismiss}>{t.ok}</button>
       </div>
     </div>
   );

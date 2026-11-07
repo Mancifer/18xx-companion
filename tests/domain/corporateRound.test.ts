@@ -101,15 +101,12 @@ describe("corporate round (§10)", () => {
 
     it("a second endCR is not available (feature 003)", () => {
       const s = cr().do({ type: "endCR" });
-      expect(s.tryDo({ type: "endCR" })).toMatchObject({
-        kind: "unavailable",
-        reasonEs: "Ya se aplicó el fin de la ronda corporativa",
-      });
+      expect(s.reasonEs({ type: "endCR" })).toBe("Ya se aplicó el fin de la ronda corporativa");
     });
 
     it("endCR is only available in the CR (feature 003)", () => {
       const s = TestSession.start(g21, players).do({ type: "startSR" });
-      expect(s.tryDo({ type: "endCR" })).toMatchObject({ kind: "unavailable", reasonEs: "Solo en la ronda corporativa" });
+      expect(s.reasonEs({ type: "endCR" })).toBe("Solo en la ronda corporativa");
     });
   });
 

@@ -3,6 +3,7 @@ import { g1830 } from "./g1830";
 import { g1848 } from "./g1848";
 import { g21moon } from "./g21moon";
 import { grotla } from "./grotla";
+import { warning } from "../actions/context";
 import type { Warning } from "../actions/schemas";
 import type { CustomRule, GameDefinition, OptionDef } from "./schema";
 import { validateDefinition } from "./validateDefinition";
@@ -122,8 +123,6 @@ export function applyOptions(game: GameDefinition, options: Readonly<Record<stri
   return deepFreeze(def);
 }
 
-const range = (min: number, max: number) => (min === max ? `${min}` : `${min}–${max}`);
-
 /**
  * New Session warnings for the chosen options (US1-2, US1-4). They never block: a mode played
  * outside its recommended player count, or a minors-in-play count other than the mode's.
@@ -136,11 +135,7 @@ export function optionWarnings(game: GameDefinition, options: Readonly<Record<st
     const choice = option.choices.find((c) => c.value === resolved[option.id]);
     const rec = choice?.recommendedPlayers;
     if (choice && rec && (playerCount < rec.min || playerCount > rec.max)) {
-      warnings.push({
-        code: "recommendedPlayers",
-        messageEs: `El juego ${choice.label.toLocaleLowerCase("es")} es para ${range(rec.min, rec.max)} jugadores.`,
-        severity: "warn",
-      });
+      warnings.push(warning({ game, players: [] }, "recommendedPlayers", { option: option.id, value: choice.value, min: rec.min, max: rec.max }));
     }
   }
   let patched: GameDefinition | undefined;
@@ -155,11 +150,7 @@ export function optionWarnings(game: GameDefinition, options: Readonly<Record<st
     const eligible = new Set(option.from ?? []);
     const count = patched.companies.filter((c) => eligible.has(c.id)).length;
     if (expected !== undefined && count !== expected) {
-      warnings.push({
-        code: option.id,
-        messageEs: `${option.label}: hay ${count}; este modo usa ${expected}.`,
-        severity: "warn",
-      });
+      warnings.push(warning({ game, players: [] }, "subsetSize", { option: option.id, count, expected }));
     }
   }
   return warnings;

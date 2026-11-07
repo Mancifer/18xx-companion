@@ -2,7 +2,6 @@ import { reduceAll } from "../../events/reduce";
 import { cashOf, counterOf, hasOperated, unitsOf, type SessionState } from "../../events/state";
 import type { PrimitiveEvent } from "../../events/types";
 import type { GameDefinition, NamedPayment, TrainDef } from "../../games/schema";
-import { formatMoney } from "../../i18n/format";
 import { hooksOf } from "../../mechanics/custom";
 import { moveTarget, OPERATING_STATUSES, priceOf, runMoveEvent } from "../../mechanics/market";
 import { effectiveTraits } from "../../mechanics/traits";
@@ -20,6 +19,7 @@ import {
   trainsHeldBy,
 } from "../../mechanics/phases";
 import { assetKind, trainTypeOf, type AssetId, type CompanyId, type HolderRef } from "../../types";
+import type { Message, MessageParams } from "../../../i18n/contract/domain";
 import { AVAILABLE, unavailable, warning, type ActionContext, type HandlerMap } from "../context";
 import { companyDef, companyTarget, requireCompany, resolveCompany } from "../resolve";
 import type { ActionOf, Warning } from "../schemas";
@@ -73,13 +73,13 @@ function rustedBy(game: GameDefinition, state: SessionState, trainType: string):
  * for another variant (RotLA ∞), or this purchase rusts it first (`rustsFirst`, research R11).
  * Without state, the rust is not checked.
  */
-export function tradeInProblem(game: GameDefinition, state: SessionState | undefined, a: PricedPurchase): string | undefined {
+export function tradeInProblem(game: GameDefinition, state: SessionState | undefined, a: PricedPurchase): MessageParams<"tradeIn"> | undefined {
   const rule = trainDef(game, a.trainType)?.tradeIn;
   if (a.tradeIn === null || !rule?.fromTypes.includes(a.tradeIn)) return undefined;
   const variant = a.variant ?? trainDef(game, a.trainType)?.variants[0]?.name;
-  if (rule.variant !== undefined && variant !== rule.variant) return `El precio de entrega solo vale para el ${rule.variant}.`;
+  if (rule.variant !== undefined && variant !== rule.variant) return { kind: "variantOnly", variant: rule.variant };
   if (rule.rustsFirst && state && rustedBy(game, state, a.trainType).has(a.tradeIn)) {
-    return `El ${a.tradeIn} se oxida con esta compra: no se puede entregar.`;
+    return { kind: "rusts", tradeIn: a.tradeIn };
   }
   return undefined;
 }
@@ -100,7 +100,7 @@ function keptTrainWarning(game: GameDefinition, state: SessionState, holder: Hol
   if (!asset) return [];
   const special = trainDef(game, trainTypeOf(asset))?.special === true;
   if (!special && counterOf(state, holder, `${PERMANENT}${asset}`) === 0) return [];
-  return [warning("keptTrain", "Este tren no se vende ni se entrega.")];
+  return [warning({ game, players: [], state }, "keptTrain", {})];
 }
 
 function shortfallHook(ctx: ActionContext, company: CompanyId, a: BuyTrain) {
@@ -127,14 +127,14 @@ function buyTrainWarnings(ctx: ActionContext, a: BuyTrain): Warning[] {
   else warnings.push(...payWarnings(ctx, treasury(company), price));
 
   if (def.availableFromPhase !== undefined && !phaseReached(game, state, def.availableFromPhase)) {
-    warnings.push(warning("trainNotAvailable", `Los trenes ${def.type} no están disponibles hasta la fase ${def.availableFromPhase}.`));
+    warnings.push(warning(ctx, "trainNotAvailable", { type: def.type, phase: def.availableFromPhase }));
   }
   if (a.from === "bank") {
     const earlier = game.trains
       .slice(0, game.trains.indexOf(def))
       .find((t) => t.count !== "unlimited" && trainsHeldBy(state, "bank", t.type).length > 0);
     if (earlier && def.availableFromPhase === undefined) {
-      warnings.push(warning("trainOrder", `Aún quedan trenes ${earlier.type} en el banco.`));
+      warnings.push(warning(ctx, "trainOrder", { type: earlier.type }));
     }
   }
 
@@ -146,16 +146,16 @@ function buyTrainWarnings(ctx: ActionContext, a: BuyTrain): Warning[] {
   if (def.countsForLimit) count += 1;
   const limit = trainLimitFor(game, state, company, phaseAfterBuying(game, state, a.trainType));
   if (count > limit) {
-    warnings.push(warning("trainLimit", `Con este tren tendría ${count}; el límite es ${limit}.`));
+    warnings.push(warning(ctx, "trainLimit", { count, limit }));
   }
 
   if (a.tradeIn !== null) {
     if (!def.tradeIn?.fromTypes.includes(a.tradeIn)) {
-      warnings.push(warning("tradeIn", `Un ${def.type} no se compra entregando un ${a.tradeIn}.`));
+      warnings.push(warning(ctx, "tradeIn", { kind: "notAccepted", type: def.type, tradeIn: a.tradeIn }));
     } else if (problem) {
-      warnings.push(warning("tradeIn", problem));
+      warnings.push(warning(ctx, "tradeIn", problem));
     } else if (trainsHeldBy(state, treasury(company), a.tradeIn).length === 0) {
-      warnings.push(warning("tradeIn", `La compañía no tiene un ${a.tradeIn} para entregar.`));
+      warnings.push(warning(ctx, "tradeIn", { kind: "notHeld", tradeIn: a.tradeIn }));
     } else {
       warnings.push(...keptTrainWarning(game, state, treasury(company), tradedTrain(ctx, company, a)));
     }
@@ -163,7 +163,7 @@ function buyTrainWarnings(ctx: ActionContext, a: BuyTrain): Warning[] {
   if (a.from === "company") warnings.push(...keptTrainWarning(game, state, trainSource(a), trainToBuy(ctx, a)));
   // Manufacturing (L p.10): it starts with its own train and buys no leadoff train.
   if (effectiveTraits(game, state, company).noLeadoffTrain && !hasOperated(state, company)) {
-    warnings.push(warning("leadoffTrain", "Esta compañía no compra el tren de salida: ya tiene el suyo."));
+    warnings.push(warning(ctx, "leadoffTrain", {}));
   }
   return warnings;
 }
@@ -201,7 +201,7 @@ function priceRange(game: GameDefinition, privateId: string): [number, number] |
 }
 
 /** Whether a run must be withheld, with the reason (forcedWithhold, receivership). */
-export function forcedWithholdReason(ctx: ActionContext, company: CompanyId): string | undefined {
+export function forcedWithholdReason(ctx: ActionContext, company: CompanyId): Message | undefined {
   for (const hook of hooksOf(ctx.game, "forceWithhold")) {
     const reason = hook(ctx, company);
     if (reason) return reason;
@@ -225,18 +225,16 @@ export const operatingHandlers: HandlerMap = {
       const target = companyTarget(ctx, a?.company);
       if (!target.ok || !a) return target;
       const def = companyDef(ctx, requireCompany(ctx, a.company));
-      if (def?.kind === "national") return unavailable("El banco nacional usa su propio pago");
+      if (def?.kind === "national") return unavailable("payout.national", {});
       if (a.mode !== null && !ctx.game.payoutModes.includes(a.mode)) {
-        return unavailable(
-          ctx.game.payoutModes.length === 0
-            ? "En este juego no se elige cómo pagar"
-            : a.mode === "half"
-              ? "Esta partida no permite pagar la mitad"
-              : "Modo de pago no permitido",
-        );
+        return ctx.game.payoutModes.length === 0
+          ? unavailable("payout.noChoice", {})
+          : a.mode === "half"
+            ? unavailable("payout.noHalf", {})
+            : unavailable("payout.modeNotAllowed", {});
       }
       const unknown = a.parts.find((p) => !ctx.game.revenueParts.some((r) => r.id === p.part));
-      if (unknown) return unavailable(`Parte de ingresos desconocida: ${unknown.part}`);
+      if (unknown) return unavailable("payout.unknownPart", { part: unknown.part });
       return AVAILABLE;
     },
     validate: (ctx, a) => {
@@ -244,10 +242,10 @@ export const operatingHandlers: HandlerMap = {
       const warnings: Warning[] = [];
       const status = ctx.state.companies[company]?.status;
       if (status && !OPERATING_STATUSES.has(status)) {
-        warnings.push(warning("notFloated", "La compañía no está flotada."));
+        warnings.push(warning(ctx, "notFloated", {}));
       }
       const forced = forcedWithholdReason(ctx, company);
-      if (forced) warnings.push(warning("forcedWithhold", forced, "info"));
+      if (forced) warnings.push(warning(ctx, "forcedWithhold", {}, "info"));
       return warnings;
     },
     expand: (ctx, a) => {
@@ -266,14 +264,13 @@ export const operatingHandlers: HandlerMap = {
     available: (ctx, a) => {
       const target = companyTarget(ctx, a?.company);
       if (!target.ok || !a) return target;
-      if (!trainDef(ctx.game, a.trainType)) return unavailable(`No hay trenes ${a.trainType} en este juego`);
+      if (!trainDef(ctx.game, a.trainType)) return unavailable("train.unknownType", { type: a.trainType });
       if (a.from === "company") {
-        if (a.seller === null) return unavailable("Falta la compañía que vende");
-        if (a.seller === requireCompany(ctx, a.company)) return unavailable("Una compañía no se compra un tren a sí misma");
+        if (a.seller === null) return unavailable("train.noSeller", {});
+        if (a.seller === requireCompany(ctx, a.company)) return unavailable("train.selfPurchase", {});
       }
       if (!trainToBuy(ctx, a)) {
-        const where = a.from === "bank" ? "el banco" : a.from === "pool" ? "el pool" : (a.seller ?? "");
-        return unavailable(`No hay un tren ${a.trainType} en ${where}`);
+        return unavailable("train.noneAt", { type: a.trainType, from: a.from, seller: a.seller ?? "" });
       }
       return AVAILABLE;
     },
@@ -317,9 +314,9 @@ export const operatingHandlers: HandlerMap = {
       const target = companyTarget(ctx, a?.company);
       if (!target.ok || !a) return target;
       const holder = ctx.state.assets[`private:${a.private}`];
-      if (!holder) return unavailable(`Privada desconocida: ${a.private}`);
-      if (holder === "removed") return unavailable("Esa privada está cerrada");
-      if (holder === treasury(requireCompany(ctx, a.company))) return unavailable("La compañía ya es dueña de esa privada");
+      if (!holder) return unavailable("private.unknown", { private: a.private });
+      if (holder === "removed") return unavailable("private.closed", {});
+      if (holder === treasury(requireCompany(ctx, a.company))) return unavailable("private.alreadyCompanys", {});
       return AVAILABLE;
     },
     validate: (ctx, a) => {
@@ -327,9 +324,7 @@ export const operatingHandlers: HandlerMap = {
       const warnings = payWarnings(ctx, treasury(company), a.price);
       const range = priceRange(ctx.game, a.private);
       if (range && (a.price < range[0] || a.price > range[1])) {
-        warnings.push(
-          warning("privatePrice", `El precio debe estar entre ${formatMoney(range[0], ctx.game)} y ${formatMoney(range[1], ctx.game)}.`),
-        );
+        warnings.push(warning(ctx, "privatePrice", { min: range[0], max: range[1] }));
       }
       return warnings;
     },
@@ -348,7 +343,7 @@ export const operatingHandlers: HandlerMap = {
     available: (ctx, a) => {
       const target = companyTarget(ctx, a?.company);
       if (!target.ok || !a) return target;
-      return discardedTrain(ctx, a) ? AVAILABLE : unavailable("La compañía no tiene ese tren");
+      return discardedTrain(ctx, a) ? AVAILABLE : unavailable("train.notHeld", {});
     },
     expand: (ctx, a) => {
       const asset = discardedTrain(ctx, a);
@@ -367,9 +362,9 @@ export const operatingHandlers: HandlerMap = {
 
   changeTrainSupply: {
     available: (ctx, a) => {
-      if (!ctx.game.trains.some((t) => (t.reserve ?? 0) > 0)) return unavailable("Este juego no tiene trenes de reserva");
+      if (!ctx.game.trains.some((t) => (t.reserve ?? 0) > 0)) return unavailable("train.noReserve", {});
       if (!a) return AVAILABLE;
-      return supplyTrain(ctx, a) ? AVAILABLE : unavailable(`No se puede ${a.op === "add" ? "añadir" : "quitar"} un ${a.trainType}`);
+      return supplyTrain(ctx, a) ? AVAILABLE : unavailable("train.supplyChange", { op: a.op, type: a.trainType });
     },
     expand: (ctx, a) => {
       const asset = supplyTrain(ctx, a);
@@ -390,7 +385,7 @@ function issueSource(game: GameDefinition, company: CompanyId): HolderRef {
 function treasuryTradeWarnings(ctx: ActionContext, company: CompanyId): Warning[] {
   if (!ctx.game.market.moves.redeem) return [];
   if ((ctx.state.turn.treasuryTradesThisOR?.[company] ?? 0) === 0) return [];
-  return [warning("treasuryTradeTwice", "Esta compañía ya emitió o recompró una acción en esta ronda de operaciones.")];
+  return [warning(ctx, "treasuryTradeTwice", {})];
 }
 
 /** Issue and redeem (research R9): core actions, offered when the market defines their move. */
@@ -399,11 +394,11 @@ export const treasuryHandlers: HandlerMap = {
     offered: (game) => game.market.moves.issue !== undefined,
     available: (ctx, a) => {
       if (!a) return AVAILABLE;
-      if (priceOf(ctx.game, ctx.state, a.company) === undefined) return unavailable("La compañía no está abierta");
+      if (priceOf(ctx.game, ctx.state, a.company) === undefined) return unavailable("buy.notOpen", {});
       const source = issueSource(ctx.game, a.company);
       const left = unitsOf(ctx.state, source, a.company);
-      const where = source.startsWith("ipo:") ? "la IPO" : "la tesorería";
-      if (left < a.count) return unavailable(left === 0 ? `No quedan acciones en ${where}` : `Solo quedan ${left} en ${where}`);
+      const where = source.startsWith("ipo:") ? "ipo" : "treasury";
+      if (left < a.count) return left === 0 ? unavailable("buy.noneLeft", { source: where }) : unavailable("buy.onlyLeft", { left, source: where });
       return AVAILABLE;
     },
     validate: (ctx, a) => {
@@ -435,10 +430,10 @@ export const treasuryHandlers: HandlerMap = {
       const target = companyTarget(ctx, a?.company);
       if (!target.ok || !a) return target;
       const company = requireCompany(ctx, a.company);
-      if (priceOf(ctx.game, ctx.state, company) === undefined) return unavailable("La compañía no está abierta");
+      if (priceOf(ctx.game, ctx.state, company) === undefined) return unavailable("buy.notOpen", {});
       const left = unitsOf(ctx.state, "pool", company);
       const count = a.count ?? 1;
-      if (left < count) return unavailable(left === 0 ? "No hay acciones de la compañía en el pool" : `Solo hay ${left} en el pool`);
+      if (left < count) return left === 0 ? unavailable("redeem.noneInPool", {}) : unavailable("redeem.onlyInPool", { left });
       return AVAILABLE;
     },
     validate: (ctx, a) => {
@@ -469,7 +464,7 @@ export const treasuryHandlers: HandlerMap = {
     available: (ctx, a) => {
       const target = companyTarget(ctx, a?.company);
       if (!target.ok || !a) return target;
-      if (!namedPaymentOf(ctx, a)) return unavailable("La compañía no tiene esa habilidad");
+      if (!namedPaymentOf(ctx, a)) return unavailable("payment.noAbility", {});
       return AVAILABLE;
     },
     validate: (ctx, a) => {
@@ -478,7 +473,7 @@ export const treasuryHandlers: HandlerMap = {
       if (!payment) return [];
       const amount = a.amount ?? payment.amount;
       const warnings: Warning[] = [];
-      if (amount <= 0) warnings.push(warning("paymentAmount", `Falta el importe de ${payment.labelEs}.`));
+      if (amount <= 0) warnings.push(warning(ctx, "paymentAmount", { payment: payment.id }));
       const out = (payment.cost ?? 0) + (payment.direction === "companyPays" ? amount : 0);
       if (out > 0) warnings.push(...payWarnings(ctx, treasury(company), out));
       return warnings;

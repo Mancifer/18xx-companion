@@ -49,6 +49,8 @@ export type Expect = z.infer<typeof ExpectSchema>;
 
 export const CaseSchema = z.object({
   id: z.string().min(1),
+  /** Feature 014: the case's language; absent = Spanish, so the pre-014 cases are unchanged. */
+  lang: z.enum(["es", "en"]).default("es"),
   fixture: z.string().min(1),
   transcript: z.string().min(1),
   category: z.enum(CATEGORIES),
@@ -218,6 +220,8 @@ export function gradeResponse(reply: ModelReply, c: EvalCase, ctx: ResolveContex
 
 export interface RunRecord {
   readonly caseId: string;
+  /** Feature 014; absent in pre-014 result files, which are all Spanish. */
+  readonly lang?: "es" | "en";
   readonly run: number;
   readonly fixture: string;
   readonly category: (typeof CATEGORIES)[number];
@@ -312,6 +316,39 @@ export interface Summary {
   readonly stops: Readonly<Record<ReplyStop, number>>;
   readonly rateLimitRetries: number;
   readonly gates: Readonly<Record<string, boolean>>;
+  /** Feature 014: one section per language in the run. */
+  readonly byLanguage?: Readonly<Partial<Record<"es" | "en", LanguageSummary>>>;
+}
+
+/** A language's share of a run (feature 014, contracts/voice.md "Runner and report"). */
+export interface LanguageSummary {
+  readonly cases: number;
+  readonly overall: number | null;
+  readonly heldout: number | null;
+  readonly byCategory: Readonly<Record<string, number | null>>;
+  readonly paidPerCaseUsd: number | null;
+}
+
+/** A record's language: pre-014 records have none and are Spanish. */
+export const langOf = (r: Pick<RunRecord, "lang">): "es" | "en" => r.lang ?? "es";
+
+/** The per-language sections of a run, for the languages it has. */
+export function languageSections(records: readonly RunRecord[], date: string, model: string): Partial<Record<"es" | "en", LanguageSummary>> {
+  const price = priceFor(model, date);
+  const out: Partial<Record<"es" | "en", LanguageSummary>> = {};
+  for (const lang of ["es", "en"] as const) {
+    const mine = records.filter((r) => langOf(r) === lang);
+    if (mine.length === 0) continue;
+    const paid = price ? mine.reduce((n, r) => n + (r.usage ? costOf(r.usage, price) : 0), 0) : null;
+    out[lang] = {
+      cases: new Set(mine.map((r) => r.caseId)).size,
+      overall: accuracy(mine),
+      heldout: accuracy(mine.filter((r) => r.heldout)),
+      byCategory: Object.fromEntries(CATEGORIES.map((cat) => [cat, accuracy(mine.filter((r) => r.category === cat))])),
+      paidPerCaseUsd: paid === null ? null : paid / mine.length,
+    };
+  }
+  return out;
 }
 
 export function summarize(records: readonly RunRecord[], options: SummaryOptions): Summary {
@@ -396,5 +433,6 @@ export function summarize(records: readonly RunRecord[], options: SummaryOptions
     stops,
     rateLimitRetries,
     gates,
+    byLanguage: languageSections(records, date, model),
   };
 }

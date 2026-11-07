@@ -78,7 +78,8 @@
           "name": "Suijin Water Plants",
           "aliases": [
             "suijin",
-            "water plants"
+            "water plants",
+            "s w p"
           ],
           "color": "#1f5fbf",
           "textColor": "#ffffff",
@@ -109,7 +110,8 @@
           "name": "Hematite Low-G Mining and Quarry",
           "aliases": [
             "hematite",
-            "hache eme cu"
+            "hache eme cu",
+            "h m q"
           ],
           "color": "#c62828",
           "textColor": "#ffffff",
@@ -141,7 +143,8 @@
           "aliases": [
             "varuna",
             "uve hache",
-            "la uve"
+            "la uve",
+            "v h"
           ],
           "color": "#f4c20d",
           "textColor": "#1b1b1b",

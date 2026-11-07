@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { message, type Message } from "../../../i18n/contract/domain";
 import { AVAILABLE, unavailable, warning, type ActionContext } from "../../actions/context";
 import type { ActionOf, Warning } from "../../actions/schemas";
 import { unitsOf } from "../../events/state";
@@ -30,7 +31,7 @@ function grantsFor(ctx: ActionContext, privateId: string, owner: HolderRef, par:
         const cell = parCellFor(ctx.game, price);
         if (cell) events.push({ t: "marketMove", company: g.company, to: cell, reason: "par" });
       } else if (g.par === "ownerChooses") {
-        warnings.push(warning("grantPar", "Falta el precio de salida que elige el dueño; fíjalo después."));
+        warnings.push(warning(ctx, "grantPar", {}));
       }
     }
     events.push({
@@ -47,18 +48,18 @@ function grantsFor(ctx: ActionContext, privateId: string, owner: HolderRef, par:
 
 type Exchange = ActionOf<"exchangePrivate">;
 
-function exchangeTarget(ctx: ActionContext, a: Exchange): { company: CompanyId; units: number } | string {
+function exchangeTarget(ctx: ActionContext, a: Exchange): { company: CompanyId; units: number } | Message {
   const def = ctx.game.privates.find((p) => p.id === a.private);
   const exchange = def?.exchange;
-  if (!exchange) return "Esta privada no se canjea";
+  if (!exchange) return message("exchange.notExchangeable", {});
   const company = exchange.company === "*" ? a.company : (a.company ?? exchange.company);
-  if (!company) return "Elige la compañía";
-  if (exchange.company !== "*" && company !== exchange.company) return `Solo se canjea por ${exchange.company}`;
+  if (!company) return message("exchange.pickCompany", {});
+  if (exchange.company !== "*" && company !== exchange.company) return message("exchange.onlyFor", { company: exchange.company });
   if (exchange.source !== "ipoOrPool" && exchange.source !== a.source) {
-    return exchange.source === "ipo" ? "Solo de la IPO" : "Solo del pool";
+    return exchange.source === "ipo" ? message("exchange.onlyIpo", {}) : message("exchange.onlyPool", {});
   }
   const from: HolderRef = a.source === "ipo" ? `ipo:${company}` : "pool";
-  if (unitsOf(ctx.state, from, company) < exchange.units) return a.source === "ipo" ? "No quedan en la IPO" : "No hay en el pool";
+  if (unitsOf(ctx.state, from, company) < exchange.units) return a.source === "ipo" ? message("exchange.noneInIpo", {}) : message("exchange.noneInPool", {});
   return { company, units: exchange.units };
 }
 
@@ -74,15 +75,15 @@ export const privateGrants: Mechanic<Record<string, never>> = {
       available: (ctx, a) => {
         if (!a) return AVAILABLE;
         const holder = ctx.state.assets[`private:${a.private}`];
-        if (!holder || holder === "removed") return unavailable("Esa privada está cerrada");
-        if (parseHolder(holder).kind !== "player") return unavailable("La privada no es de un jugador");
+        if (!holder || holder === "removed") return unavailable("private.closed", {});
+        if (parseHolder(holder).kind !== "player") return unavailable("private.notPlayers", {});
         const target = exchangeTarget(ctx, a);
-        return typeof target === "string" ? unavailable(target) : AVAILABLE;
+        return "code" in target ? { ok: false, reason: target } : AVAILABLE;
       },
       expand: (ctx, a) => {
         const target = exchangeTarget(ctx, a);
         const owner = ctx.state.assets[`private:${a.private}`];
-        if (typeof target === "string" || !owner) return [];
+        if ("code" in target || !owner) return [];
         return [
           {
             t: "shareTransfer",

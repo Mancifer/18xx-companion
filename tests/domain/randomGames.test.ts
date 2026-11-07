@@ -3,8 +3,9 @@ import { reduceAll } from "../../src/domain/events/reduce";
 import { cashOf, initialState } from "../../src/domain/events/state";
 import type { PrimitiveEvent } from "../../src/domain/events/types";
 import { applyOptions, builtInGames, getBuiltInGame } from "../../src/domain/games";
-import { balanceLineEs, movementLineEs, summaryEs } from "../../src/domain/i18n/es";
-import { stripMentions } from "../../src/domain/i18n/mentions";
+import { balanceLineEs, movementLineEs, summaryEs } from "../../src/i18n/es/domain";
+import { domainText } from "../../src/i18n";
+import { stripMentions } from "../../src/i18n/mentions";
 import { entryBreakdown } from "../../src/domain/ledger/breakdown";
 import type { LogEntry } from "../../src/domain/ledger/entries";
 import { operatingPhase } from "../../src/domain/ledger/operatingPhase";
@@ -67,6 +68,11 @@ function checkMentions(s: TestSession, where: string): void {
   const b = entryBreakdown(s.game, s.players, log, g.id);
   for (const m of b?.movements ?? []) same(`movement ${m.kind}`, movementLineEs(m, marked), movementLineEs(m, plain));
   for (const x of b?.balances ?? []) same(`balance ${x.holder}`, balanceLineEs(x, marked), balanceLineEs(x, plain));
+  // Feature 014: the same property holds for the English text.
+  const en = domainText("en");
+  same(`en ${g.action.type}`, en.summary(g.action, marked, g.events), en.summary(g.action, plain, g.events));
+  for (const m of b?.movements ?? []) same(`en movement ${m.kind}`, en.movementLine(m, marked), en.movementLine(m, plain));
+  for (const x of b?.balances ?? []) same(`en balance ${x.holder}`, en.balanceLine(x, marked), en.balanceLine(x, plain));
 }
 
 function play(gameIndex: number, seed: number) {

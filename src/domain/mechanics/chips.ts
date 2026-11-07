@@ -1,3 +1,4 @@
+import { message, type Message } from "../../i18n/contract/domain";
 import type { ChipSet } from "../types";
 
 /** data-model §12. null = the chips cannot make the amount exactly. */
@@ -133,11 +134,11 @@ export function change(set: ChipSet, chipValue: number, amount: number): ChipBre
 }
 
 /** "sorted by value descending; values unique and > 0" (data-model §12). */
-export function validateChipSet(set: ChipSet): string[] {
-  const errors: string[] = [];
+export function validateChipSet(set: ChipSet): Message[] {
+  const errors: Message[] = [];
   const values = set.chips.map((c) => c.value);
-  if (values.some((v, i) => i > 0 && v > (values[i - 1] ?? Infinity))) errors.push("Las fichas deben ir de mayor a menor valor.");
-  if (new Set(values).size !== values.length) errors.push("Hay valores de ficha repetidos.");
-  if (values.some((v) => v <= 0 || !Number.isInteger(v))) errors.push("Los valores deben ser mayores que cero.");
+  if (values.some((v, i) => i > 0 && v > (values[i - 1] ?? Infinity))) errors.push(message("chips.order", {}));
+  if (new Set(values).size !== values.length) errors.push(message("chips.duplicate", {}));
+  if (values.some((v) => v <= 0 || !Number.isInteger(v))) errors.push(message("chips.positive", {}));
   return errors;
 }

@@ -47,7 +47,7 @@ export const nationalBank: Mechanic<NationalBankConfig> = {
     nationalPayout: {
       available: (ctx) => {
         const cfg = nationalBankConfig(ctx.game);
-        return cfg && ctx.game.companies.some((c) => c.id === cfg.company) ? AVAILABLE : unavailable("No hay banco nacional");
+        return cfg && ctx.game.companies.some((c) => c.id === cfg.company) ? AVAILABLE : unavailable("nationalBank.none", {});
       },
       expand: (ctx, a) => {
         const cfg = nationalBankConfig(ctx.game);

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { trainPrice } from "../../src/domain/actions/expand/operating";
 import { cashOf, presidentOf, unitsOf } from "../../src/domain/events/state";
-import { summaryEs } from "../../src/domain/i18n/es";
+import { summaryEs } from "../../src/i18n/es/domain";
 import { endTriggers, gameOver } from "../../src/domain/mechanics/endTriggers";
 import { priceOf } from "../../src/domain/mechanics/market";
 import { countedTrains, phaseReached, trainLimitFor, trainStack, trainsHeldBy } from "../../src/domain/mechanics/phases";

@@ -14,8 +14,8 @@ export function companyDef(ctx: Pick<ActionContext, "game">, id: CompanyId): Com
 /** Availability of an action aimed at a company (or the operating one when null). */
 export function companyTarget(ctx: ActionContext, id: CompanyId | null | undefined): AvailabilityResult {
   const company = resolveCompany(ctx, id);
-  if (company === undefined) return unavailable("No hay compañía operando: elige una");
-  if (!companyDef(ctx, company)) return unavailable(`Compañía desconocida: ${company}`);
+  if (company === undefined) return unavailable("company.noneOperating", {});
+  if (!companyDef(ctx, company)) return unavailable("company.unknown", { company });
   return AVAILABLE;
 }
 

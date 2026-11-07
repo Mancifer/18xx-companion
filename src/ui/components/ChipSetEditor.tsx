@@ -1,5 +1,7 @@
 import { validateChipSet } from "../../domain/mechanics/chips";
 import type { Chip, ChipSet } from "../../domain/types";
+import { useText } from "../../app/language";
+import { usePlainMessageText } from "../useMessage";
 
 /** Chips sorted by value, highest first (data-model §12). Callers sort when they save. */
 export function sortChips(set: ChipSet): ChipSet {
@@ -12,6 +14,8 @@ export function sortChips(set: ChipSet): ChipSet {
  * while editing, so they do not jump under the finger.
  */
 export function ChipSetEditor({ value, onChange }: { value: ChipSet; onChange: (set: ChipSet) => void }) {
+  const t = useText().components.chipEditor;
+  const plainText = usePlainMessageText();
   const chips = value.chips;
   const set = (next: Chip[]) => onChange({ chips: next });
   const patch = (i: number, p: Partial<Chip>) => set(chips.map((c, j) => (j === i ? { ...c, ...p } : c)));
@@ -21,18 +25,18 @@ export function ChipSetEditor({ value, onChange }: { value: ChipSet; onChange: (
       <ul className="chip-rows">
         {chips.map((c, i) => (
           <li key={i} className="chip-row">
-            <input type="color" aria-label={`Color de la ficha ${c.value}`} value={c.color} onChange={(e) => patch(i, { color: e.target.value })} />
+            <input type="color" aria-label={t.colorOf(c.value)} value={c.color} onChange={(e) => patch(i, { color: e.target.value })} />
             <label>
-              <span className="label">Valor</span>
+              <span className="label">{t.value}</span>
               <input
                 inputMode="numeric"
-                aria-label={`Valor de la ficha ${i + 1}`}
+                aria-label={t.valueOf(i + 1)}
                 value={c.value}
                 onChange={(e) => patch(i, { value: Number(e.target.value.replace(/\D/g, "")) || 0 })}
               />
             </label>
             <label>
-              <span className="label">Cantidad</span>
+              <span className="label">{t.count}</span>
               <input
                 inputMode="numeric"
                 placeholder="∞"
@@ -43,16 +47,16 @@ export function ChipSetEditor({ value, onChange }: { value: ChipSet; onChange: (
                 }}
               />
             </label>
-            <button aria-label={`Quitar la ficha ${c.value}`} onClick={() => set(chips.filter((_, j) => j !== i))}>
+            <button aria-label={t.remove(c.value)} onClick={() => set(chips.filter((_, j) => j !== i))}>
               ✕
             </button>
           </li>
         ))}
       </ul>
-      <button onClick={() => set([...chips, { value: 1, color: "#9e9e9e" }])}>Añadir ficha</button>
+      <button onClick={() => set([...chips, { value: 1, color: "#9e9e9e" }])}>{t.add}</button>
       {errors.map((e) => (
-        <p key={e} className="toast-warning">
-          {e}
+        <p key={e.code} className="toast-warning">
+          {plainText(e)}
         </p>
       ))}
     </div>

@@ -114,7 +114,7 @@ describe("mergeCompanies", () => {
     s.do(merge("TUN", "EXP", "CON"));
     expect(presidentOf(s.state, "CON")).toBe("p1");
     expect(s.lastWarnings).toEqual([
-      { code: "presidencyTie", messageEs: "Empate a 5: preside Ana (presidencia de EXP, que opera antes).", severity: "info" },
+      expect.objectContaining({ code: "presidencyTie", messageEs: "Empate a 5: preside Ana (presidencia de EXP, que opera antes).", severity: "info" }),
     ]);
   });
 

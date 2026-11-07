@@ -117,9 +117,13 @@ describe("eval fixtures (T135)", () => {
   });
 });
 
+const spanish = cases.filter((c) => c.lang === "es");
+const english = cases.filter((c) => c.lang === "en");
+
 describe("seed cases (T136)", () => {
   it("has the R18 composition, unique ids and about 20% held out", () => {
-    const count = (cat: string) => cases.filter((c) => c.category === cat).length;
+    // Feature 014: the Spanish set; the English one is checked below.
+    const count = (cat: string) => spanish.filter((c) => c.category === cat).length;
     expect(Object.fromEntries(CATEGORIES.map((c) => [c, count(c)]))).toEqual({
       payout: 16,
       trains: 16, // + 3 correctTrain cases (feature 011)
@@ -134,7 +138,7 @@ describe("seed cases (T136)", () => {
       notUnderstood: 2,
     });
     expect(new Set(cases.map((c) => c.id)).size).toBe(cases.length);
-    const heldout = cases.filter((c) => c.heldout).length / cases.length;
+    const heldout = spanish.filter((c) => c.heldout).length / spanish.length;
     expect(heldout).toBeGreaterThan(0.15);
     expect(heldout).toBeLessThan(0.25);
   });
@@ -143,6 +147,50 @@ describe("seed cases (T136)", () => {
     const grade = gradeResponse(golden(c), c, fixture(c.fixture).ctx);
     expect(grade.reason).toBeUndefined();
     expect(grade.pass).toBe(true);
+  });
+});
+
+/** Feature 014 T064 (contracts/voice.md "Eval cases"): the eval set in two languages. */
+describe("cases in two languages (feature 014)", () => {
+  const raw = readFileSync("eval/voice/cases.jsonl", "utf8")
+    .split("\n")
+    .filter((l) => l.trim() !== "")
+    .map((l) => JSON.parse(l) as { id: string; lang?: unknown });
+
+  it("every case's lang is absent, es or en; English ids start with en-", () => {
+    for (const c of raw) expect([undefined, "es", "en"]).toContain(c.lang);
+    for (const c of raw) expect(c.id.startsWith("en-")).toBe(c.lang === "en");
+  });
+
+  it("the loader reads an absent lang as Spanish", () => {
+    expect(CaseSchema.parse({ id: "x", fixture: "1830-or", transcript: "t", category: "payout", expect: { kind: "notUnderstood" } }).lang).toBe("es");
+  });
+
+  it("every category and fixture with Spanish cases has English ones, and 15–25% of English cases are held out", () => {
+    for (const cat of new Set(spanish.map((c) => c.category))) expect(english.some((c) => c.category === cat), cat).toBe(true);
+    for (const f of new Set(spanish.map((c) => c.fixture))) expect(english.some((c) => c.fixture === f), f).toBe(true);
+    expect(english.length).toBeGreaterThanOrEqual(80);
+    const heldout = english.filter((c) => c.heldout).length / english.length;
+    expect(heldout).toBeGreaterThanOrEqual(0.15);
+    expect(heldout).toBeLessThanOrEqual(0.25);
+  });
+
+  it("the report has a section per language", () => {
+    const rec = (caseId: string, lang: "es" | "en", pass: boolean): RunRecord => ({
+      caseId, lang, run: 1, fixture: "1830-or", category: "payout", heldout: false, pass, got: "", latencyMs: 100,
+    });
+    const s = summarize([rec("a", "es", true), rec("b", "es", true), rec("en-a", "en", true), rec("en-b", "en", false)], {
+      provider: "anthropic", model: "claude-sonnet-5", freeTier: false, rateLimitRetries: 0, date: "2026-11-05",
+    });
+    expect(s.byLanguage?.es).toMatchObject({ cases: 2, overall: 1 });
+    expect(s.byLanguage?.en).toMatchObject({ cases: 2, overall: 0.5 });
+  });
+
+  it("--lang picks es, en or all (default all)", () => {
+    const env = { ANTHROPIC_API_KEY: "k" };
+    expect(parseEvalArgs([], env).lang).toBe("all");
+    expect(parseEvalArgs(["--lang", "en"], env).lang).toBe("en");
+    expect(() => parseEvalArgs(["--lang", "fr"], env)).toThrow(/--lang/);
   });
 });
 
@@ -407,7 +455,7 @@ describe("eval CLI helpers (005 T032)", () => {
   const env = { ANTHROPIC_API_KEY: "sk-ant-x", GEMINI_API_KEY: "AIza-x" };
 
   it("defaults: anthropic, its default model, 1 run, no pacing", () => {
-    expect(parseEvalArgs([], env)).toEqual({ provider: "anthropic", model: "claude-sonnet-5", runs: 1, free: false, apiKey: "sk-ant-x" });
+    expect(parseEvalArgs([], env)).toEqual({ provider: "anthropic", model: "claude-sonnet-5", runs: 1, lang: "all", free: false, apiKey: "sk-ant-x" });
   });
 
   it("infers gemini from the model prefix and paces it at 8 rpm", () => {
@@ -415,6 +463,7 @@ describe("eval CLI helpers (005 T032)", () => {
       provider: "gemini",
       model: "gemini-3.6-flash",
       runs: 1,
+      lang: "all",
       rpm: 8,
       free: true,
       apiKey: "AIza-x",

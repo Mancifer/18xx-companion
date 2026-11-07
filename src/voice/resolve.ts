@@ -1,15 +1,18 @@
+import { message, type Message, type MessageContext } from "../i18n/contract/domain";
+import type { VoiceMessages } from "../i18n/contract/messages/voice";
+import { renderMessage, renderPlain, textMessage } from "../i18n/render";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import type { ActionContext } from "../domain/actions/context";
 import { runPipeline } from "../domain/actions/pipeline";
 import { ActionSchema, type Action, type Warning } from "../domain/actions/schemas";
 import type { PrimitiveEvent } from "../domain/events/types";
-import { proposalSummaryEs } from "../domain/i18n/es";
 import type { EffectiveGroup } from "../domain/ledger/effectiveLog";
 import type { GroupId } from "../domain/ledger/entries";
 import { moneyFlows, type MoneyFlow } from "../domain/ledger/flows";
 import { isSetup, undoRangeIn, type UndoRange } from "../domain/ledger/undo";
-import { answerQuery, QUERY_KINDS, type QueryAnswer } from "../domain/queries";
+import { QUERY_KINDS } from "../domain/queries";
+import { answerQuery, type QueryAnswer } from "./answer";
 import { VoiceProviderError, type ProviderErrorKind } from "./errors";
 import type { ModelReply } from "./reply";
 import { voiceAction } from "./tools";
@@ -33,7 +36,7 @@ export type VoiceResult =
       readonly action: Action;
       readonly events: readonly PrimitiveEvent[];
       readonly warnings: readonly Warning[];
-      readonly summaryEs: string;
+      /** The card writes the summary in the display language (feature 014). */
       readonly flows: readonly MoneyFlow[];
     }
   | {
@@ -47,14 +50,32 @@ export type VoiceResult =
   /** Undo back to an older entry: shown in UndoRangeSheet before anything changes (feature 010). */
   | { readonly kind: "undoTo"; readonly transcript: string; readonly groupId: GroupId; readonly range: UndoRange }
   | { readonly kind: "confirm"; readonly transcript: string }
-  | { readonly kind: "notUnderstood"; readonly transcript: string; readonly reasonEs: string; readonly hint?: string };
+  /**
+   * `reason` is shown in the display language (feature 014); `reasonEs` is its Spanish text, for
+   * logs and the eval. `hint` is the action type, for "Hacerlo a mano".
+   */
+  | {
+      readonly kind: "notUnderstood";
+      readonly transcript: string;
+      readonly reason: Message;
+      readonly reasonEs: string;
+      readonly hint?: string;
+    };
 
-const notUnderstood = (transcript: string, reasonEs: string, hint?: string): VoiceResult => ({
-  kind: "notUnderstood",
-  transcript,
-  reasonEs,
-  ...(hint !== undefined ? { hint } : {}),
-});
+/** "No entendí" with a reason; `ctx` names what the reason mentions (unavailable actions). */
+export function notUnderstood(transcript: string, reason: Message, ctx?: MessageContext, hint?: string): VoiceResult {
+  return {
+    kind: "notUnderstood",
+    transcript,
+    reason,
+    reasonEs: ctx ? renderMessage(reason, ctx, "es") : renderPlain(reason, "es"),
+    ...(hint !== undefined ? { hint } : {}),
+  };
+}
+
+/** The voice codes whose text needs no params. */
+type PlainVoiceCode = Exclude<keyof VoiceMessages, "voice.provider" | "voice.noKey">;
+const say = (code: PlainVoiceCode): Message => message(code, {});
 
 const ClarificationInput = z.object({
   question: z.string().min(1),
@@ -65,51 +86,50 @@ const QueryInput = z.object({
   player: z.string().nullable(),
   company: z.string().nullable(),
 });
-/** "no, eran 260": the app no longer corrects entries (feature 010, FR-008). */
-export const CORRECT_BY_UNDO_ES = "Para corregir, deshacé hasta esa entrada y volvé a anotarla.";
 
 /** Reads only the neutral reply's stop and calls, so every provider shares one path (FR-007). */
 export function resolveResponse(reply: ModelReply, ctx: ResolveContext, transcript: string): VoiceResult {
-  if (reply.stop === "refused") return notUnderstood(transcript, "La orden fue rechazada.");
-  if (reply.stop === "truncated") return notUnderstood(transcript, "La respuesta quedó incompleta.");
-  if (reply.stop === "malformed") return notUnderstood(transcript, "La orden llegó incompleta.");
+  if (reply.stop === "refused") return notUnderstood(transcript, say("voice.refused"));
+  if (reply.stop === "truncated") return notUnderstood(transcript, say("voice.truncated"));
+  if (reply.stop === "malformed") return notUnderstood(transcript, say("voice.incomplete"));
   const { calls } = reply;
-  if (calls.length === 0) return notUnderstood(transcript, "No reconocí ninguna orden.");
+  if (calls.length === 0) return notUnderstood(transcript, say("voice.noOrder"));
 
   const meta = (name: string) => calls.find((c) => c.name === name);
   const clarify = meta("askClarification");
   if (clarify) {
     const input = ClarificationInput.safeParse(clarify.input);
-    if (!input.success) return notUnderstood(transcript, "La pregunta no se pudo mostrar.");
+    if (!input.success) return notUnderstood(transcript, say("voice.badQuestion"));
     return { kind: "clarification", transcript, ...input.data };
   }
   const query = meta("query");
   if (query) {
     const input = QueryInput.safeParse(query.input);
-    if (!input.success) return notUnderstood(transcript, "No entendí la pregunta.");
+    if (!input.success) return notUnderstood(transcript, say("voice.badQuery"));
     return { kind: "query", transcript, answer: answerQuery(ctx, input.data as never) };
   }
   const nope = meta("notUnderstood");
   if (nope) {
     const reason = (nope.input as { reason?: unknown }).reason;
-    return notUnderstood(transcript, typeof reason === "string" && reason ? reason : "No es una orden del juego.");
+    // The model's own reason is shown as it wrote it, in the session's language.
+    return notUnderstood(transcript, typeof reason === "string" && reason ? textMessage(reason) : say("voice.notGame"));
   }
   const undo = meta("undo");
   if (undo) return resolveUndo(undo.input["groupId"], ctx, transcript);
   if (meta("confirmProposal")) return { kind: "confirm", transcript };
-  if (meta("amendLast")) return notUnderstood(transcript, CORRECT_BY_UNDO_ES);
+  if (meta("amendLast")) return notUnderstood(transcript, say("voice.correctByUndo"));
 
   const actions: Action[] = [];
   for (const call of calls) {
     const parsed = ActionSchema.safeParse(voiceAction(call.name, call.input));
-    if (!parsed.success) return notUnderstood(transcript, "La orden llegó incompleta.", call.name);
+    if (!parsed.success) return notUnderstood(transcript, say("voice.incomplete"), undefined, call.name);
     actions.push(parsed.data);
   }
   const action: Action = actions.length === 1 && actions[0] ? actions[0] : { type: "compound", actions: actions };
   const result = runPipeline(ctx, action);
   const hint = actions[0]?.type;
-  if (result.kind === "invalid") return notUnderstood(transcript, "La orden nombra algo que no existe.", hint);
-  if (result.kind === "unavailable") return notUnderstood(transcript, result.reasonEs, hint);
+  if (result.kind === "invalid") return notUnderstood(transcript, say("voice.unknownEntity"), undefined, hint);
+  if (result.kind === "unavailable") return notUnderstood(transcript, result.reason, ctx, hint);
   return {
     kind: "proposal",
     transcript,
@@ -117,7 +137,6 @@ export function resolveResponse(reply: ModelReply, ctx: ResolveContext, transcri
     action: result.action,
     events: result.events,
     warnings: result.warnings,
-    summaryEs: proposalSummaryEs(result.action, ctx, result.events),
     flows: moneyFlows(result.events),
   };
 }
@@ -130,32 +149,23 @@ function resolveUndo(groupId: unknown, ctx: ResolveContext, transcript: string):
   const newest = [...ctx.effective].reverse().find((g) => !isSetup(g));
   if (groupId === null || groupId === undefined || groupId === newest?.id) return { kind: "undo", transcript };
   const range = typeof groupId === "string" ? undoRangeIn(ctx.effective, groupId) : undefined;
-  if (!range) return notUnderstood(transcript, "No encontré esa entrada. Usá el historial.");
+  if (!range) return notUnderstood(transcript, say("voice.noEntry"));
   return { kind: "undoTo", transcript, groupId: range.targetId, range };
 }
-
-const PROVIDER_ERRORS_ES: Readonly<Record<ProviderErrorKind, string>> = {
-  auth: "La clave de la API no es válida.",
-  permission: "La clave no tiene permiso para este modelo.",
-  model: "Este modelo no está disponible para esta clave.",
-  rateLimit: "Se alcanzó el límite de uso; prueba en un momento.",
-  timeout: "La respuesta tardó demasiado.",
-  connection: "Sin conexión con el servicio de voz.",
-  service: "Error del servicio de voz.",
-};
 
 /**
  * API and network failures (research R8; feature 005 R7): all of them degrade to "No entendí"
  * with a reason. Provider errors map by kind; the Anthropic SDK's own errors by class.
  */
 export function resolveError(error: unknown, transcript: string): VoiceResult {
-  if (error instanceof VoiceProviderError) return notUnderstood(transcript, PROVIDER_ERRORS_ES[error.kind]);
-  if (error instanceof Anthropic.AuthenticationError) return notUnderstood(transcript, "La clave de la API no es válida.");
-  if (error instanceof Anthropic.PermissionDeniedError) return notUnderstood(transcript, "La clave no tiene permiso para este modelo.");
-  if (error instanceof Anthropic.NotFoundError) return notUnderstood(transcript, PROVIDER_ERRORS_ES.model);
-  if (error instanceof Anthropic.RateLimitError) return notUnderstood(transcript, "Se alcanzó el límite de uso; prueba en un momento.");
-  if (error instanceof Anthropic.APIConnectionTimeoutError) return notUnderstood(transcript, "La respuesta tardó demasiado.");
-  if (error instanceof Anthropic.APIConnectionError) return notUnderstood(transcript, "Sin conexión con el servicio de voz.");
-  if (error instanceof Anthropic.APIError) return notUnderstood(transcript, "Error del servicio de voz.");
-  return notUnderstood(transcript, "No entendí: error inesperado.");
+  const provider = (kind: ProviderErrorKind) => notUnderstood(transcript, message("voice.provider", { kind }));
+  if (error instanceof VoiceProviderError) return provider(error.kind);
+  if (error instanceof Anthropic.AuthenticationError) return provider("auth");
+  if (error instanceof Anthropic.PermissionDeniedError) return provider("permission");
+  if (error instanceof Anthropic.NotFoundError) return provider("model");
+  if (error instanceof Anthropic.RateLimitError) return provider("rateLimit");
+  if (error instanceof Anthropic.APIConnectionTimeoutError) return provider("timeout");
+  if (error instanceof Anthropic.APIConnectionError) return provider("connection");
+  if (error instanceof Anthropic.APIError) return provider("service");
+  return notUnderstood(transcript, say("voice.unexpected"));
 }

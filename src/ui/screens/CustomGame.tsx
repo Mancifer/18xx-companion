@@ -1,3 +1,4 @@
+import { useText } from "../../app/language";
 import { useEffect, useState } from "react";
 import { useServices } from "../../app/AppProvider";
 import { builtInGames } from "../../domain/games";
@@ -75,12 +76,13 @@ function editOf(base: GameDefinition, d: Draft): CustomGameEdit {
  * capitalization, schedule and mechanics stay as in the original.
  */
 export function CustomGame() {
+  const t = useText();
   const { games } = useServices();
   const { go } = useNav();
   const [saved, setSaved] = useState<GameDefinition[]>([]);
   const [baseId, setBaseId] = useState(builtInGames[0]?.id ?? "");
   const base = builtInGames.find((g) => g.id === baseId);
-  const [draft, setDraft] = useState<Draft | null>(base ? draftOf(base, `${base.name} (variante)`) : null);
+  const [draft, setDraft] = useState<Draft | null>(base ? draftOf(base, t.customGame.variant(base.name)) : null);
   const [errors, setErrors] = useState<readonly string[]>([]);
 
   useEffect(() => {
@@ -90,7 +92,7 @@ export function CustomGame() {
   const chooseBase = (id: string) => {
     setBaseId(id);
     const g = builtInGames.find((x) => x.id === id);
-    setDraft(g ? draftOf(g, `${g.name} (variante)`) : null);
+    setDraft(g ? draftOf(g, t.customGame.variant(g.name)) : null);
     setErrors([]);
   };
 
@@ -115,20 +117,20 @@ export function CustomGame() {
   return (
     <main className="screen">
       <header className="topbar">
-        <button className="ghost" aria-label="Volver" onClick={() => go({ name: "home" })}>
+        <button className="ghost" aria-label={t.common.back} onClick={() => go({ name: "home" })}>
           ←
         </button>
-        <h1 className="topbar-center">Juego personalizado</h1>
+        <h1 className="topbar-center">{t.customGame.title}</h1>
       </header>
       <div className="screen-body">
         {saved.length > 0 ? (
           <section className="stack">
-            <h2>Guardados</h2>
+            <h2>{t.customGame.saved}</h2>
             {saved.map((g) => (
               <div key={g.id} className="row">
                 <span className="spacer">{g.name}</span>
                 <button className="danger" onClick={() => void remove(g.id)}>
-                  Borrar
+                  {t.customGame.delete}
                 </button>
               </div>
             ))}
@@ -136,7 +138,7 @@ export function CustomGame() {
         ) : null}
 
         <fieldset className="choice-fieldset">
-          <legend>Copiar de</legend>
+          <legend>{t.customGame.copyFrom}</legend>
           <div className="choice-grid">
             {builtInGames.map((g) => (
               <button key={g.id} aria-pressed={g.id === baseId} onClick={() => chooseBase(g.id)}>
@@ -149,22 +151,22 @@ export function CustomGame() {
         {base && draft ? (
           <>
             <label>
-              Nombre
+              {t.customGame.name}
               <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
             </label>
             {base.bank !== "unlimited" ? (
               <label>
-                Banco
+                {t.customGame.bank}
                 <input inputMode="numeric" value={draft.bankTotal} onChange={(e) => setDraft({ ...draft, bankTotal: e.target.value })} />
               </label>
             ) : null}
 
             <fieldset className="choice-fieldset">
-              <legend>Dinero inicial por jugador</legend>
+              <legend>{t.customGame.startCash}</legend>
               <div className="form-grid">
                 {Object.entries(draft.startingCash).map(([n, v]) => (
                   <label key={n}>
-                    {n} jugadores
+                    {n} {t.customGame.playersCount}
                     <input
                       inputMode="numeric"
                       value={v}
@@ -176,36 +178,36 @@ export function CustomGame() {
             </fieldset>
 
             <fieldset className="choice-fieldset">
-              <legend>Compañías</legend>
+              <legend>{t.customGame.companies}</legend>
               {Object.entries(draft.companies).map(([id, c]) => (
                 <div key={id} className="form-grid">
                   <input
                     type="color"
-                    aria-label={`Color de ${id}`}
+                    aria-label={t.customGame.colorOf(id)}
                     value={c.color}
                     onChange={(e) => setDraft({ ...draft, companies: { ...draft.companies, [id]: { ...c, color: e.target.value } } })}
                   />
                   <input
-                    aria-label={`Abreviatura de ${id}`}
+                    aria-label={t.customGame.shortNameOf(id)}
                     value={c.shortName}
                     onChange={(e) => setDraft({ ...draft, companies: { ...draft.companies, [id]: { ...c, shortName: e.target.value } } })}
                   />
                   <input
-                    aria-label={`Nombre de ${id}`}
+                    aria-label={t.customGame.nameOf(id)}
                     value={c.name}
                     onChange={(e) => setDraft({ ...draft, companies: { ...draft.companies, [id]: { ...c, name: e.target.value } } })}
                   />
                   {c.altName !== null ? (
                     <input
-                      aria-label={`Segunda identidad de ${id}`}
-                      placeholder="Segunda identidad"
+                      aria-label={t.customGame.altNameOf(id)}
+                      placeholder={t.customGame.altPlaceholder}
                       value={c.altName}
                       onChange={(e) => setDraft({ ...draft, companies: { ...draft.companies, [id]: { ...c, altName: e.target.value } } })}
                     />
                   ) : null}
                   <input
-                    aria-label={`Alias de ${id}`}
-                    placeholder="Alias"
+                    aria-label={t.customGame.aliasesOf(id)}
+                    placeholder={t.customGame.aliasesPlaceholder}
                     value={c.aliases}
                     onChange={(e) => setDraft({ ...draft, companies: { ...draft.companies, [id]: { ...c, aliases: e.target.value } } })}
                   />
@@ -214,16 +216,16 @@ export function CustomGame() {
             </fieldset>
 
             <fieldset className="choice-fieldset">
-              <legend>Privadas</legend>
+              <legend>{t.customGame.privates}</legend>
               {Object.entries(draft.privates).map(([id, p]) => (
                 <div key={id} className="form-grid">
                   <input
-                    aria-label={`Nombre de ${id}`}
+                    aria-label={t.customGame.nameOf(id)}
                     value={p.name}
                     onChange={(e) => setDraft({ ...draft, privates: { ...draft.privates, [id]: { ...p, name: e.target.value } } })}
                   />
                   <label>
-                    Coste
+                    {t.customGame.cost}
                     <input
                       inputMode="numeric"
                       value={p.cost}
@@ -231,7 +233,7 @@ export function CustomGame() {
                     />
                   </label>
                   <label>
-                    Ingreso
+                    {t.customGame.income}
                     <input
                       inputMode="numeric"
                       value={p.income}
@@ -243,25 +245,25 @@ export function CustomGame() {
             </fieldset>
 
             <fieldset className="choice-fieldset">
-              <legend>Trenes</legend>
-              {Object.entries(draft.trains).map(([type, t]) => (
+              <legend>{t.customGame.trains}</legend>
+              {Object.entries(draft.trains).map(([type, train]) => (
                 <div key={type} className="form-grid">
                   <span className="money">{type}</span>
                   <label>
-                    Coste
+                    {t.customGame.cost}
                     <input
                       inputMode="numeric"
-                      value={t.cost}
-                      onChange={(e) => setDraft({ ...draft, trains: { ...draft.trains, [type]: { ...t, cost: e.target.value } } })}
+                      value={train.cost}
+                      onChange={(e) => setDraft({ ...draft, trains: { ...draft.trains, [type]: { ...train, cost: e.target.value } } })}
                     />
                   </label>
                   <label>
-                    Cantidad
+                    {t.customGame.count}
                     <input
                       inputMode="numeric"
-                      placeholder="ilimitado"
-                      value={t.count}
-                      onChange={(e) => setDraft({ ...draft, trains: { ...draft.trains, [type]: { ...t, count: e.target.value } } })}
+                      placeholder={t.customGame.unlimited}
+                      value={train.count}
+                      onChange={(e) => setDraft({ ...draft, trains: { ...draft.trains, [type]: { ...train, count: e.target.value } } })}
                     />
                   </label>
                 </div>
@@ -276,7 +278,7 @@ export function CustomGame() {
               </ul>
             ) : null}
             <button className="primary big" onClick={() => void save()}>
-              Guardar juego
+              {t.customGame.saveGame}
             </button>
           </>
         ) : null}

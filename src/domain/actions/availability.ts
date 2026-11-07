@@ -13,9 +13,9 @@ export function availabilityOf<T extends ActionType>(
 ): AvailabilityResult {
   const handler = handlerFor(ctx, type);
   if (!handler) {
-    return ownerOf(type) ? unavailable("No disponible en este juego") : unavailable("Acción desconocida");
+    return ownerOf(type) ? unavailable("action.notInGame", {}) : unavailable("action.unknown", {});
   }
-  if (handler.offered && !handler.offered(ctx.game)) return unavailable("No disponible en este juego");
+  if (handler.offered && !handler.offered(ctx.game)) return unavailable("action.notInGame", {});
   return handler.available ? handler.available(ctx, action) : AVAILABLE;
 }
 

@@ -1,12 +1,14 @@
 import { SessionStore } from "../../src/app/SessionStore";
 import { startSession } from "../../src/app/sessions";
-import { APP_VERSION } from "../../src/app/version";
 import { getBuiltInGame } from "../../src/domain/games";
 import type { Player } from "../../src/domain/types";
 import { openCompanionDb } from "../../src/persistence/db";
 import { buildExport, type SessionExport } from "../../src/persistence/exportImport";
 import { SessionRepo } from "../../src/persistence/sessionRepo";
 import { SettingsRepo } from "../../src/persistence/settingsRepo";
+
+/** The eval fixtures stay 0.1.0 exports by design (feature 014 T077), whatever the app version. */
+const FIXTURE_APP_VERSION = "0.1.0";
 
 /**
  * The six voice-eval fixtures (research R18, T135). Each is played through the real domain with
@@ -317,7 +319,7 @@ export async function buildFixture(spec: FixtureSpec, dbName = `eval-fixture-${s
       if (!result.ok) throw new Error(`${spec.id} action #${i} ${JSON.stringify(action)}: ${result.messageEs}`);
     }
     const id = store.getSnapshot().meta.id;
-    const exported = await buildExport(sessions, id, { appVersion: APP_VERSION, now: FIXED_NOW });
+    const exported = await buildExport(sessions, id, { appVersion: FIXTURE_APP_VERSION, now: FIXED_NOW });
     return stabilize(exported, spec.id);
   } finally {
     db.close();

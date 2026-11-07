@@ -1,4 +1,5 @@
-import { summaryEs, UNDO_RANGE_ES, type SummaryContext } from "../../domain/i18n/es";
+import { useDomainText } from "../../app/language";
+import type { SummaryContext } from "../../i18n/contract/domain";
 import type { UndoRange } from "../../domain/ledger/undo";
 import { RichText } from "./RichText";
 import { Sheet } from "./Sheet";
@@ -21,19 +22,21 @@ export function UndoRangeSheet({
   onConfirm: () => unknown;
   onClose: () => void;
 }) {
-  const line = (g: UndoRange["oldest"]) => summaryEs(g.action, { ...ctx, marks: true }, g.events);
+  const dt = useDomainText();
+  const u = dt.undoRange;
+  const line = (g: UndoRange["oldest"]) => dt.summary(g.action, { ...ctx, marks: true }, g.events);
   return (
-    <Sheet title={UNDO_RANGE_ES.title(range.count)} onClose={onClose}>
+    <Sheet title={u.title(range.count)} onClose={onClose}>
       {transcript ? <p className="muted transcript">«{transcript}»</p> : null}
       <p>
-        <RichText text={UNDO_RANGE_ES.from(line(range.oldest))} />
+        <RichText text={u.from(line(range.oldest))} />
       </p>
       <p>
-        <RichText text={UNDO_RANGE_ES.to(line(range.newest))} />
+        <RichText text={u.to(line(range.newest))} />
       </p>
-      <p className="muted">{UNDO_RANGE_ES.note}</p>
+      <p className="muted">{u.note}</p>
       <div className="row">
-        <button onClick={onClose}>{UNDO_RANGE_ES.cancel}</button>
+        <button onClick={onClose}>{u.cancel}</button>
         <span className="spacer" />
         <button
           className="primary big"
@@ -41,7 +44,7 @@ export function UndoRangeSheet({
             void Promise.resolve(onConfirm()).finally(onClose);
           }}
         >
-          {UNDO_RANGE_ES.confirm(range.count)}
+          {u.confirm(range.count)}
         </button>
       </div>
     </Sheet>

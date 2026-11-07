@@ -37,8 +37,8 @@ export default defineConfig({
       manifest: {
         name: "18xx Companion",
         short_name: "18xx",
-        description: "Lleva el dinero de tus partidas de 18xx, por toque y por voz.",
-        lang: "es",
+        description: "Keeps the money for your 18xx games, by touch and by voice.",
+        lang: "en",
         display: "standalone",
         orientation: "any",
         background_color: "#14161a",

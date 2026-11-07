@@ -1,3 +1,4 @@
+import { useMessageText } from "../useMessage";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAppActions } from "../../app/AppProvider";
 import { useDispatch, useSession } from "../../app/useSession";
@@ -6,8 +7,9 @@ import { useWakeLock } from "../../app/wakeLock";
 import { isAvailable } from "../../domain/actions/availability";
 import type { ActionContext } from "../../domain/actions/context";
 import { counterOf } from "../../domain/events/state";
-import { formatMoney } from "../../domain/i18n/format";
-import { INCOME_ES } from "../../domain/i18n/es";
+import { formatMoney } from "../../i18n/format";
+import { useDomainText, useLang, useText } from "../../app/language";
+import { voiceEnabled } from "../../i18n/lang";
 import { operatingPhase } from "../../domain/ledger/operatingPhase";
 import { cycleCount, endTriggers, type EndTrigger } from "../../domain/mechanics/endTriggers";
 import { overLimitCompanies, trainStack } from "../../domain/mechanics/phases";
@@ -15,6 +17,7 @@ import { exportEvents, exportPreview, mergerRoundDue } from "../../domain/mechan
 import { reduceAll } from "../../domain/events/reduce";
 import type { SessionState } from "../../domain/events/state";
 import type { GameDefinition } from "../../domain/games/schema";
+import type { UiText } from "../../i18n/contract/ui";
 import { isEnabled } from "../../domain/mechanics/custom";
 import { mechanicConfigOf } from "../../domain/mechanics/custom/config";
 import { CorporateBankruptcyConfig } from "../../domain/mechanics/custom/corporateBankruptcy";
@@ -66,14 +69,25 @@ export type Open =
   | null;
 
 /** The Companies tab's sections, in display order. */
-const COMPANY_GROUPS: readonly (readonly [CompanyGroup, string])[] = [
-  ["inPlay", "En juego"],
-  ["available", "Disponibles"],
-  ["closed", "Cerradas"],
-];
+const COMPANY_GROUPS: readonly CompanyGroup[] = ["inPlay", "available", "closed"];
+
+/** Text around a company's name, as in "Quiebra de PRR". */
+function around([before, after]: readonly [string, string], name: ReactNode): ReactNode {
+  return (
+    <>
+      {before}
+      {name}
+      {after}
+    </>
+  );
+}
 
 /** The main screen: a tile per player and a card per company (US1), with round controls (US3). */
 export function Table({ topCenter }: { topCenter?: ReactNode }) {
+  const reasonText = useMessageText();
+  const t = useText().table;
+  const { lang } = useLang();
+  const dt = useDomainText();
   const { meta, state, effective, gameEnd } = useSession();
   const { dispatch } = useDispatch();
   const groups = companyGroups(meta.game, state);
@@ -151,27 +165,27 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
     return (
       <>
         {outOfTurn ? (
-          <button onClick={() => setOpen({ kind: "company", id, view: "operate", outOfTurn: true })}>Operar fuera de turno…</button>
+          <button onClick={() => setOpen({ kind: "company", id, view: "operate", outOfTurn: true })}>{t.operateOutOfTurn}</button>
         ) : (
-          <button onClick={() => setOpen({ kind: "company", id, view: "operate" })}>Operar…</button>
+          <button onClick={() => setOpen({ kind: "company", id, view: "operate" })}>{t.operateMenu}</button>
         )}
-        <button onClick={() => setOpen({ kind: "company", id, view: "stock" })}>Acciones…</button>
+        <button onClick={() => setOpen({ kind: "company", id, view: "stock" })}>{t.sharesMenu}</button>
         {meta.game.trains.length > 0 ? (
-          <button onClick={() => setOpen({ kind: "trainCorrection", company: id })}>Corregir trenes…</button>
+          <button onClick={() => setOpen({ kind: "trainCorrection", company: id })}>{t.correctTrains}</button>
         ) : null}
         {status !== "receivership" ? (
           <button
             onClick={() =>
               setOpen({
                 kind: "confirm",
-                title: <>Administración de <CompanyName game={meta.game} id={id} /></>,
-                body: "La compañía pasa a administración, con los pagos que marque el juego.",
-                confirmLabel: "Entrar en administración",
+                title: around(t.receivershipTitle, <CompanyName game={meta.game} id={id} />),
+                body: t.receivershipBody,
+                confirmLabel: t.enterReceivership,
                 action: { type: "enterReceivership", company: id },
               })
             }
           >
-            Entrar en administración
+            {t.enterReceivership}
           </button>
         ) : null}
         {status !== "bankrupt" ? (
@@ -179,14 +193,14 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
             onClick={() =>
               setOpen({
                 kind: "confirm",
-                title: <>Quiebra de <CompanyName game={meta.game} id={id} /></>,
-                body: "Sus acciones salen del juego, la caja va al banco y sus trenes se retiran.",
-                confirmLabel: "Declarar quiebra",
+                title: around(t.companyBankruptcyTitle, <CompanyName game={meta.game} id={id} />),
+                body: t.companyBankruptcyBody,
+                confirmLabel: t.declareBankruptcy,
                 action: { type: "declareBankruptcy", player: null, company: id },
               })
             }
           >
-            Declarar quiebra
+            {t.declareBankruptcy}
           </button>
         ) : null}
         {status !== "closed" ? (
@@ -194,17 +208,17 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
             onClick={() =>
               setOpen({
                 kind: "confirm",
-                title: <>Cerrar <CompanyName game={meta.game} id={id} /></>,
-                body: "La compañía queda cerrada; sus bienes se mueven a mano.",
-                confirmLabel: "Cerrar compañía",
+                title: around(t.closeTitle, <CompanyName game={meta.game} id={id} />),
+                body: t.closeBody,
+                confirmLabel: t.closeCompany,
                 action: { type: "closeCompany", company: id },
               })
             }
           >
-            Cerrar compañía
+            {t.closeCompany}
           </button>
         ) : null}
-        <button onClick={() => setOpen({ kind: "counter", subject: `company:${id}`, key: "debt" })}>Ajustar contador</button>
+        <button onClick={() => setOpen({ kind: "counter", subject: `company:${id}`, key: "debt" })}>{t.adjustCounter}</button>
       </>
     );
   };
@@ -213,7 +227,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
   const playerGameActions = (id: PlayerId): ReactNode => {
     const ref = `player:${id}` as const;
     const exchangeable = meta.game.privates.some((p) => p.exchange && state.assets[`private:${p.id}`] === ref);
-    return exchangeable ? <button onClick={() => setOpen({ kind: "exchange", player: id })}>Canjear privada…</button> : null;
+    return exchangeable ? <button onClick={() => setOpen({ kind: "exchange", player: id })}>{t.exchangePrivate}</button> : null;
   };
 
   /** The player's adjustments, under "Ajustes"; bankruptcy last. */
@@ -224,23 +238,21 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
     return (
       <>
         <button onClick={() => setOpen({ kind: "counter", subject: ref, key: "debt" })}>
-          Ajustar deuda{debt > 0 ? ` (${formatMoney(debt, meta.game)})` : ""}
+          {t.adjustDebt(debt > 0 ? formatMoney(debt, meta.game, lang) : undefined)}
         </button>
         <button
           onClick={() =>
             setOpen({
               kind: "confirm",
-              title: `Quiebra de ${name}`,
-              body: liquidates
-                ? "Sale de la partida: se cierran las compañías que preside (el banco paga a los demás accionistas), su dinero va al banco y sus acciones al pool."
-                : "Su dinero va al banco, sus acciones al pool y sus privadas se cierran.",
-              confirmLabel: "Declarar quiebra",
+              title: t.playerBankruptcyTitle(name),
+              body: liquidates ? t.playerLiquidateBody : t.playerBankruptcyBody,
+              confirmLabel: t.declareBankruptcy,
               action: { type: "declareBankruptcy", player: id, company: null },
               scoreAfter: bankruptcyEnds,
             })
           }
         >
-          Declarar quiebra
+          {t.declareBankruptcy}
         </button>
       </>
     );
@@ -255,17 +267,17 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
       />
       {finished ? (
         <button className="finished-banner" onClick={showResults}>
-          Partida completa · Ver resultados
+          {t.finishedBanner}
         </button>
       ) : null}
       {ending.length > 0 ? (
         <div className="end-banner" role="alert">
-          {ending.map((t) => (
-            <span key={t.type}>⚑ {t.messageEs}</span>
+          {ending.map((e) => (
+            <span key={e.type}>⚑ {reasonText(e.message)}</span>
           ))}
           {!finished ? (
             <button className="primary" onClick={() => setOpen({ kind: "endGame" })}>
-              Terminar partida
+              {t.endGame}
             </button>
           ) : null}
         </div>
@@ -276,24 +288,23 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
           className="over-limit"
           onClick={() => setOpen({ kind: "company", id: o.company, view: "operate", discard: true })}
         >
-          {meta.game.companies.find((c) => c.id === o.company)?.name ?? o.company}: {o.count} trenes, límite {o.limit}. Elegir cuál va al
-          pool
+          {t.overLimit(meta.game.companies.find((c) => c.id === o.company)?.name ?? o.company, o.count, o.limit)}
         </button>
       ))}
       <div className="round-controls row">
         {phase ? (
           <button className={phase.over ? "primary" : undefined} onClick={() => setOpen({ kind: "income" })}>
-            {INCOME_ES.title}
+            {dt.income.title}
           </button>
         ) : null}
         {round === "OR" && current ? (
           <button className="primary" onClick={() => setOpen({ kind: "company", id: current, view: "operate" })}>
-            Operar <CompanyName game={meta.game} id={current} />
+            {around(t.operateCompany, <CompanyName game={meta.game} id={current} />)}
           </button>
         ) : null}
         {round === "OR" && current && upcoming.length > 0 ? (
           <span className="round-next">
-            Después:{" "}
+            {t.next}{" "}
             {upcoming.map((id, i) => (
               <span key={id}>
                 {i > 0 ? ", " : null}
@@ -304,23 +315,23 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
         ) : null}
         {offerIncome ? (
           <button className="primary" onClick={() => void dispatch({ type: "privateIncome" })}>
-            Cobrar privadas
+            {t.collectPrivates}
           </button>
         ) : null}
         {(round === "PRIVATES" || round === "SR") && purchasablePrivates(meta.game, state).length > 0 ? (
-          <button onClick={() => setOpen({ kind: "privates" })}>Comprar privada</button>
+          <button onClick={() => setOpen({ kind: "privates" })}>{t.buyPrivate}</button>
         ) : null}
         {round === "SR" && isAvailable(ctx, "launchCompany") ? (
-          <button onClick={() => setOpen({ kind: "launch" })}>Abrir minor</button>
+          <button onClick={() => setOpen({ kind: "launch" })}>{t.openMinor}</button>
         ) : null}
-        {round === "SR" ? <button onClick={() => setOpen({ kind: "batch" })}>Lote de acciones</button> : null}
+        {round === "SR" ? <button onClick={() => setOpen({ kind: "batch" })}>{t.shareBatch}</button> : null}
         {isAvailable(ctx, "startMR") ? (
           <button className="primary" onClick={() => void dispatch({ type: "startMR" })}>
-            Ronda de fusiones
+            {t.mergerRound}
           </button>
         ) : null}
         {round === "MR" && isAvailable(ctx, "mergeCompanies") ? (
-          <button onClick={() => setOpen({ kind: "merger" })}>Fusionar…</button>
+          <button onClick={() => setOpen({ kind: "merger" })}>{t.merge}</button>
         ) : null}
         {cycles !== undefined ? (
           <CycleControls cycles={cycles} finished={finished} onEnd={() => setOpen({ kind: "endGame" })} onResults={showResults} />
@@ -328,22 +339,22 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
           <>
             {round !== "SR" ? (
               <button className={round === "OR" && !current ? "primary" : undefined} onClick={() => void dispatch({ type: "startSR" })}>
-                Empezar ronda de acciones
+                {t.startSR}
               </button>
             ) : null}
             {hasCR && round === "SR" ? (
-              <button onClick={() => void dispatch({ type: "startCR" })}>Empezar ronda corporativa</button>
+              <button onClick={() => void dispatch({ type: "startCR" })}>{t.startCR}</button>
             ) : null}
-            <button onClick={() => void dispatch({ type: "startOR" })}>Empezar OR</button>
+            <button onClick={() => void dispatch({ type: "startOR" })}>{t.startOR}</button>
           </>
         )}
       </div>
       <div className="table-tabs" role="tablist">
         <button role="tab" aria-selected={tab === "players"} onClick={() => setTab("players")}>
-          Jugadores
+          {t.playersTab}
         </button>
         <button role="tab" aria-selected={tab === "companies"} onClick={() => setTab("companies")}>
-          Compañías
+          {t.companiesTab}
         </button>
       </div>
       <div className="table-layout">
@@ -355,8 +366,9 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
           </div>
         </section>
         <section data-pane="companies" style={{ display: tab === "companies" ? "block" : "none" }}>
-          {COMPANY_GROUPS.map(([group, title]) => {
+          {COMPANY_GROUPS.map((group) => {
             const ids = groups[group];
+            const title = t.groups[group];
             return ids.length > 0 ? (
               <div key={group} className="company-group" role="group" aria-label={title} data-testid={`company-group-${group}`}>
                 <h2 className="company-group-title">{title}</h2>
@@ -417,40 +429,45 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
           confirmLabel={open.confirmLabel}
           action={open.action}
           onClose={close}
-          {...(open.scoreAfter ? { next: { label: "Terminar partida", onClick: () => setOpen({ kind: "endGame" }) } } : {})}
+          {...(open.scoreAfter ? { next: { label: t.endGame, onClick: () => setOpen({ kind: "endGame" }) } } : {})}
         />
       ) : null}
       {open?.kind === "counter" ? <CounterSheet subject={open.subject} initialKey={open.key} onClose={close} /> : null}
       {open?.kind === "menu" ? (
-        <Sheet title="Menú" onClose={close}>
+        <Sheet title={t.menu} onClose={close}>
           <div className="choice-grid">
-            <button onClick={() => go({ name: "history" })}>Historial</button>
-            <button onClick={() => go({ name: "market" })}>Mercado</button>
-            <button onClick={() => setOpen({ kind: "chips" })}>Fichas</button>
-            {phase ? <button onClick={() => setOpen({ kind: "income" })}>{INCOME_ES.title}</button> : null}
-            {!finished ? <button onClick={() => setOpen({ kind: "endGame" })}>Terminar partida</button> : null}
-            <button onClick={showResults}>Clasificación</button>
-            {finished ? <button onClick={showResults}>Resultados</button> : null}
-            <button onClick={() => void exportSession()}>Exportar partida</button>
-            <button onClick={() => go({ name: "settings" })}>Ajustes</button>
+            <button onClick={() => go({ name: "history" })}>{t.history}</button>
+            <button onClick={() => go({ name: "market" })}>{t.market}</button>
+            <button onClick={() => setOpen({ kind: "chips" })}>{t.chips}</button>
+            {phase ? <button onClick={() => setOpen({ kind: "income" })}>{dt.income.title}</button> : null}
+            {!finished ? <button onClick={() => setOpen({ kind: "endGame" })}>{t.endGame}</button> : null}
+            <button onClick={showResults}>{t.standings}</button>
+            {finished ? <button onClick={showResults}>{t.results}</button> : null}
+            <button onClick={() => void exportSession()}>{t.exportSession}</button>
+            <button onClick={() => go({ name: "settings" })}>{t.settings}</button>
             <button
               onClick={() => {
                 closeSession();
                 go({ name: "home" });
               }}
             >
-              Salir al inicio
+              {t.exitHome}
             </button>
           </div>
         </Sheet>
       ) : null}
-      <VoicePanel controller={voice.controller} phase={voice.phase} onManual={manual} />
-      <MicButton
-        phase={voice.phase}
-        availability={voice.availability}
-        onPress={() => voice.controller.press()}
-        onRelease={() => void voice.controller.release()}
-      />
+      {/* Feature 014 (FR-014e): no voice in a language that hasn't passed its eval gate. */}
+      {voiceEnabled(lang) ? (
+        <>
+          <VoicePanel controller={voice.controller} phase={voice.phase} onManual={manual} />
+          <MicButton
+            phase={voice.phase}
+            availability={voice.availability}
+            onPress={() => voice.controller.press()}
+            onRelease={() => void voice.controller.release()}
+          />
+        </>
+      ) : null}
       {/* Only createSession in the log: the game has just started (feature 008, R9). Hidden while
           a sheet is open, so it never covers the sheet's buttons. */}
       {effective.length === 1 && effective[0]?.action.type === "createSession" && open === null && !chipsNoticeDismissed ? (
@@ -466,21 +483,23 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
  * that none has fired yet; the table decides either way (constitution III).
  */
 function EndGameSheet({ ending, onClose }: { ending: readonly EndTrigger[]; onClose: () => void }) {
+  const reasonText = useMessageText();
+  const t = useText().table;
   return (
     <ConfirmSheet
-      title="¿Terminar la partida?"
+      title={t.endGameTitle}
       body={
         ending.length > 0 ? (
           <ul>
-            {ending.map((t) => (
-              <li key={t.type}>{t.messageEs}</li>
+            {ending.map((e) => (
+              <li key={e.type}>{reasonText(e.message)}</li>
             ))}
           </ul>
         ) : (
-          "Todavía no se cumplió ninguna condición de fin de partida."
+          t.noEndYet
         )
       }
-      confirmLabel="Terminar"
+      confirmLabel={t.end}
       action={{ type: "endGame", triggers: null }}
       onClose={onClose}
     />
@@ -505,19 +524,20 @@ function CycleControls({
 }) {
   const { meta, state } = useSession();
   const { dispatch } = useDispatch();
+  const t = useText().table;
   const turn = state.turn;
   const last = turn.srNumber >= cycles;
   if (turn.round === "SR") {
     return (
       <button className="primary" onClick={() => void dispatch({ type: "startOR" })}>
-        Empezar RO 1
+        {t.startCycleOR(1)}
       </button>
     );
   }
   if (turn.round === "OR" && turn.orIndex < turn.orsInSet) {
     return (
       <button className={turn.currentCompany ? undefined : "primary"} onClick={() => void dispatch({ type: "startOR" })}>
-        Empezar RO {turn.orIndex + 1}
+        {t.startCycleOR(turn.orIndex + 1)}
       </button>
     );
   }
@@ -525,25 +545,25 @@ function CycleControls({
   if (last) {
     return finished ? (
       <button className="primary" onClick={onResults}>
-        Ver resultados
+        {t.viewResults}
       </button>
     ) : (
-      <button onClick={onEnd}>Terminar partida</button>
+      <button onClick={onEnd}>{t.endGame}</button>
     );
   }
   return (
     <button className={turn.currentCompany ? "stacked" : "primary stacked"} onClick={() => void dispatch({ type: "startSR" })}>
-      Exportar y nueva RA
-      <span className="muted subtitle">{exportSubtitle(meta.game, state)}</span>
+      {t.exportAndNewSR}
+      <span className="muted subtitle">{exportSubtitle(meta.game, state, t)}</span>
     </button>
   );
 }
 
 /** "Sale un 3 · quedan 4×3", "Salen 7×2 · quedan 5×3": what the export takes and what is left on top. */
-function exportSubtitle(game: GameDefinition, state: SessionState): string {
+function exportSubtitle(game: GameDefinition, state: SessionState, t: UiText["table"]): string {
   const preview = exportPreview(game, state);
-  if (!preview) return "Sin exportación";
-  const out = preview.count === 1 ? `Sale un ${preview.displayName}` : `Salen ${preview.count}×${preview.displayName}`;
+  if (!preview) return t.noExport;
+  const out = t.exportOut(preview.count, preview.displayName);
   const top = trainStack(game, reduceAll(state, exportEvents(game, state)))[0];
-  return top ? `${out} · quedan ${top.left}×${top.displayName}` : out;
+  return top ? t.exportLeft(out, top.left, top.displayName) : out;
 }

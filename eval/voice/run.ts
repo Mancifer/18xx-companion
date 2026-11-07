@@ -7,15 +7,17 @@ import { dispose, EXPLICIT_CACHE_MODELS } from "../../src/voice/providers/gemini
 import { snapshotAndTranscript } from "../../src/voice/snapshot";
 import { createPacer, parseEvalArgs, sleep, withBackoff, type EvalOptions } from "./cli";
 import { CaseSchema, CATEGORIES, describeCalls, gradeResponse, STOPS, summarize, type EvalCase, type RunRecord, type Summary } from "./grade";
-import { loadFixture, type LoadedFixture } from "./load";
+import { inLanguage, loadFixture, type LoadedFixture } from "./load";
 
 /**
  * Voice eval (research R18, T134; feature 005 contracts/eval-report.md):
- * `npm run eval:voice -- [--model <id>] [--provider anthropic|gemini] [--runs N] [--only id,id] [--rpm N] [--free] [--cache on|off]`.
+ * `npm run eval:voice -- [--model <id>] [--provider anthropic|gemini] [--runs N] [--only id,id] [--rpm N] [--free] [--cache on|off] [--lang es|en|all]`.
  * Sends each case exactly as the app would (same adapter, tools, system prompt and snapshot),
  * grades it deterministically and writes eval/voice/results/<date>-<model>[-cache][-partial].json.
  * --cache (feature 009) turns Gemini explicit caching on or off for every interpreter; omitted, it
  * follows EXPLICIT_CACHE_MODELS. Caches the run creates are deleted when it ends.
+ * --lang (feature 014) runs the cases of one language, or both (default); each case runs in its
+ * own language, and the report has a section per language. The voice gate is not read here.
  * Needs ANTHROPIC_API_KEY or GEMINI_API_KEY for the chosen provider; every run spends money or
  * free quota on that key.
  */
@@ -29,7 +31,7 @@ try {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 }
-const { provider, model, runs, rpm, free, apiKey } = options;
+const { provider, model, runs, rpm, free, apiKey, lang } = options;
 const cacheOn = provider === "gemini" && (options.cache ?? EXPLICIT_CACHE_MODELS.has(model));
 
 const only = options.only ? new Set(options.only) : undefined;
@@ -41,9 +43,10 @@ const cases: EvalCase[] = readFileSync(join(here, "cases.jsonl"), "utf8")
     if (!parsed.success) throw new Error(`cases.jsonl line ${i + 1}: ${parsed.error.message}`);
     return parsed.data;
   })
-  .filter((c) => !only || only.has(c.id));
-// Grouped by fixture, so each fixture's cached prefix stays warm across its cases.
-cases.sort((a, b) => a.fixture.localeCompare(b.fixture));
+  .filter((c) => !only || only.has(c.id))
+  .filter((c) => lang === "all" || c.lang === lang);
+// Grouped by language and fixture, so each prefix (one per language) stays warm across its cases.
+cases.sort((a, b) => a.lang.localeCompare(b.lang) || a.fixture.localeCompare(b.fixture));
 
 const fixtures = new Map<string, LoadedFixture>();
 const fixture = (id: string) => {
@@ -97,12 +100,13 @@ let stoppedByDailyQuota = false;
 try {
   run: for (let run = 1; run <= runs; run++) {
     for (const c of cases) {
-      const f = fixture(c.fixture);
-      const base = { caseId: c.id, run, fixture: c.fixture, category: c.category, heldout: c.heldout };
-      const prefixFirst = !seenPrefix.has(c.fixture);
-      seenPrefix.add(c.fixture);
+      const f = inLanguage(fixture(c.fixture), c.lang);
+      const prefixKey = `${c.fixture}:${c.lang}`;
+      const base = { caseId: c.id, lang: c.lang, run, fixture: c.fixture, category: c.category, heldout: c.heldout };
+      const prefixFirst = !seenPrefix.has(prefixKey);
+      seenPrefix.add(prefixKey);
       const first = prefixFirst ? { prefixFirst } : {};
-      const userMessage = snapshotAndTranscript({ ...f.ctx, transcript: c.transcript });
+      const userMessage = snapshotAndTranscript({ ...f.ctx, lang: c.lang, transcript: c.transcript });
       let latencyMs = 0;
       try {
         // Latency is the last adapter call (its own retry included), not the backoff waits.
@@ -111,10 +115,10 @@ try {
             await pace();
             const started = performance.now();
             try {
-              return await interpreterFor(c.fixture)(f.session, userMessage);
+              return await interpreterFor(prefixKey)(f.session, userMessage);
             } finally {
               latencyMs = Math.round(performance.now() - started);
-              const live = liveCache.get(c.fixture);
+              const live = liveCache.get(prefixKey);
               if (live) live.lastUseAt = Date.now();
             }
           },
@@ -164,7 +168,7 @@ const summary = summarize(records, { provider, model, freeTier: free, rateLimitR
 printSummary(summary);
 
 const partial = only !== undefined || stoppedByDailyQuota;
-const out = join(here, "results", `${day}-${model}${cacheOn ? "-cache" : ""}${partial ? "-partial" : ""}.json`);
+const out = join(here, "results", `${day}-${model}${lang === "all" ? "" : `-${lang}`}${cacheOn ? "-cache" : ""}${partial ? "-partial" : ""}.json`);
 mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, `${JSON.stringify({ summary, records }, null, 2)}\n`, "utf8");
 console.log(`\nResults: ${out}`);
@@ -195,6 +199,16 @@ function printSummary(s: Summary) {
   }
   for (const note of s.priceNotes) console.log(`  nota: ${note}`);
   console.log(`rate-limit retries: ${s.rateLimitRetries}`);
+  // Feature 014: a section per language, then the English-vs-Spanish gap (SC-007).
+  for (const [code, l] of Object.entries(s.byLanguage ?? {})) {
+    console.log(`\n-- ${code === "en" ? "English" : "Español"}: ${l.cases} cases · overall ${pct(l.overall)} · held-out ${pct(l.heldout)} · ${usd(l.paidPerCaseUsd, 5)} per command`);
+    for (const cat of CATEGORIES) if (l.byCategory[cat] !== null && l.byCategory[cat] !== undefined) console.log(`  ${cat.padEnd(14)} ${pct(l.byCategory[cat] ?? null)}`);
+  }
+  const es = s.byLanguage?.es?.overall;
+  const en = s.byLanguage?.en?.overall;
+  if (typeof es === "number" && typeof en === "number") {
+    console.log(`\nEnglish − Spanish: ${((en - es) * 100).toFixed(1)} points (SC-007 needs ≥ −5.0)`);
+  }
   const gates = Object.entries(s.gates).map(([gate, ok]) => `${gate} ${ok ? "✓" : "✗"}`);
   if (!("cache reads > 0" in s.gates)) gates.push(`cache reads > 0 (info) ${(s.cacheReadRate ?? 0) > 0 ? "✓" : "✗"}`);
   console.log(`gates: ${gates.join(" · ")}`);

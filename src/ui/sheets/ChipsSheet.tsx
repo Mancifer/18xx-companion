@@ -6,6 +6,7 @@ import { setupPlan } from "../../domain/mechanics/chipSetup";
 import { ChipSetEditor, sortChips } from "../components/ChipSetEditor";
 import { ChipSetupPlan } from "../components/ChipSetupPlan";
 import { Sheet } from "../components/Sheet";
+import { useText } from "../../app/language";
 
 /**
  * Edit the table's chips and bank counts mid-game (FR-080, feature 008). Table configuration:
@@ -14,6 +15,8 @@ import { Sheet } from "../components/Sheet";
 export function ChipsSheet({ onClose }: { onClose: () => void }) {
   const { meta } = useSession();
   const { updateChips } = useDispatch();
+  const text = useText();
+  const t = text.components.chipsSheet;
   const [draft, setDraft] = useState(meta.chipSet);
   const [pins, setPins] = useState<Record<string, number>>(() => ({ ...meta.bankPins }));
   const sorted = useMemo(() => sortChips(draft), [draft]);
@@ -25,10 +28,10 @@ export function ChipsSheet({ onClose }: { onClose: () => void }) {
   /** An older session froze the preset of its day; a built-in game restores today's (R10, FR-002). */
   const preset = builtInGames.find((g) => g.id === meta.game.id)?.chipPreset ?? meta.game.chipPreset;
   return (
-    <Sheet title="Fichas" onClose={onClose}>
+    <Sheet title={t.title} onClose={onClose}>
       {plan ? (
         <section className="stack">
-          <h3>Preparación</h3>
+          <h3>{t.plan}</h3>
           <ChipSetupPlan plan={plan} set={sorted} game={meta.game} pins={pins} onPinsChange={setPins} />
         </section>
       ) : null}
@@ -40,7 +43,7 @@ export function ChipsSheet({ onClose }: { onClose: () => void }) {
             setPins({});
           }}
         >
-          Volver al juego
+          {t.restore}
         </button>
         <span className="spacer" />
         <button
@@ -52,7 +55,7 @@ export function ChipsSheet({ onClose }: { onClose: () => void }) {
             })
           }
         >
-          Guardar
+          {text.common.save}
         </button>
       </div>
     </Sheet>

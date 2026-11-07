@@ -210,7 +210,7 @@ describe("SettingsRepo", () => {
     const settings = new SettingsRepo(await openCompanionDb(freshDbName()));
     expect(await settings.get()).toMatchObject({
       rememberKey: true,
-      voiceLocale: "es-ES",
+      voiceLocales: { en: "en-US", es: "es-ES" },
       provider: "anthropic",
       models: { anthropic: "claude-sonnet-5" },
     });

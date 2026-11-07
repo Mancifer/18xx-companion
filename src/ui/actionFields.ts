@@ -1,4 +1,7 @@
 import type { GameDefinition } from "../domain/games/schema";
+import type { UiText } from "../i18n/contract/ui";
+import { gameText } from "../i18n/gameText";
+import type { Lang } from "../i18n/lang";
 import { holdsMoney, isHolderRef, type HolderRef, type Player } from "../domain/types";
 
 /**
@@ -19,38 +22,17 @@ export interface ActionField {
   readonly options?: readonly { readonly value: string | null; readonly label: string }[];
 }
 
-const NUMBER_LABELS: Readonly<Record<string, string>> = {
-  amount: "Cantidad",
-  setTo: "Nuevo valor",
-  units: "Acciones",
-  count: "Número",
-  price: "Precio",
-  extra: "Extra",
-};
-
 const NOT_MONEY = new Set(["units", "count"]);
 
-const CHOICE_LABELS: Readonly<Record<string, string>> = {
-  from: "De",
-  to: "A",
-  holder: "Titular",
-  company: "Compañía",
-  player: "Jugador",
-  buyer: "Comprador",
-  seller: "Vendedor",
-  mode: "Modo",
-  trainType: "Tren",
-  source: "Origen",
-  private: "Privada",
-};
-
-const MODE_LABELS: Readonly<Record<string, string>> = { full: "Pagar", withhold: "Retener", half: "Mitad" };
-const SOURCE_LABELS: Readonly<Record<string, string>> = { ipo: "IPO", pool: "Banco (pool)", treasury: "Tesorería" };
 
 export interface FieldContext {
   readonly game: GameDefinition;
   readonly players: readonly Player[];
   readonly holderName: (h: HolderRef) => string;
+  /** The field labels in the display language (feature 014). */
+  readonly labels: UiText["components"]["fields"];
+  readonly modes: UiText["sheets"]["operate"]["modes"];
+  readonly lang: Lang;
 }
 
 export function editableFields(action: Record<string, unknown>, ctx: FieldContext): ActionField[] | null {
@@ -62,16 +44,16 @@ export function editableFields(action: Record<string, unknown>, ctx: FieldContex
       value.forEach((part: unknown, i) => {
         if (!part || typeof part !== "object") return;
         const p = part as { part?: string; amount?: number };
-        const label = ctx.game.revenueParts.find((r) => r.id === p.part)?.label ?? "Ingresos";
+        const label = p.part !== undefined ? gameText(ctx.game, ctx.lang).revenuePart(p.part) : ctx.labels.revenue;
         fields.push({ path: [key, i, "amount"], label, kind: "number", value: p.amount ?? 0, money: true });
       });
       continue;
     }
     if (key === "delta") {
-      if (typeof value === "number") fields.push({ path: [key], label: "Ajuste", kind: "signed", value, money: true });
+      if (typeof value === "number") fields.push({ path: [key], label: ctx.labels.delta, kind: "signed", value, money: true });
       continue;
     }
-    const numberLabel = NUMBER_LABELS[key];
+    const numberLabel = ctx.labels.numbers[key];
     if (numberLabel !== undefined && (typeof value === "number" || value === null)) {
       if (typeof value === "number") {
         fields.push({ path: [key], label: numberLabel, kind: "number", value, money: !NOT_MONEY.has(key) });
@@ -79,11 +61,11 @@ export function editableFields(action: Record<string, unknown>, ctx: FieldContex
       continue;
     }
     if (key === "text" && typeof value === "string") {
-      fields.push({ path: [key], label: "Texto", kind: "text", value });
+      fields.push({ path: [key], label: ctx.labels.text, kind: "text", value });
       continue;
     }
     const options = choiceOptions(String(action["type"]), key, value, ctx);
-    if (options) fields.push({ path: [key], label: CHOICE_LABELS[key] ?? key, kind: "choice", value, options });
+    if (options) fields.push({ path: [key], label: ctx.labels.choices[key] ?? key, kind: "choice", value, options });
   }
   return fields;
 }
@@ -94,25 +76,25 @@ function choiceOptions(
   value: unknown,
   ctx: FieldContext,
 ): ActionField["options"] | undefined {
-  const { game, players } = ctx;
+  const { game, players, labels } = ctx;
   if (key === "mode") {
-    return game.payoutModes.map((m) => ({ value: m, label: MODE_LABELS[m] ?? m }));
+    return game.payoutModes.map((m) => ({ value: m, label: ctx.modes[m] }));
   }
   if (key === "trainType") return game.trains.map((t) => ({ value: t.type, label: t.type }));
-  if (key === "source" && typeof value === "string" && value in SOURCE_LABELS) {
-    return Object.entries(SOURCE_LABELS).map(([v, label]) => ({ value: v, label }));
+  if (key === "source" && typeof value === "string" && value in labels.sources) {
+    return Object.entries(labels.sources).map(([v, label]) => ({ value: v, label }));
   }
   if (type === "buyTrain" && key === "from") {
     return [
-      { value: "bank", label: "Banco" },
-      { value: "pool", label: "Pool" },
-      { value: "company", label: "Otra compañía" },
+      { value: "bank", label: labels.trainFrom.bank },
+      { value: "pool", label: labels.trainFrom.pool },
+      { value: "company", label: labels.trainFrom.company },
     ];
   }
   if (key === "private") return game.privates.map((p) => ({ value: p.id, label: p.name }));
   if (key === "player") return players.map((p) => ({ value: p.id, label: p.name }));
   if (key === "company") {
-    const current = value === null ? [{ value: null, label: "La que opera" }] : [];
+    const current = value === null ? [{ value: null, label: labels.operating }] : [];
     return [...current, ...game.companies.map((c) => ({ value: c.id, label: c.shortName }))];
   }
   if (typeof value === "string" && isHolderRef(value)) {

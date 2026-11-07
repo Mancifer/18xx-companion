@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { systemPromptEs } from "../../src/voice/prompt";
+import { systemPrompt } from "../../src/voice/prompt";
 import { snapshotAndTranscript } from "../../src/voice/snapshot";
 import { buildToolSpecs, toGeminiTools } from "../../src/voice/tools";
 import { loadFixture } from "./load";
@@ -35,7 +35,7 @@ const transcript = readFileSync(join(here, "cases.jsonl"), "utf8")
   .find((c) => c.fixture === values.fixture)?.transcript ?? "240, paga";
 
 // The same fragments the adapter sends today (src/voice/providers/gemini.ts).
-const systemInstruction = { parts: [{ text: systemPromptEs(f.session) }] };
+const systemInstruction = { parts: [{ text: systemPrompt(f.session) }] };
 const tools = toGeminiTools(buildToolSpecs(f.session));
 const toolConfig = { functionCallingConfig: { mode: "ANY" } };
 const contents = [{ role: "user", parts: [{ text: snapshotAndTranscript({ ...f.ctx, transcript }) }] }];

@@ -8,7 +8,7 @@ import { SessionRepo } from "../../src/persistence/sessionRepo";
 import { SettingsRepo } from "../../src/persistence/settingsRepo";
 import { App } from "../../src/ui/App";
 import { makePlayers } from "../helpers/dispatch";
-import { freshDbName } from "../helpers/session";
+import { freshDbName, setNavigatorLanguages } from "../helpers/session";
 
 /** Feature 006: delete past sessions from Home (contracts/home-delete-ui.md §3–4). */
 
@@ -294,5 +294,26 @@ describe("Home: finished games (feature 007, US3, contracts/ui.md §3)", () => {
     await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Salir al inicio" }));
     await screen.findByRole("heading", { name: "Partidas" });
     expect(within(row("Ganada")).queryByText("Completa")).toBeNull();
+  });
+});
+
+describe("Home in English (feature 014, T036)", () => {
+  it("shows a bad import file's error in English", async () => {
+    setNavigatorLanguages(["en-US"]);
+    const user = userEvent.setup();
+    render(<App dbName={freshDbName()} />);
+    await screen.findByRole("button", { name: "New game" });
+    const file = new File([JSON.stringify({ hello: "world" })], "x.json", { type: "application/json" });
+    await user.upload(screen.getByLabelText("Game file"), file);
+    expect((await screen.findByRole("alert")).textContent).toContain("The file isn't an 18xx Companion game.");
+  });
+
+  it("shows a non-JSON file's error in English", async () => {
+    setNavigatorLanguages(["en-US"]);
+    const user = userEvent.setup();
+    render(<App dbName={freshDbName()} />);
+    await screen.findByRole("button", { name: "New game" });
+    await user.upload(screen.getByLabelText("Game file"), new File(["not json"], "x.json", { type: "application/json" }));
+    expect((await screen.findByRole("alert")).textContent).toContain("The file isn't JSON.");
   });
 });

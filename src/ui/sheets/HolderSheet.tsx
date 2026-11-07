@@ -1,7 +1,9 @@
 import { useState, type ReactNode } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
 import { cashOf, unitsOf } from "../../domain/events/state";
-import { formatMoney } from "../../domain/i18n/format";
+import { formatMoney } from "../../i18n/format";
+import { useLang, useText } from "../../app/language";
+
 import type { CompanyId, HolderRef } from "../../domain/types";
 import { CompanyBadge, HolderName } from "../components/CompanyBadge";
 import { Keypad } from "../components/Keypad";
@@ -31,12 +33,22 @@ export function HolderSheet({
 }) {
   const { meta, state } = useSession();
   const { dispatch } = useDispatch();
+  const t = useText().sheets.holder;
+  const { lang } = useLang();
   const [mode, setMode] = useState<Mode>("menu");
   const [amount, setAmount] = useState<number | null>(null);
   const [target, setTarget] = useState<HolderRef | null>(null);
   const ctx = { game: meta.game, players: meta.players };
   const badged = (h: HolderRef) => <HolderName holder={h} game={meta.game} players={meta.players} />;
-  const toName = (h: HolderRef) => (h === "bank" ? "al banco" : <>a {badged(h)}</>);
+  const toName = (h: HolderRef) =>
+    h === "bank" ? (
+      t.toBank
+    ) : (
+      <>
+        {t.toPrefix}
+        {badged(h)}
+      </>
+    );
 
   const moneyTargets: HolderRef[] = (
     [
@@ -53,15 +65,15 @@ export function HolderSheet({
 
   if (mode === "pay") {
     return (
-      <Sheet title={<>Pagar desde {title}</>} onClose={onClose}>
-        <ChoiceGrid label="A quién" options={moneyTargets} value={target} onChange={setTarget} render={badged} />
+      <Sheet title={<>{t.payFrom[0]}{title}{t.payFrom[1]}</>} onClose={onClose}>
+        <ChoiceGrid label={t.whom} options={moneyTargets} value={target} onChange={setTarget} render={badged} />
         <Keypad value={amount} onChange={setAmount} game={meta.game} />
         <button
           className="primary"
           disabled={amount === null || amount <= 0 || target === null}
           onClick={() => void run({ type: "transferMoney", from: holder, to: target, amount })}
         >
-          Pagar {amount !== null ? formatMoney(amount, meta.game) : ""} {target ? toName(target) : ""}
+          {t.pay} {amount !== null ? formatMoney(amount, meta.game, lang) : ""} {target ? toName(target) : ""}
         </button>
       </Sheet>
     );
@@ -69,14 +81,14 @@ export function HolderSheet({
 
   if (mode === "receive") {
     return (
-      <Sheet title={<>{title} cobra del banco</>} onClose={onClose}>
+      <Sheet title={<>{t.receiveTitle[0]}{title}{t.receiveTitle[1]}</>} onClose={onClose}>
         <Keypad value={amount} onChange={setAmount} game={meta.game} />
         <button
           className="primary"
           disabled={amount === null || amount <= 0}
           onClick={() => void run({ type: "transferMoney", from: "bank", to: holder, amount })}
         >
-          Cobrar {amount !== null ? formatMoney(amount, meta.game) : ""}
+          {t.collect} {amount !== null ? formatMoney(amount, meta.game, lang) : ""}
         </button>
       </Sheet>
     );
@@ -84,15 +96,15 @@ export function HolderSheet({
 
   if (mode === "set") {
     return (
-      <Sheet title={<>Fijar dinero de {title}</>} onClose={onClose}>
-        <p className="muted">Ahora: {formatMoney(cashOf(state, holder), meta.game)}</p>
-        <Keypad value={amount} onChange={setAmount} game={meta.game} label="Nuevo valor" />
+      <Sheet title={<>{t.setTitle[0]}{title}{t.setTitle[1]}</>} onClose={onClose}>
+        <p className="muted">{t.now(formatMoney(cashOf(state, holder), meta.game, lang))}</p>
+        <Keypad value={amount} onChange={setAmount} game={meta.game} label={t.newValue} />
         <button
           className="primary"
           disabled={amount === null}
           onClick={() => void run({ type: "adjustMoney", holder, delta: null, setTo: amount })}
         >
-          Fijar en {amount !== null ? formatMoney(amount, meta.game) : "…"}
+          {t.setTo} {amount !== null ? formatMoney(amount, meta.game, lang) : "…"}
         </button>
       </Sheet>
     );
@@ -104,10 +116,10 @@ export function HolderSheet({
 
   const adjustments = (
     <div className="choice-grid">
-      <button onClick={() => setMode("pay")}>Pagar…</button>
-      <button onClick={() => setMode("receive")}>Cobrar del banco</button>
-      <button onClick={() => setMode("set")}>Fijar dinero</button>
-      <button onClick={() => setMode("shares")}>Mover acciones</button>
+      <button onClick={() => setMode("pay")}>{t.payMenu}</button>
+      <button onClick={() => setMode("receive")}>{t.receive}</button>
+      <button onClick={() => setMode("set")}>{t.setMoney}</button>
+      <button onClick={() => setMode("shares")}>{t.moveShares}</button>
       {extraActions}
     </div>
   );
@@ -118,11 +130,11 @@ export function HolderSheet({
       {gameActions !== undefined ? (
         <>
           <fieldset className="choice-fieldset menu-section">
-            <legend className="muted">Jugada</legend>
+            <legend className="muted">{t.play}</legend>
             <div className="choice-grid">{gameActions}</div>
           </fieldset>
           <fieldset className="choice-fieldset menu-section">
-            <legend className="muted">Ajustes</legend>
+            <legend className="muted">{t.adjustments}</legend>
             {adjustments}
           </fieldset>
         </>
@@ -147,6 +159,8 @@ function SharesForm({
   ctx: { game: ReturnType<typeof useSession>["meta"]["game"]; players: ReturnType<typeof useSession>["meta"]["players"] };
 }) {
   const { state } = useSession();
+  const text = useText();
+  const t = text.sheets.holder;
   const [company, setCompany] = useState<CompanyId | null>(null);
   const [direction, setDirection] = useState<"in" | "out">("in");
   const [other, setOther] = useState<HolderRef | null>(null);
@@ -165,7 +179,7 @@ function SharesForm({
   const to = direction === "in" ? holder : other;
 
   return (
-    <Sheet title={<>Mover acciones · {title}</>} onClose={onClose}>
+    <Sheet title={<>{t.moveShares} · {title}</>} onClose={onClose}>
       <div className="choice-grid">
         {ctx.game.companies.map((c) => (
           <button key={c.id} aria-pressed={company === c.id} onClick={() => setCompany(c.id)}>
@@ -177,14 +191,14 @@ function SharesForm({
         <>
           <div className="row">
             <button aria-pressed={direction === "in"} onClick={() => setDirection("in")}>
-              Recibe de…
+              {t.receivesFrom}
             </button>
             <button aria-pressed={direction === "out"} onClick={() => setDirection("out")}>
-              Entrega a…
+              {t.givesTo}
             </button>
           </div>
           <ChoiceGrid
-            label={direction === "in" ? "De" : "A"}
+            label={direction === "in" ? t.from : t.to}
             options={others}
             value={other}
             onChange={setOther}
@@ -195,16 +209,16 @@ function SharesForm({
             )}
           />
           <div className="row">
-            <button aria-label="Menos" onClick={() => setCount((n) => Math.max(1, n - 1))}>
+            <button aria-label={text.sheets.stock.less} onClick={() => setCount((n) => Math.max(1, n - 1))}>
               −
             </button>
             <span className="money stepper-value">{count}</span>
-            <button aria-label="Más" onClick={() => setCount((n) => n + 1)}>
+            <button aria-label={text.sheets.stock.more} onClick={() => setCount((n) => n + 1)}>
               +
             </button>
             <label className="row checkbox">
               <input type="checkbox" checked={presidency} onChange={(e) => setPresidency(e.target.checked)} />
-              Incluye presidencia
+              {t.includesPresidency}
             </label>
           </div>
           <button
@@ -214,7 +228,7 @@ function SharesForm({
               void onDone({ type: "transferShares", company, from, to, units: count, presidency: presidency || null })
             }
           >
-            Mover {count}
+            {t.moveN(count)}
           </button>
         </>
       ) : null}

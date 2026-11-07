@@ -1,6 +1,5 @@
 import { cashOf, counterOf } from "../../events/state";
 import type { PrimitiveEvent } from "../../events/types";
-import { formatMoney } from "../../i18n/format";
 import { parseHolder, trainTypeOf, type AssetId, type HolderRef } from "../../types";
 import { cellAt } from "../../mechanics/market";
 import { currentPhase, phaseReached, RUSTED, trainsHeldBy } from "../../mechanics/phases";
@@ -14,12 +13,12 @@ export function payWarnings(ctx: ActionContext, from: HolderRef, amount: number)
   const have = cashOf(ctx.state, from);
   if (from === "bank") {
     if (ctx.game.bank !== "unlimited" && have - amount < 0) {
-      return [warning("bankBroken", "El banco se queda sin dinero (banca quebrada).")];
+      return [warning(ctx, "bankBroken", {})];
     }
     return [];
   }
   if (have < amount) {
-    return [warning("insufficientCash", `Solo tiene ${formatMoney(have, ctx.game)}; quedará en negativo.`)];
+    return [warning(ctx, "insufficientCash", { have })];
   }
   return [];
 }
@@ -61,19 +60,14 @@ function correctTrainWarnings(ctx: ActionContext, a: CorrectTrain): Warning[] {
       other !== asset && other.startsWith("train:") && trainTypeOf(other) === type && (holder === "pool" || parseHolder(holder).kind === "company"),
   );
   if (phase?.triggeredBy === type && !stillInPlay) {
-    warnings.push(
-      warning(
-        "phaseStarter",
-        `La fase ${phase.color ?? phase.id} empezó con un ${type}: la fase y los trenes oxidados no cambian solos. Si hace falta, corregilos en Fase (control de turno).`,
-      ),
-    );
+    warnings.push(warning(ctx, "phaseStarter", { phase: phase.id, type }));
   }
   const rustsOn = trainDef(game, type)?.rustsOnPhase;
   if (a.to === "bank" && rustsOn !== undefined && phaseReached(game, state, rustsOn)) {
-    warnings.push(warning("notOnSale", `El ${type} ya no se vende en esta fase.`));
+    warnings.push(warning(ctx, "notOnSale", { type }));
   }
   if (a.to !== "bank" && amount > 0) {
-    warnings.push(warning("refundOffSupply", "La devolución se registra, aunque el tren no vuelve a la oferta."));
+    warnings.push(warning(ctx, "refundOffSupply", {}));
   }
   if (amount > 0) warnings.push(...payWarnings(ctx, "bank", amount));
   return warnings;
@@ -116,15 +110,15 @@ export const manualHandlers: HandlerMap = {
       const target = companyTarget(ctx, a?.company);
       if (!target.ok || !a) return target;
       if (a.op === "remove") {
-        if (!correctedTrain(ctx, a)) return unavailable("La compañía no tiene ese tren");
-        if (a.to === null) return unavailable("Falta a dónde va el tren");
+        if (!correctedTrain(ctx, a)) return unavailable("train.notHeld", {});
+        if (a.to === null) return unavailable("correct.noDestination", {});
       } else {
-        if (a.to !== null) return unavailable("Al dar un tren no hay destino");
-        if (!a.train.includes(":") && !trainDef(ctx.game, a.train)) return unavailable(`No hay trenes ${a.train} en este juego`);
-        if (!correctedTrain(ctx, a)) return unavailable(`No quedan trenes ${a.train} en la oferta`);
+        if (a.to !== null) return unavailable("correct.noDestinationOnAdd", {});
+        if (!a.train.includes(":") && !trainDef(ctx.game, a.train)) return unavailable("train.unknownType", { type: a.train });
+        if (!correctedTrain(ctx, a)) return unavailable("correct.noneInSupply", { type: a.train });
       }
       // The pool never holds trains in games that discard them out of the game (research R4).
-      if (a.to === "pool" && ctx.game.discardedTrainsTo !== "pool") return unavailable("En este juego los trenes no van al pool");
+      if (a.to === "pool" && ctx.game.discardedTrainsTo !== "pool") return unavailable("correct.noPool", {});
       return AVAILABLE;
     },
     validate: correctTrainWarnings,
@@ -153,9 +147,9 @@ export const manualHandlers: HandlerMap = {
       const cell = a.cell;
       if ("index" in cell) {
         const track = ctx.game.market.tracks?.[a.company];
-        return track && cell.index <= track.byLoansIssued.length ? AVAILABLE : unavailable("Esa casilla no existe");
+        return track && cell.index <= track.byLoansIssued.length ? AVAILABLE : unavailable("market.noCell", {});
       }
-      return cellAt(ctx.game, cell) ? AVAILABLE : unavailable("Esa casilla no existe");
+      return cellAt(ctx.game, cell) ? AVAILABLE : unavailable("market.noCell", {});
     },
     expand: (_ctx, a) => [{ t: "marketMove", company: a.company, to: a.cell, reason: "manual" }],
   },

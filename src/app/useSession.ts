@@ -46,23 +46,23 @@ export function useDispatch(): SessionActions {
   return {
     async dispatch(action, options) {
       const result = await store.dispatch(action, options);
-      push(result.ok ? { kind: "applied", group: result.group } : { kind: "error", messageEs: result.messageEs });
+      push(result.ok ? { kind: "applied", group: result.group } : { kind: "error", message: result.message });
       return result;
     },
     async undoLast() {
       const result = await store.undoLast();
-      push(result.ok ? { kind: "reverted", groups: result.undone } : { kind: "error", messageEs: result.messageEs });
+      push(result.ok ? { kind: "reverted", groups: result.undone } : { kind: "error", message: result.message });
       return result;
     },
     async undoTo(groupId, options) {
       const result = await store.undoTo(groupId, options);
       if (result.ok) push({ kind: "reverted", groups: result.undone });
-      else if (result.error !== "confirmRange") push({ kind: "error", messageEs: result.messageEs });
+      else if (result.error !== "confirmRange") push({ kind: "error", message: result.message });
       return result;
     },
     async updateChips(chipSet, bankPins) {
       const result = await store.updateMeta({ chipSet, bankPins: cleanPins(bankPins, chipSet) });
-      if (!result.ok) push({ kind: "error", messageEs: result.messageEs });
+      if (!result.ok) push({ kind: "error", message: result.message });
       return result.ok;
     },
   };

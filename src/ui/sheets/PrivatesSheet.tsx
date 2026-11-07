@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
-import { formatMoney } from "../../domain/i18n/format";
+import { formatMoney } from "../../i18n/format";
+import { useLang, useText } from "../../app/language";
 import { parPricesFor } from "../../domain/mechanics/market";
 import { purchasablePrivates } from "../../domain/queries";
 import { HolderName } from "../components/CompanyBadge";
@@ -15,6 +16,8 @@ import { Sheet } from "../components/Sheet";
 export function PrivatesSheet({ onClose }: { onClose: () => void }) {
   const { meta, state } = useSession();
   const { dispatch } = useDispatch();
+  const t = useText().sheets.privates;
+  const { lang } = useLang();
   const [chosen, setChosen] = useState<string | null>(null);
   const [buyer, setBuyer] = useState<string | null>(null);
   const [price, setPrice] = useState<number | null>(null);
@@ -24,8 +27,8 @@ export function PrivatesSheet({ onClose }: { onClose: () => void }) {
   const ownerPar = def?.grants?.find((g) => g.par === "ownerChooses");
 
   return (
-    <Sheet title="Comprar privada" onClose={onClose}>
-      {open.length === 0 ? <p className="muted">No hay privadas a la venta ahora.</p> : null}
+    <Sheet title={t.title} onClose={onClose}>
+      {open.length === 0 ? <p className="muted">{t.none}</p> : null}
       <div className="choice-grid">
         {open.map((p) => {
           const holder = state.assets[`private:${p.id}`] ?? "bank";
@@ -39,7 +42,7 @@ export function PrivatesSheet({ onClose }: { onClose: () => void }) {
                 setPar(null);
               }}
             >
-              {p.name} · {formatMoney(p.cost, meta.game)}
+              {p.name} · {formatMoney(p.cost, meta.game, lang)}
               <span className="muted reason">
                 <HolderName holder={holder} game={meta.game} players={meta.players} />
               </span>
@@ -56,12 +59,12 @@ export function PrivatesSheet({ onClose }: { onClose: () => void }) {
               </button>
             ))}
           </div>
-          <Keypad value={price} onChange={setPrice} game={meta.game} label="Precio pagado" />
+          <Keypad value={price} onChange={setPrice} game={meta.game} label={t.pricePaid} />
           {ownerPar ? (
             <div className="choice-grid">
               {parPricesFor(meta.game, ownerPar.company).map((p) => (
                 <button key={p} aria-pressed={par === p} onClick={() => setPar(p)}>
-                  Salida {formatMoney(p, meta.game)}
+                  {t.par(formatMoney(p, meta.game, lang))}
                 </button>
               ))}
             </div>
@@ -75,7 +78,7 @@ export function PrivatesSheet({ onClose }: { onClose: () => void }) {
               })
             }
           >
-            Comprar
+            {t.buy}
           </button>
         </>
       ) : null}

@@ -1,9 +1,9 @@
 import type { Action } from "../domain/actions/schemas";
 import { runPipeline } from "../domain/actions/pipeline";
-import { summaryEs } from "../domain/i18n/es";
 import { moneyFlows } from "../domain/ledger/flows";
 import type { Interpreter } from "../voice/interpreter";
-import { resolveError, resolveResponse, type ResolveContext, type VoiceResult } from "../voice/resolve";
+import { message } from "../i18n/contract/domain";
+import { notUnderstood, resolveError, resolveResponse, type ResolveContext, type VoiceResult } from "../voice/resolve";
 import { snapshotAndTranscript } from "../voice/snapshot";
 import { SpeechCapture, type RecognizerFactory } from "../voice/speech";
 import type { VoiceSession } from "../voice/tools";
@@ -120,7 +120,7 @@ export class VoiceController {
         await this.confirm();
         return;
       }
-      result = { kind: "notUnderstood", transcript, reasonEs: "No hay nada que confirmar." };
+      result = notUnderstood(transcript, message("voice.nothingToConfirm", {}));
     }
     // Undoing the newest entry needs no confirmation, as by touch (feature 010, US1-5).
     if (result.kind === "undo") {
@@ -152,7 +152,6 @@ export class VoiceController {
         action: run.action,
         events: run.events,
         warnings: run.warnings,
-        summaryEs: summaryEs(run.action, ctx, run.events),
         flows: moneyFlows(run.events),
       },
     });

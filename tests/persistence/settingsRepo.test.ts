@@ -24,7 +24,7 @@ const defaults = () => Object.fromEntries(PROVIDER_IDS.map((id) => [id, PROVIDER
 describe("SettingsRepo (005)", () => {
   it("defaults: Claude selected, no keys, every model at its registry default", async () => {
     const repo = new SettingsRepo(await openCompanionDb(freshDbName()));
-    expect(await repo.get()).toEqual({ provider: "anthropic", apiKeys: {}, models: defaults(), rememberKey: true, voiceLocale: "es-ES" });
+    expect(await repo.get()).toEqual({ provider: "anthropic", apiKeys: {}, models: defaults(), rememberKey: true, voiceLocales: { en: "en-US", es: "es-ES" } });
   });
 
   it("FR-005: legacy apiKey/model rows read as Claude's key and model", async () => {
@@ -44,7 +44,7 @@ describe("SettingsRepo (005)", () => {
 
   it("the first set() after a migrated read writes the new rows and deletes the legacy ones", async () => {
     const { db, repo } = await seeded({ apiKey: "sk-ant-x", model: "claude-x", rememberKey: true });
-    await repo.set({ voiceLocale: "es-AR" });
+    await repo.set({ voiceLocales: { es: "es-AR" } });
     const stored = await rows(db);
     expect(stored).not.toHaveProperty("apiKey");
     expect(stored).not.toHaveProperty("model");
@@ -52,7 +52,7 @@ describe("SettingsRepo (005)", () => {
       provider: "anthropic",
       apiKeys: { anthropic: "sk-ant-x" },
       models: { anthropic: "claude-x" },
-      voiceLocale: "es-AR",
+      voiceLocales: { en: "en-US", es: "es-AR" },
     });
   });
 

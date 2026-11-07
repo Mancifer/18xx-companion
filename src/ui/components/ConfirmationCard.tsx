@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useSession } from "../../app/useSession";
 import type { Action } from "../../domain/actions/schemas";
-import { holderName, proposalSummaryEs } from "../../domain/i18n/es";
-import { formatMoney } from "../../domain/i18n/format";
+import { useDomainText, useLang, useText } from "../../app/language";
+import { renderWarning } from "../../i18n/render";
+import { formatMoney } from "../../i18n/format";
 import type { HolderRef } from "../../domain/types";
 import type { VoiceResult } from "../../voice/resolve";
 import { editableFields, getField, setField, type ActionField } from "../actionFields";
@@ -30,10 +31,14 @@ export function ConfirmationCard({
   extra?: React.ReactNode;
 }) {
   const { meta, state } = useSession();
+  const text = useText();
+  const t = text.components;
+  const dt = useDomainText();
+  const { lang } = useLang();
   const [editing, setEditing] = useState(false);
   // The same line as proposal.summaryEs, with company badges (feature 013); the voice layer keeps the plain one.
-  const summary = proposalSummaryEs(proposal.action, { game: meta.game, players: meta.players, state, marks: true }, proposal.events);
-  const name = (h: HolderRef) => holderName(h, meta.game, meta.players);
+  const summary = dt.proposalSummary(proposal.action, { game: meta.game, players: meta.players, state, marks: true }, proposal.events);
+  const name = (h: HolderRef) => dt.holderName(h, meta.game, meta.players);
   const fields =
     proposal.action.type === "compound"
       ? null
@@ -41,6 +46,9 @@ export function ConfirmationCard({
           game: meta.game,
           players: meta.players,
           holderName: name,
+          labels: t.fields,
+          modes: text.sheets.operate.modes,
+          lang,
         });
 
   if (editing && fields) {
@@ -51,14 +59,14 @@ export function ConfirmationCard({
   }
 
   return (
-    <section className="voice-card" role="dialog" aria-label="Confirmar orden de voz">
+    <section className="voice-card" role="dialog" aria-label={t.confirmCard.dialog}>
       <p className="muted transcript">«{proposal.transcript}»</p>
       <p className="voice-summary">
         <RichText text={summary} />
       </p>
       {proposal.warnings.map((w) => (
         <p key={w.code} className="toast-warning">
-          ⚠ {w.messageEs}
+          ⚠ {renderWarning(w, { game: meta.game, players: meta.players, state }, lang)}
         </p>
       ))}
       {proposal.action.type === "launchCompany" && meta.chipSet.chips.length > 0 ? (
@@ -67,7 +75,7 @@ export function ConfirmationCard({
           flow={{ from: `player:${proposal.action.player}`, to: `company:${proposal.action.company}`, amount: proposal.action.bid }}
           set={meta.chipSet}
           game={meta.game}
-          label={`${name(`player:${proposal.action.player}`)} entrega`}
+          label={t.confirmCard.hands(name(`player:${proposal.action.player}`))}
         />
       ) : null}
       {proposal.flows.length > 0 ? (
@@ -79,22 +87,22 @@ export function ConfirmationCard({
                   flow={f}
                   set={meta.chipSet}
                   game={meta.game}
-                  label={flowLabel(f, name)}
+                  label={flowLabel(f, name, t.chips)}
                 />
               ) : (
-                `${name(f.from)} → ${name(f.to)}: ${formatMoney(f.amount, meta.game)}`
+                `${name(f.from)} → ${name(f.to)}: ${formatMoney(f.amount, meta.game, lang)}`
               )}
             </li>
           ))}
         </ul>
       ) : null}
       <div className="row">
-        <button onClick={onCancel}>Cancelar</button>
-        {fields && fields.length > 0 ? <button onClick={() => setEditing(true)}>Editar</button> : null}
+        <button onClick={onCancel}>{text.common.cancel}</button>
+        {fields && fields.length > 0 ? <button onClick={() => setEditing(true)}>{text.common.edit}</button> : null}
         <span className="spacer" />
         {extra}
         <button className="primary big" onClick={onConfirm}>
-          Confirmar
+          {text.common.confirm}
         </button>
       </div>
     </section>
@@ -113,6 +121,8 @@ function InlineEditor({
   onCancel: () => void;
 }) {
   const { meta } = useSession();
+  const text = useText();
+  const t = text.components.confirmCard;
   const [draft, setDraft] = useState<Record<string, unknown>>(action as unknown as Record<string, unknown>);
   const [numberField, setNumberField] = useState<ActionField | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
@@ -129,14 +139,14 @@ function InlineEditor({
             setNumberField(null);
           }}
         >
-          Listo
+          {t.done}
         </button>
       </section>
     );
   }
 
   return (
-    <section className="voice-card" role="dialog" aria-label="Editar orden de voz">
+    <section className="voice-card" role="dialog" aria-label={t.editDialog}>
       {fields.map((f) =>
         f.kind === "number" || f.kind === "signed" ? (
           <button
@@ -168,10 +178,10 @@ function InlineEditor({
         ) : null,
       )}
       <div className="row">
-        <button onClick={onCancel}>Volver</button>
+        <button onClick={onCancel}>{text.common.back}</button>
         <span className="spacer" />
         <button className="primary" onClick={() => onDone(draft as unknown as Action)}>
-          Listo
+          {t.done}
         </button>
       </div>
     </section>

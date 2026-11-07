@@ -3,7 +3,6 @@ import { warning, type Trigger } from "../../actions/context";
 import { cashOf, counterOf, presidentOf } from "../../events/state";
 import type { PrimitiveEvent } from "../../events/types";
 import type { GameDefinition } from "../../games/schema";
-import { formatMoney } from "../../i18n/format";
 import { parseHolder, type HolderRef } from "../../types";
 import { mechanicConfigOf } from "./config";
 import type { Mechanic } from "./mechanic";
@@ -88,17 +87,10 @@ export const bankDebt: Mechanic<BankDebtConfig> = {
       }
       events.push(...lendEvents(treasury, lent));
       if (lent > 0) events.push({ t: "companyStatus", company, status: "receivership" });
-      const name = (amount: number) => formatMoney(amount, ctx.game);
       return {
         events,
         warnings: [
-          warning(
-            "forcedPurchase",
-            lent > 0
-              ? `Compra forzada: el presidente pone ${name(fromPresident)} y el banco presta ${name(lent)}; la compañía pasa a administración.`
-              : `Compra forzada: el presidente pone ${name(fromPresident)}.`,
-            "info",
-          ),
+          warning(ctx, "forcedPurchase", { fromPresident, lent }, "info"),
         ],
       };
     },

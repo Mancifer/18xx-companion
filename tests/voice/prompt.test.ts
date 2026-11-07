@@ -3,7 +3,7 @@ import type { Action } from "../../src/domain/actions/schemas";
 import { getBuiltInGame } from "../../src/domain/games";
 import { effectiveLog } from "../../src/domain/ledger/effectiveLog";
 import type { LogEntry } from "../../src/domain/ledger/entries";
-import { systemPromptEs } from "../../src/voice/prompt";
+import { systemPrompt } from "../../src/voice/prompt";
 import { systemBlocks } from "../../src/voice/providers/anthropic";
 import { snapshotAndTranscript } from "../../src/voice/snapshot";
 import { TestSession, makePlayers } from "../helpers/dispatch";
@@ -13,10 +13,10 @@ import { rotlaSession } from "../helpers/rotla";
 const players = makePlayers(["Ana", "Bruno", "Carla", "Dani"]).map((p) => (p.id === "p1" ? { ...p, aliases: ["la jefa"] } : p));
 const game = getBuiltInGame("1830");
 
-describe("systemPromptEs (cached prefix)", () => {
+describe("systemPrompt (cached prefix)", () => {
   it("depends only on the session definition and names players, companies and aliases", () => {
-    const text = systemPromptEs({ game, players });
-    expect(text).toBe(systemPromptEs({ game, players }));
+    const text = systemPrompt({ game, players });
+    expect(text).toBe(systemPrompt({ game, players }));
     expect(text).toContain("1830");
     expect(text).toContain("Ana");
     expect(text).toContain("la jefa");
@@ -31,7 +31,7 @@ describe("systemPromptEs (cached prefix)", () => {
   });
 
   it("explains undo, undo back to an entry and correction requests (feature 010)", () => {
-    expect(systemPromptEs({ game, players })).toContain(
+    expect(systemPrompt({ game, players })).toContain(
       "«deshacer» → undo (groupId null); «deshacé hasta X» → undo con el id de X; «no, eran 260» → amendLast. «sí» / «confirmar» con una propuesta en pantalla → confirmProposal.",
     );
   });
@@ -101,10 +101,10 @@ describe("RotLA prompt and snapshot (US10, T087)", () => {
   const rotlaPlayers = players.slice(0, 3);
 
   it("the prompt explains auction launches only where launchCompany exists, and names second identities", () => {
-    const rotla = systemPromptEs({ game: getBuiltInGame("rotla"), players: rotlaPlayers });
+    const rotla = systemPrompt({ game: getBuiltInGame("rotla"), players: rotlaPlayers });
     expect(rotla).toContain("«abre X por N» = launchCompany en juegos con lanzamiento por subasta");
     expect(rotla).toContain("CON = Consortium (segunda identidad: Conglomerate");
-    expect(systemPromptEs({ game, players })).not.toContain("launchCompany");
+    expect(systemPrompt({ game, players })).not.toContain("launchCompany");
   });
 
   it("the snapshot has the cycle and round, each company's tier, and the minors still to launch", () => {
@@ -119,10 +119,10 @@ describe("RotLA prompt and snapshot (US10, T087)", () => {
   });
 
   it("the prompt makes the treasury the default buy source and «del banco» the pool (bug rotla-buy-default-treasury)", () => {
-    const rotla = systemPromptEs({ game: getBuiltInGame("rotla"), players: rotlaPlayers });
+    const rotla = systemPrompt({ game: getBuiltInGame("rotla"), players: rotlaPlayers });
     expect(rotla).toContain("buyShare sin origen dicho = source treasury");
     expect(rotla).toContain("«del banco» / «del pool» = source pool");
-    const p1830 = systemPromptEs({ game, players });
+    const p1830 = systemPrompt({ game, players });
     expect(p1830).toContain("buyShare sin origen dicho = source ipo");
     expect(p1830).not.toContain("source treasury");
   });

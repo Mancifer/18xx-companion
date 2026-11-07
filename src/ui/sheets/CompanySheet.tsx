@@ -1,8 +1,8 @@
 import type { ReactNode } from "react";
 import { useSession } from "../../app/useSession";
 import { cashOf, holdersOf, presidencyHolder } from "../../domain/events/state";
-import { statusLabel } from "../../domain/i18n/es";
-import { formatMoney } from "../../domain/i18n/format";
+import { useDomainText, useLang, useText } from "../../app/language";
+import { formatMoney } from "../../i18n/format";
 import { priceOf } from "../../domain/mechanics/market";
 import type { CompanyId } from "../../domain/types";
 import { CompanyBadge, HolderName } from "../components/CompanyBadge";
@@ -19,6 +19,9 @@ export function CompanySheet({
   extraActions?: ReactNode;
 }) {
   const { meta, state } = useSession();
+  const t = useText().sheets.company;
+  const dt = useDomainText();
+  const { lang } = useLang();
   const def = meta.game.companies.find((c) => c.id === companyId);
   const record = state.companies[companyId];
   if (!def || !record) return null;
@@ -39,11 +42,11 @@ export function CompanySheet({
       info={
         <div className="stack">
           <p className="row">
-            <span className="money sheet-figure">{formatMoney(cashOf(state, ref), meta.game)}</span>
+            <span className="money sheet-figure">{formatMoney(cashOf(state, ref), meta.game, lang)}</span>
             <span className="muted">
-              {statusLabel[record.status]}
-              {price !== undefined ? ` · precio ${formatMoney(price, meta.game)}` : ""}
-              {record.parPrice !== undefined ? ` · par ${formatMoney(record.parPrice, meta.game)}` : ""}
+              {dt.status[record.status]}
+              {price !== undefined ? t.price(formatMoney(price, meta.game, lang)) : ""}
+              {record.parPrice !== undefined ? t.par(formatMoney(record.parPrice, meta.game, lang)) : ""}
             </span>
           </p>
           <ul className="holders">

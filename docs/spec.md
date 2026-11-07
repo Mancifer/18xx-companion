@@ -48,8 +48,17 @@ the table. When the app and the table disagree, the table wins: every value can 
 - Stock market price tracking, with automatic standard moves and manual override.
 - Turn tracking: current round (SR/OR n.m), current operating company, operating order.
 - Event ledger with in-order undo and a history view that shows where the money went.
-- Voice commands in **Spanish**, resolved by an AI provider (Anthropic Claude or Google Gemini,
-  chosen in settings) into structured actions with a confirmation card.
+- The whole app in **English or Spanish** (feature 014). With no saved choice it follows the
+  device's first language (Spanish for any `es-*`, English otherwise); Settings has a language
+  switch that applies at once and is saved on the device, never in session exports. Money uses
+  `$1,200` in English and `$1.200` in Spanish. History, imported sessions and sessions from before
+  this feature read in the current language; what users typed (names, notes, reasons) never changes.
+- Voice commands in the **display language**, resolved by an AI provider (Anthropic Claude or
+  Google Gemini, chosen in settings) into structured actions with a confirmation card. Speech,
+  prompt, tool descriptions, snapshot, answers and errors follow the display language. Voice is
+  offered in a language only after its eval passes (`VITE_VOICE_LANGUAGES`; Spanish is always on,
+  English joins after its gate). In a language voice isn't offered in, the mic is hidden and
+  touch is unchanged.
 - Local persistence (survives reloads and app restarts). Installable PWA.
 
 ### 2.2 Later iterations (designed for, not built)
@@ -57,7 +66,7 @@ the table. When the app and the table disagree, the table wins: every value can 
 - Conversions and other company transformations (18CZ). RotLA mergers are built (§5.3); the
   RotLA Events deck, the Metropolitan and Direct-to-Major are not.
 - Multi-device game rooms with private wallets.
-- More games and voice languages.
+- More games and languages, and a voice language separate from the display language.
 - Loans for the 1817 family, beyond what 1848 needs in v1 (see §5.2).
 - Custom games authored from scratch (new market grids, phases, dividend rules).
 - Backend proxy for the AI key.
@@ -80,7 +89,9 @@ the table. When the app and the table disagree, the table wins: every value can 
 
 - **PWA**: React + TypeScript + Vite. Offline-capable, except for the AI call.
 - **Storage**: IndexedDB. A session is stored as its event log plus periodic snapshots.
-- **Speech-to-text**: Web Speech API (`es-ES` / configurable `es-*` locale). Push-to-talk only.
+- **Speech-to-text**: Web Speech API in the display language, with a region per language
+  (Spanish `es-ES` by default, or another `es-*`; English `en-US` by default, or another `en-*`).
+  Push-to-talk only.
 - **Command resolution**: provider-neutral. The user picks a provider: Anthropic Claude (Messages
   API through its SDK) or Google Gemini (`generateContent` through plain `fetch`, no SDK). Each
   is called from the client with that provider's user-provided key, stored locally. Both get the
@@ -308,15 +319,15 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
 ### 8.1 Flow
 
 1. The user **holds** the mic button (large, thumb-reachable). Release ends capture.
-2. Speech-to-text produces a Spanish transcript, shown live.
+2. Speech-to-text produces a transcript in the display language, shown live.
 3. The transcript and a compact **context snapshot** are sent to the selected provider (Claude or
    Gemini), with the same tools and instructions for both.
 4. The provider replies with one or more **tool calls** (actions), a **clarification** request,
    or a **query** answer request. Its reply is turned into one neutral format (tool calls and a
    stop reason; any text is dropped), so validation does not depend on the provider.
 5. The app validates the actions against state. It shows a **confirmation card** with a
-   plain-language summary in Spanish, the money flows, and the chip breakdown.
-6. The user confirms (tap, or say "sí" / "confirmar"), edits a field, or cancels.
+   plain-language summary in the display language, the money flows, and the chip breakdown.
+6. The user confirms (tap, or say "sí" / "confirmar", "yes" / "confirm"), edits a field, or cancels.
 
 ### 8.2 Model call design
 
@@ -344,10 +355,17 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
 - **Queries** ("¿cuánto tiene Ana?") produce a `query` tool call. The app answers from state,
   never from model text.
 - **Model**: configurable in settings, per provider. Defaults are chosen by measuring latency and
-  accuracy on an eval set of real Spanish commands (see §11, open item **AI-2**). The eval runs
-  against either provider (`npm run eval:voice -- --model <id>`, with `--free` and `--rpm` for
-  Gemini's free tier, and `--cache on|off` for Gemini explicit caching) and `npm run eval:voice:compare` shows two runs side by side. A provider is
-  offered only after its eval run is recorded.
+  accuracy on an eval set of commands in both languages (see §11, open item **AI-2**): the Spanish
+  cases, and English twins of each (ids `en-…`, written by players until real transcripts replace
+  them). The eval runs against either provider (`npm run eval:voice -- --model <id>`, with
+  `--free` and `--rpm` for Gemini's free tier, `--cache on|off` for Gemini explicit caching, and
+  `--lang es|en|all`) and reports each language on its own; `npm run eval:voice:compare` shows two
+  runs side by side, language by language. A provider is offered only after its eval run is
+  recorded in every voice language. English voice is turned on once English accuracy is within 5
+  points of Spanish for the default model, and Spanish accuracy doesn't drop below its baseline.
+- **Languages**: the Spanish prompt and tools are kept byte-identical; the English ones have the
+  same tool names, parameters and enums with English descriptions. The language is part of the
+  cached prefix, so each language has its own provider cache.
 - **Gemini specifics**: tools are sent as `functionDeclarations` with `parametersJsonSchema`,
   function calling mode `ANY`, the lowest thinking level the model allows, and the stable prefix
   first so implicit caching applies (or explicit caching, see *Prompt caching*). One request per
@@ -358,9 +376,11 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
   touch still works; another provider's key is never used instead. A refusal, a safety block, a
   malformed call or an invalid tool input produces a "No entendí" message with the transcript
   shown for manual entry. Provider errors (bad key, no permission, unknown model, rate limit,
-  timeout, no connection) map to the same Spanish messages for both providers.
+  timeout, no connection) map to the same messages for both providers, in the display language.
 
-### 8.3 Example commands (Spanish, v1 target set)
+### 8.3 Example commands (v1 target set)
+
+Spanish:
 
 | Command | Resolves to |
 |---|---|
@@ -381,13 +401,34 @@ follow `scoring.tieBreak`. 1830 Classic keeps a bankrupt player's cash and unsol
 | "dale un dos a la NYC sin pagar" | `correctTrain(NYC, "2", add)` |
 | "siguiente compañía" | `nextCompany()` (with no run recorded, the card warns that it counts as "no corrió" and shows the price drop) |
 
+English (the same actions):
+
+| Command | Resolves to |
+|---|---|
+| "240, pays out" / "two hundred forty, pays out" | `runAndPayout(current, 240, full)` |
+| "withholds 180" | `runAndPayout(current, 180, withhold)` |
+| "half pays 300" | `runAndPayout(current, 300, half)` |
+| "buys a three" | `buyTrain(current, "3", bank)` |
+| "the Pennsy buys the 4 from the B&O for 300" | `buyTrain(PRR, "4", B&O, 300)` |
+| "pays 120 for a mountain" | `payCost(current, 120, "terrain")` |
+| "Ana pars the NYC at 82" | `parCompany(Ana, NYC, 82)` |
+| "Bruno buys a B&O from the pool" | `buyShare(Bruno, B&O, pool)` |
+| "Carla sells two Erie" | `sellShares(Carla, Erie, 2)` |
+| "undo" / "undo back to the EXP's train purchase" | undo the latest entry / undo back to that entry |
+| "no, it was 260" | `amendLast`: nothing changes; the app explains how to undo and record again |
+| "how much does Ana have?" | query |
+| "next company" | `nextCompany()` |
+
 ## 9. UI
 
 ### 9.1 Screens
 
-1. **Home**: resume session, new session, settings: a provider control (Anthropic Claude /
-   Google Gemini), then the selected provider's masked key with show/hide and where to get it,
-   a "no recordar las claves en este dispositivo" option, voice locale, and the provider's model.
+1. **Home**: resume session, new session, settings: first the language ("English" /
+   "Español", each named in its own language; it applies at once and is saved on its own), then
+   a provider control (Anthropic Claude / Google Gemini), then the selected provider's masked key with show/hide and where to get it,
+   a "no recordar las claves en este dispositivo" option, the voice region of the display language
+   (Spanish regions in Spanish, English ones in English; in a language voice isn't offered in yet,
+   a note takes its place), and the provider's model.
    Each provider keeps its own key and model, so switching loses nothing. With Gemini selected,
    two notes show: on the free tier Google may use prompts and responses to improve its products
    (they hold the game state and transcript, not personal data), and the free tier has per-minute

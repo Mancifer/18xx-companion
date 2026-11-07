@@ -86,15 +86,12 @@ describe("at most once per round (US2, FR-006)", () => {
 
   it("a second endSR is not available", () => {
     const s = srWithEndStep().do({ type: "endSR" });
-    expect(s.tryDo({ type: "endSR" })).toMatchObject({
-      kind: "unavailable",
-      reasonEs: "Ya se aplicó el fin de la ronda de acciones",
-    });
+    expect(s.reasonEs({ type: "endSR" })).toBe("Ya se aplicó el fin de la ronda de acciones");
   });
 
   it("endSR is only available in the SR", () => {
     const s = srWithEndStep().do({ type: "startOR" });
-    expect(s.tryDo({ type: "endSR" })).toMatchObject({ kind: "unavailable", reasonEs: "Solo en la ronda de acciones" });
+    expect(s.reasonEs({ type: "endSR" })).toBe("Solo en la ronda de acciones");
   });
 
   it("a log from before the change (endSR with no marker) is not applied again", () => {

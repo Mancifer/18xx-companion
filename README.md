@@ -17,7 +17,7 @@ It handles the bookkeeping that slows games down (bank, player cash, company tre
   <img src="docs/screenshots/history.png" alt="History" width="260">
 </p>
 
-> The app is in **English and Spanish**: it follows the device's language and can be switched in Settings. Voice commands follow the display language (English voice is turned on once it passes its evaluation). Text lives in `src/i18n/<language>/`.
+> The app is in **English and Spanish**: it follows the device's language and can be switched in Settings. Voice commands work in both languages and follow the display language. Text lives in `src/i18n/<language>/`.
 
 ## Features
 
@@ -25,7 +25,7 @@ It handles the bookkeeping that slows games down (bank, player cash, company tre
 - **Money tracking:** player and company cash, share ownership, bank with a chip breakdown for every transaction, configurable chip denominations
 - **Operating rounds:** dividends (full payout, withhold, half-pay where the game allows it), stock market price moves with manual override, an income summary at the end of each OR
 - **History:** every change is recorded in an append-only ledger, with undo and a history view that shows where the money went
-- **Voice commands (optional):** hold a button, speak, review the proposed action, confirm with one tap
+- **Voice commands (optional):** hold a button, speak in English or Spanish, review the proposed action, confirm with one tap
 - **Two languages:** English and Spanish, everywhere from the menus to the history, with money written the way each language writes it
 - **Offline and installable:** all data stays on the device, with export/import of games and a game results page
 
@@ -57,7 +57,7 @@ Privacy:
 - API keys are stored on the device only, can be set to not be remembered, and are never included when exporting a game.
 - The app calls the providers directly from the browser using your key. There is no backend.
 
-Currently, speech recognition uses Web Speech API, which is limited to Chrome and Edge on destkop and Android.
+Currently, speech recognition uses Web Speech API, which is limited to Chrome and Edge on desktop and Android.
 
 ## Design decisions
 
@@ -93,7 +93,7 @@ CI runs type-check, lint, tests and `npm audit` on every push and pull request.
 
 ## Voice evaluation
 
-`eval/voice` contains 93 Spanish voice-command cases, the same 93 in English (written by players until real transcripts replace them), and game-state fixtures, used to compare models and prompts. `npm run eval:voice -- --lang es|en|all` reports each language on its own. A Spanish run on 2026-10-19 with `gemini-3.6-flash` scored 97.8% overall across the 93 Spanish cases. Treat these numbers as a snapshot of one run, not a guarantee.
+`eval/voice` contains 93 Spanish voice-command cases, the same 93 in English (written by players until real transcripts replace them), and game-state fixtures, used to compare models and prompts. `npm run eval:voice -- --lang es|en|all` reports each language on its own. A run on 2026-11-07 with `gemini-3.6-flash` scored 98.9% in both Spanish and English (93 cases each), up from 97.8% for the Spanish-only run on 2026-10-19. Treat these numbers as a snapshot of one run, not a guarantee.
 
 ## Project structure
 
@@ -121,12 +121,10 @@ This project uses spec-driven development with [GitHub Spec Kit](https://github.
 
 - 1830, 1848 and 21Moon haven't been played at a table yet (covered by automated tests for now)
 - No redo (see design decisions)
-- Spanish only for now
 - Chip suggestions are approximate. The app suggests how to make change but doesn’t enforce the chip supply entered during setup, so it may suggest paying out chips the bank doesn’t have. Players make change among themselves all the time, so tracking the physical supply exactly would disrupt play. Treat the suggestions as a guide.
 
 ## Roadmap 
 
-- English language support
 - Whisper-based speech recognition via Groq as a cross-browser alternative to the browser's recognizer
 - Better visual layout for tablets and large screen devices
 - Visual polish (buttons, layout, clearer notifications)

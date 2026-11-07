@@ -1,5 +1,5 @@
 import type Anthropic from "@anthropic-ai/sdk";
-import { act, cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { readFileSync } from "node:fs";
 import { useEffect } from "react";
@@ -125,7 +125,9 @@ describe("switching language (feature 014 T047)", () => {
     const english = screen.getByRole("dialog", { name: "Confirm voice command" });
     expect(within(english).getByText(byLine(/PRR pays \$240/))).toBeTruthy();
     await user.click(within(english).getByRole("button", { name: "Confirm" }));
-    expect(screen.getByTestId("cash-p1").textContent).toBe("$144");
+    // Confirming dispatches through the store and IndexedDB, so the payout lands a few ticks later
+    // (slow CI showed "$0" here). Look the cell up again on every retry.
+    await waitFor(() => expect(screen.getByTestId("cash-p1").textContent).toBe("$144"), { timeout: 5000 });
   });
 
   it("after a restart the app opens in the saved language, whatever the device says (FR-002, SC-008)", async () => {

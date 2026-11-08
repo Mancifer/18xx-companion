@@ -1,5 +1,5 @@
 import { expect, test, type Page, type TestInfo } from "@playwright/test";
-import { launch, newRotla, newSession, openCompany, payBank, showCompanies, toast, trade } from "./helpers";
+import { launch, newRotla, newSession, openCompany, payBank, saveKey, showCompanies, toast, trade } from "./helpers";
 
 /**
  * T167 (FR-101): on every main screen, in phone portrait and tablet landscape, each visible
@@ -129,11 +129,15 @@ test("RotLA sheets: Launch, Merger, End game and Results (features 004, 007)", a
 
 test("the undo toast never covers the mic (bug toast-obscures-voice-button)", async ({ page }) => {
   await newSession(page, { players: ["Ana", "Bruno", "Carla", "Dani"] });
+  // Feature 016 (US3): the mic only shows once voice is set up.
+  await saveKey(page, "sk-ant-api03-toast-test");
   await payBank(page, "Ana", 100);
   await expect(toast(page).getByRole("button", { name: "Deshacer" })).toBeVisible();
   await page.waitForTimeout(300);
 
   const mic = page.locator(".mic-button");
+  // A browser without speech recognition shows no mic at all: nothing for the toast to cover.
+  if ((await mic.count()) === 0) return;
   const [m, t] = [await mic.boundingBox(), await toast(page).boundingBox()];
   if (!m || !t) throw new Error("mic or toast not laid out");
   const overlap = m.x < t.x + t.width && t.x < m.x + m.width && m.y < t.y + t.height && t.y < m.y + m.height;

@@ -2,7 +2,7 @@ import { useMessageText } from "../useMessage";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useAppActions } from "../../app/AppProvider";
 import { useDispatch, useSession } from "../../app/useSession";
-import { useVoice } from "../../app/useVoice";
+import { useVoice, voiceSetupIssue } from "../../app/useVoice";
 import { useWakeLock } from "../../app/wakeLock";
 import { isAvailable } from "../../domain/actions/availability";
 import type { ActionContext } from "../../domain/actions/context";
@@ -292,6 +292,8 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
         </button>
       ))}
       <div className="round-controls row">
+        {/* Feature 016 (US1): one tap from the board, in every round. */}
+        <button onClick={() => go({ name: "history" })}>{t.history}</button>
         {phase ? (
           <button className={phase.over ? "primary" : undefined} onClick={() => setOpen({ kind: "income" })}>
             {dt.income.title}
@@ -324,7 +326,6 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
         {round === "SR" && isAvailable(ctx, "launchCompany") ? (
           <button onClick={() => setOpen({ kind: "launch" })}>{t.openMinor}</button>
         ) : null}
-        {round === "SR" ? <button onClick={() => setOpen({ kind: "batch" })}>{t.shareBatch}</button> : null}
         {isAvailable(ctx, "startMR") ? (
           <button className="primary" onClick={() => void dispatch({ type: "startMR" })}>
             {t.mergerRound}
@@ -347,7 +348,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
             ) : null}
             <button onClick={() => void dispatch({ type: "startOR" })}>{t.startOR}</button>
           </>
-        )}
+        )}        
       </div>
       <div className="table-tabs" role="tablist">
         <button role="tab" aria-selected={tab === "players"} onClick={() => setTab("players")}>
@@ -359,6 +360,9 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
       </div>
       <div className="table-layout">
         <section data-pane="players" style={{ display: tab === "players" ? "block" : "none" }}>
+          {/* Feature 016 (US4): side by side, a title like the company groups' so both panes'
+              first cards line up. Hidden on phones, where the tab names the pane. */}
+          <h2 className="company-group-title players-pane-title">{t.playersTab}</h2>
           <div className="player-grid">
             {players.map((p) => (
               <PlayerTile key={p.id} player={p} onOpen={() => setOpen({ kind: "player", id: p.id })} />
@@ -437,6 +441,8 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
         <Sheet title={t.menu} onClose={close}>
           <div className="choice-grid">
             <button onClick={() => go({ name: "history" })}>{t.history}</button>
+            {/* Feature 016 (US1): the share batch is an auxiliary tool now, not a board button. */}
+            {round === "SR" ? <button onClick={() => setOpen({ kind: "batch" })}>{t.shareBatch}</button> : null}
             <button onClick={() => go({ name: "market" })}>{t.market}</button>
             <button onClick={() => setOpen({ kind: "chips" })}>{t.chips}</button>
             {phase ? <button onClick={() => setOpen({ kind: "income" })}>{dt.income.title}</button> : null}
@@ -456,8 +462,9 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
           </div>
         </Sheet>
       ) : null}
-      {/* Feature 014 (FR-014e): no voice in a language that hasn't passed its eval gate. */}
-      {voiceEnabled(lang) ? (
+      {/* Feature 014 (FR-014e): no voice in a language that hasn't passed its eval gate. Feature 016
+          (US3): nor while voice needs setting up; Home says why. Offline keeps the disabled mic. */}
+      {voiceEnabled(lang) && !voiceSetupIssue(voice.availability) ? (
         <>
           <VoicePanel controller={voice.controller} phase={voice.phase} onManual={manual} />
           <MicButton

@@ -286,3 +286,63 @@ describe("Settings: language (feature 014)", () => {
     expect(screen.getByLabelText("Model")).toBeTruthy();
   });
 });
+
+describe("Settings layout (016 US5, contracts/ui.md §5)", () => {
+  it("five titled groups in order (Desarrollo only in dev builds)", async () => {
+    await openSettings();
+    const headings = screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent);
+    expect(headings).toEqual(["Idioma", "Interpretación (IA)", "Reconocimiento de voz", "Privacidad", "Desarrollo"]);
+  });
+
+  it("every on/off setting is a plain checkbox with its label beside it", async () => {
+    await openSettings();
+    for (const name of ["No recordar las claves en este dispositivo", "Grabar clips de control"]) {
+      expect(screen.getByRole("checkbox", { name }).closest("label.checkbox")).not.toBeNull();
+    }
+    expect(screen.queryAllByRole("switch")).toHaveLength(0);
+  });
+
+  it("the speech engine is a choice of two buttons, then the region, then the Groq key, unindented", async () => {
+    await openSettings();
+    const speech = screen.getByRole("region", { name: "Reconocimiento de voz" });
+    const engine = within(speech).getByRole("radiogroup", { name: "Motor de reconocimiento" });
+    expect(engine.classList.contains("segmented")).toBe(true);
+    expect(within(engine).getAllByRole("radio").map((r) => r.textContent)).toEqual(["Del navegador", "Whisper (Groq)"]);
+    const key = screen.getByLabelText("Clave de Groq");
+    expect(speech.contains(key)).toBe(true);
+    expect(key.closest(".subsetting")).toBeNull();
+    const region = within(speech).getByLabelText("Variante de español");
+    expect(engine.compareDocumentPosition(region) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(region.compareDocumentPosition(key) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.queryByRole("checkbox", { name: /Whisper/ })).toBeNull();
+  });
+
+  it("where the browser can't record, the Whisper button is disabled and says why", async () => {
+    await openSettings();
+    expect(screen.getByRole<HTMLButtonElement>("radio", { name: "Whisper (Groq)" }).disabled).toBe(true);
+    expect(screen.getByText("Este navegador no puede grabar audio para Whisper")).toBeTruthy();
+  });
+
+  it("the AI key and model are in Interpretación (IA); «No recordar» is in Privacidad", async () => {
+    await openSettings();
+    const ai = screen.getByRole("region", { name: "Interpretación (IA)" });
+    expect(within(ai).getByLabelText("Clave de Anthropic")).toBeTruthy();
+    expect(within(ai).getByLabelText("Modelo")).toBeTruthy();
+    const privacy = screen.getByRole("region", { name: "Privacidad" });
+    expect(within(privacy).getByRole("checkbox", { name: "No recordar las claves en este dispositivo" })).toBeTruthy();
+  });
+
+  it("where Whisper isn't offered, there is no engine choice but the Groq key stays reachable", async () => {
+    vi.stubEnv("DEV", false);
+    vi.stubEnv("VITE_WHISPER_LANGUAGES", "");
+    await openSettings({ groqKey: "gsk_saved" });
+    expect(screen.queryByRole("radiogroup", { name: "Motor de reconocimiento" })).toBeNull();
+    expect(screen.getByLabelText("Clave de Groq")).toHaveProperty("value", "gsk_saved");
+    vi.unstubAllEnvs();
+  });
+
+  it("Guardar lives in the sticky footer", async () => {
+    await openSettings();
+    expect(screen.getByRole("button", { name: "Guardar" }).closest(".settings-footer")).not.toBeNull();
+  });
+});

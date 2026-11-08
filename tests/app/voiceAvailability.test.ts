@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { voiceAvailability, type VoiceDeps } from "../../src/app/useVoice";
+import { voiceAvailability, voiceSetupIssue, type VoiceDeps } from "../../src/app/useVoice";
 import { DEFAULT_SETTINGS, type Settings } from "../../src/persistence/settingsRepo";
 import { browserRecognizer, type RecognizerLike } from "../../src/voice/speech";
 import { fakeMediaDeps } from "../helpers/fakeMedia";
@@ -98,5 +98,25 @@ describe("voiceAvailability where Whisper isn't offered (FR-018)", () => {
     vi.stubEnv("DEV", false);
     vi.stubEnv("VITE_WHISPER_LANGUAGES", "es");
     expect(reason(deps(), settings({ whisper: true }))).toBe("voice.noGroqKey");
+  });
+});
+
+describe("voiceSetupIssue (016 US3, data-model)", () => {
+  const issue = (d: VoiceDeps, s: Settings) => voiceSetupIssue(voiceAvailability(d, s, "es"))?.code;
+
+  it("returns the reason for issues fixed in Settings or by the browser", () => {
+    vi.stubEnv("DEV", false);
+    vi.stubEnv("VITE_WHISPER_LANGUAGES", "es");
+    expect(issue(deps({ speech: false, recorder: false }), settings())).toBe("voice.noSpeech");
+    expect(issue(deps({ speech: false }), settings())).toBe("voice.noSpeechTryWhisper");
+    expect(issue(deps({ recorder: false }), settings({ whisper: true, groqKey: "gsk_x" }))).toBe("voice.noRecorder");
+    expect(issue(deps(), settings({ apiKeys: {} }))).toBe("voice.noKey");
+    expect(issue(deps(), settings({ whisper: true }))).toBe("voice.noGroqKey");
+  });
+
+  it("is undefined when voice is available or only offline (transient)", () => {
+    expect(voiceSetupIssue({ ok: true })).toBeUndefined();
+    expect(issue(deps(), settings())).toBeUndefined();
+    expect(issue(deps({ online: false }), settings())).toBeUndefined();
   });
 });

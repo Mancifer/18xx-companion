@@ -62,8 +62,9 @@ the table. When the app and the table disagree, the table wins: every value can 
 - **Whisper on Groq**, an opt-in speech engine (feature 015): the app records the held mic button
   and sends the clip to Groq's Whisper with the user's own Groq key, plus a hint with the
   session's names. It works in any browser that can record (Firefox and Safari included) and
-  spells table names better. A settings toggle, off by default and separate from the key, turns
-  it on; while it's off nothing goes to Groq. It's offered in a language only after its audio
+  spells table names better. A settings choice of engine ("Del navegador" by default, or
+  "Whisper (Groq)"), separate from the key, turns it on; while the browser engine is chosen nothing
+  goes to Groq. It's offered in a language only after its audio
   check passes (`VITE_WHISPER_LANGUAGES`, none by default; dev builds offer every voice language).
 - Local persistence (survives reloads and app restarts). Installable PWA.
 
@@ -452,17 +453,29 @@ English (the same actions):
 
 ### 9.1 Screens
 
-1. **Home**: resume session, new session, settings: first the language ("English" /
+1. **Home**: resume session, new session, settings. When voice can't work until something is set
+   up (no speech recognition in the browser and Whisper off, a browser that can't record for
+   Whisper, or a missing AI or Groq key), Home shows the reason in one line with an "Abrir ajustes"
+   button; it never blocks Continuar or Nueva partida, and it isn't shown where voice isn't
+   offered. Settings is split into titled groups, in order: **Idioma**, **Interpretación (IA)**,
+   **Reconocimiento de voz**, **Privacidad** and, in dev builds, **Desarrollo**. Each setting shows
+   its label and control first and short help underneath; every on/off setting is the same checkbox
+   and short choices are segmented buttons. "Guardar" stays in a footer that is always in reach.
+   First the language ("English" /
    "Español", each named in its own language; it applies at once and is saved on its own), then
    a provider control (Anthropic Claude / Google Gemini), then the selected provider's masked key with show/hide and where to get it,
    a "no recordar las claves en este dispositivo" option, the voice region of the display language
    (Spanish regions in Spanish, English ones in English; in a language voice isn't offered in yet,
    a note takes its place), and the provider's model. Feature 015 adds, where Whisper is offered,
-   the "Usar Whisper (Groq) para reconocer la voz" toggle (off by default; disabled with a note in
-   a browser that can't record) with a note that Groq may charge depending on the plan, and,
-   always, the masked "Clave de Groq" field with where to get a key. The key and the toggle are
-   saved side by side and never change each other; the key follows the "no recordar" option. A line
-   says what voice is missing, if anything. Dev builds also show "Grabar clips de control".
+   a "Motor de reconocimiento" choice of two segmented buttons, "Del navegador" (the default) and
+   "Whisper (Groq)" (disabled with a note in a browser that can't record). The choice saves at
+   once, like the language. After the region comes, always, the masked "Clave de Groq" field with
+   where to get a key and, where Whisper is offered, a note that Groq may charge depending on the
+   plan. The key and the engine choice are saved side by side and never change each other; the
+   key follows the "no recordar" option.
+   "Reconocimiento de voz" starts with a line saying what voice is missing, if anything. The
+   provider's model and its free-tier limits note are under "Interpretación (IA)"; "no recordar"
+   and the free-tier data note are under "Privacidad". Dev builds also show "Grabar clips de control".
    Each provider keeps its own key and model, so switching loses nothing. With Gemini selected,
    two notes show: on the free tier Google may use prompts and responses to improve its products
    (they hold the game state and transcript, not personal data), and the free tier has per-minute
@@ -494,6 +507,8 @@ English (the same actions):
      cannot be skipped without recording it. Also the private-income offer at the start of each
      OR, "Comprar privada" only while a private can actually be bought (unsold in the bank, or
      resellable under the game's rules in this round), and the start buttons for each round.
+     The row always starts with "Historial", so History is one tap from the board. The share batch
+     ("Lote de acciones") is in the menu during a stock round, not in the row.
      There are no "end of round" buttons: starting the next round applies the end step.
      An end-of-game banner shows any end trigger reached (warnings only), with a primary
      "Terminar partida" button (2 taps with the confirmation). The menu always offers "Terminar
@@ -502,9 +517,20 @@ English (the same actions):
      When the game ends while the Table is shown (confirmed, by voice, or on its own) the results
      open; a finished game shows a "Partida completa · Ver resultados" banner and still accepts
      entries.
-   - **Player grid**: large tiles with name, cash, and share summary. Tap opens the player's
-     sheet in two labeled groups. "Jugada" holds the game actions: in an SR, one "Vender 1 PRR ·
-     $67" button per holding with a price (two taps from the Table), then "Vender acciones"
+   - **Player grid**: large tiles with name, cash, and the companies held in a column ("PRR
+     40%★"), with a certificate donut beside them: the ring is the game's certificate limit, one
+     arc per company in its color sized by certificates (exempt ones dimmed, after the rest), and
+     the certificates counting toward the limit in the middle. At the limit the ring is outlined in
+     the warning color, over it in danger; its one accessible name reads "11 de 16 certificados"
+     (", en el límite" / ", sobre el límite"). Tap opens the player's sheet. Its header shows the
+     cash and, beside it, "11 / 16 cert." ("(N en total)" when some don't count) with "en el
+     límite" or "sobre el límite" as text badges, also in "bank only" mode; nothing is blocked.
+     Below, "Acciones" lists one row per company held: badge, percentage ("40%★"
+     with the presidency), certificates ("3 cert.", the president's certificate counting as one)
+     and "no cuenta" where the market zone exempts it (1830). Each row ends with a sell button: in
+     an SR "Vender 1 PRR · $67" (two taps from the Table), otherwise "Vender…", which opens the
+     count picker on that company. Then two labeled groups. "Jugada" holds the game actions:
+     "Vender acciones"
      (company, stepper, "Vender N · cobra $X") and "Comprar acción" (open companies, stepper, then
      one tap on "IPO $p", "Pool $p" or "Tesorería $p", each enabled only when available, with the
      reason otherwise), plus "Canjear privada…" when the player holds an exchangeable private
@@ -521,7 +547,12 @@ English (the same actions):
      PRR"): "Quitar el 2" per held train, then "Al banco (oferta) · devolver $80" (a "devolver"
      toggle and an "editar…" keypad), "Al pool" (only where discarded trains go to the pool) or
      "Fuera de juego"; and "Dar un tren" with the stack's types and an optional payment.
-   - Floating **mic button** (push-to-talk) and **undo** button.
+   - Tablets in landscape and large screens show players and companies side by side, with no
+     tabs. The players' pane has a "Jugadores" title like the company groups', so the first
+     player card and the first company card line up; company cards name their trains with a
+     "Trenes" label. Phones keep the tabs and neither the title nor the label.
+   - Floating **mic button** (push-to-talk) and **undo** button. The mic shows only once voice is
+     set up (see Home); offline it stays, disabled, and says why.
 4. **Operate sheet** (the operating turn): under the title, the trains line: "Trenes 2/4" and a
    card per train ("oxidado" on a rusted train kept for a last run), or "Sin trenes"; "sobre el
    límite" when over the limit. The last two use a warning style. A "Corregir…" link opens the
@@ -533,7 +564,10 @@ English (the same actions):
 5. **Stock sheet**: from a company card, a tile per place shares can be bought ("IPO", "Pool",
    "Tesorería"), each with the shares left and the price per share, and "agotada" when empty; then
    a row per player with IPO / Pool / Vender (two taps from the table), a share-count stepper, par prices for unstarted companies, issue and company
-   trades in the corporate round, and a batch sheet for end-of-round statements.
+   trades in the corporate round. The batch sheet for end-of-round statements opens from the menu
+   in a stock round.
+   In sheets that pick a company from a grid ("Abrir minor", "Fusionar…"), each choice shows the
+   badge with the full name on the line below, at every screen width.
 6. **Confirmation card**: summary, flows, chips, Confirm / Edit / Cancel.
 7. **History**: grouped ledger, newest first, undone entries included, split into round
    sections, newest first. Each section has a header band with an icon and the round's title

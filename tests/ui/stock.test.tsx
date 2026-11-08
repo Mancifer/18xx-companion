@@ -1,7 +1,7 @@
 import { screen, within } from "@testing-library/react";
 import type userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { byLine, cashText, openSeededTable } from "./helpers";
+import { byLine, cashText, openMenuItem, openSeededTable } from "./helpers";
 
 type User = ReturnType<typeof userEvent.setup>;
 
@@ -106,7 +106,8 @@ describe("share sources (feature 013, US3)", () => {
 describe("BatchSheet (US4-5)", () => {
   it("shows the rows in order with editable assumed prices, then records one group", async () => {
     const { user } = await openSeededTable({ actions: [startSR, par("p1", "Erie", 90), buy("p3", "Erie", 3)] });
-    await user.click(screen.getByRole("button", { name: "Lote de acciones" }));
+    // Feature 016 (US1): the batch lives in the menu now.
+    await openMenuItem(user, "Lote de acciones");
 
     const addRow = async (kind: string, player: string, company: string) => {
       await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: `+ ${kind}` }));
@@ -138,6 +139,23 @@ describe("BatchSheet (US4-5)", () => {
     await user.click(screen.getByRole("button", { name: "Anotar el lote (3)" }));
     expect(await screen.findByText(/^Lote: /)).toBeTruthy();
     expect(cashText("p4")).toBe("$520");
+  });
+});
+
+describe("share batch placement (016 US1)", () => {
+  it("is not in the Table's action row; the menu offers it in a stock round only", async () => {
+    const { user } = await openSeededTable({ actions: [startSR] });
+    const row = document.querySelector<HTMLElement>(".round-controls");
+    expect(row).not.toBeNull();
+    expect(within(row!).queryByRole("button", { name: "Lote de acciones" })).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Menú" }));
+    expect(within(await screen.findByRole("dialog")).getByRole("button", { name: "Lote de acciones" })).toBeTruthy();
+  });
+
+  it("outside a stock round the menu has no batch", async () => {
+    const { user } = await openSeededTable({ actions: [startSR, par("p1", "PRR", 100), { type: "endSR" }, { type: "startOR" }] });
+    await user.click(screen.getByRole("button", { name: "Menú" }));
+    expect(within(await screen.findByRole("dialog")).queryByRole("button", { name: "Lote de acciones" })).toBeNull();
   });
 });
 

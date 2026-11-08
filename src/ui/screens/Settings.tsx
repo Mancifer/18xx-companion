@@ -101,8 +101,9 @@ export function Settings() {
   };
 
   /**
-   * The Whisper toggle saves at once, like the language: Guardar is far below it on a phone, and a
-   * lost change keeps sending audio to Groq. Only the toggle is saved; the other drafts wait (FR-003).
+   * The engine choice (browser or Whisper) saves at once, like the language: Guardar is far below
+   * it on a phone, and a lost change keeps sending audio to Groq. Only the choice is saved; the
+   * other drafts wait (FR-003).
    */
   const saveWhisper = async (whisper: boolean) => {
     setDraft((d) => (d ? { ...d, whisper } : d));
@@ -111,7 +112,7 @@ export function Settings() {
   };
 
   const provider = PROVIDERS[draft?.provider ?? "anthropic"];
-  // Feature 015 (contracts/ui.md §1): the toggle only where Whisper is offered; disabled where
+  // Feature 015 (contracts/ui.md §1): the engine choice only where Whisper is offered; Whisper disabled where
   // the browser can't record. The reason line follows the draft, so it updates as the user edits.
   const offered = whisperOffered(lang);
   const media = voiceDeps.media?.();
@@ -137,6 +138,32 @@ export function Settings() {
   const locales =
     draft && !regions.some((l) => l.id === draft.voiceLocale) ? [...regions, { id: draft.voiceLocale, label: draft.voiceLocale }] : regions;
 
+  /**
+   * Feature 016: the Groq key, where to get one and the billing note, as one block after the
+   * region. Shown whichever engine is chosen, and where Whisper isn't offered (015 FR-003).
+   */
+  const groqKey = draft ? (
+    <div className="settings-field">
+      <label htmlFor="settings-groq-key">{t.whisper.key}</label>
+      <input
+        id="settings-groq-key"
+        type={showKey ? "text" : "password"}
+        autoComplete="off"
+        spellCheck={false}
+        placeholder={GROQ_KEY_PLACEHOLDER}
+        value={draft.groqKey}
+        onChange={(e) => edit({ groqKey: e.target.value })}
+      />
+      <p className="muted">
+        <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer">
+          {t.whisper.getKey}
+        </a>
+      </p>
+      {offered ? <p className="muted">{t.whisper.billing}</p> : null}
+    </div>
+  ) : null;
+  const notes = t.notes[provider.id];
+
   return (
     <main className="screen">
       <header className="topbar">
@@ -146,154 +173,150 @@ export function Settings() {
         <h1 className="topbar-center">{t.title}</h1>
       </header>
       {draft ? (
-        <div className="screen-body">
-          <section className="stack">
-            <h2 id="settings-language">{t.language}</h2>
-            <div className="row segmented" role="radiogroup" aria-labelledby="settings-language">
-              {LANGUAGES.map((l) => (
-                <button key={l.id} role="radio" lang={l.id} aria-checked={lang === l.id} onClick={() => void setLang(l.id)}>
-                  {l.nativeName}
-                </button>
-              ))}
-            </div>
-          </section>
-          <section className="stack">
-            <h2>{t.voice}</h2>
-            <span className="label" id="settings-provider">
-              {t.provider}
-            </span>
-            <div className="row segmented" role="radiogroup" aria-labelledby="settings-provider">
-              {PROVIDER_IDS.map((id) => (
-                <button key={id} role="radio" aria-checked={draft.provider === id} onClick={() => edit({ provider: id })}>
-                  {PROVIDERS[id].label}
-                </button>
-              ))}
-            </div>
-            <label htmlFor="settings-key">{t.keyOf(provider.shortLabel)}</label>
-            <div className="row">
-              <input
-                id="settings-key"
-                className="spacer"
-                type={showKey ? "text" : "password"}
-                autoComplete="off"
-                spellCheck={false}
-                placeholder={provider.keyPlaceholder}
-                value={draft.apiKeys[draft.provider]}
-                onChange={(e) => edit({ apiKeys: { ...draft.apiKeys, [draft.provider]: e.target.value } })}
-              />
-              <button onClick={() => setShowKey((v) => !v)}>{showKey ? t.hide : t.show}</button>
-            </div>
-            <p className="muted">{t.keyHelp[provider.id]}</p>
-            {offered ? (
-              <>
-                <label className="checkbox">
-                  <input
-                    type="checkbox"
-                    checked={draft.whisper}
-                    disabled={!canRecord}
-                    onChange={(e) => void saveWhisper(e.target.checked)}
-                  />
-                  {t.whisper.toggle}
-                </label>
-                {canRecord ? (
-                  <>
-                    <p className="muted">{t.whisper.help}</p>
-                    <p className="muted">{t.whisper.billing}</p>
-                  </>
-                ) : (
-                  <p className="muted" role="note">
-                    {t.whisper.unsupported}
-                  </p>
-                )}
-              </>
-            ) : null}
-            {/* The key stays reachable with the toggle off (FR-003), so it's never lost. */}
-            <label htmlFor="settings-groq-key">{t.whisper.key}</label>
-            <input
-              id="settings-groq-key"
-              type={showKey ? "text" : "password"}
-              autoComplete="off"
-              spellCheck={false}
-              placeholder={GROQ_KEY_PLACEHOLDER}
-              value={draft.groqKey}
-              onChange={(e) => edit({ groqKey: e.target.value })}
-            />
-            <p className="muted">
-              <a href="https://console.groq.com/keys" target="_blank" rel="noreferrer">
-                {t.whisper.getKey}
-              </a>
-            </p>
-            <label className="checkbox">
-              <input type="checkbox" checked={!draft.rememberKey} onChange={(e) => edit({ rememberKey: !e.target.checked })} />
-              {t.noRemember}
-            </label>
-            {import.meta.env.DEV && voiceEnabled(lang) ? (
-              <label className="checkbox">
-                <input type="checkbox" checked={draft.checkClips} onChange={(e) => edit({ checkClips: e.target.checked })} />
-                {t.whisper.checkClips}
-              </label>
-            ) : null}
-            {import.meta.env.DEV && voiceEnabled(lang) && !canRecordAlongsideRecognizer() ? (
-              <p className="muted" role="note">
-                {t.whisper.checkClipsAndroid}
-              </p>
-            ) : null}
-            {availability && !availability.ok && voiceEnabled(lang) ? (
-              <p className="muted" role="note">
-                {plainText(availability.reason)}
-              </p>
-            ) : null}
-            {voiceEnabled(lang) ? (
+        <>
+          <div className="screen-body settings-body">
+            <section className="stack" aria-labelledby="settings-group-language">
+              <h2 id="settings-group-language">{t.groups.language}</h2>
+              <div className="row segmented" role="radiogroup" aria-label={t.language}>
+                {LANGUAGES.map((l) => (
+                  <button key={l.id} role="radio" lang={l.id} aria-checked={lang === l.id} onClick={() => void setLang(l.id)}>
+                    {l.nativeName}
+                  </button>
+                ))}
+              </div>
+            </section>
+
+            <section className="stack" aria-labelledby="settings-group-ai">
+              <h2 id="settings-group-ai">{t.groups.ai}</h2>
+              <span className="label" id="settings-provider">
+                {t.provider}
+              </span>
+              <div className="row segmented" role="radiogroup" aria-labelledby="settings-provider">
+                {PROVIDER_IDS.map((id) => (
+                  <button key={id} role="radio" aria-checked={draft.provider === id} onClick={() => edit({ provider: id })}>
+                    {PROVIDERS[id].label}
+                  </button>
+                ))}
+              </div>
+              {notes.limits ? <p className="muted">{notes.limits}</p> : null}
+              <label htmlFor="settings-key">{t.keyOf(provider.shortLabel)}</label>
+              <div className="row">
+                <input
+                  id="settings-key"
+                  className="spacer"
+                  type={showKey ? "text" : "password"}
+                  autoComplete="off"
+                  spellCheck={false}
+                  placeholder={provider.keyPlaceholder}
+                  value={draft.apiKeys[draft.provider]}
+                  onChange={(e) => edit({ apiKeys: { ...draft.apiKeys, [draft.provider]: e.target.value } })}
+                />
+                <button onClick={() => setShowKey((v) => !v)}>{showKey ? t.hide : t.show}</button>
+              </div>
+              <p className="muted">{t.keyHelp[provider.id]}</p>
               <label>
-                {t.region}
-                <select value={draft.voiceLocale} onChange={(e) => edit({ voiceLocale: e.target.value })}>
-                  {locales.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.label} ({l.id})
-                    </option>
-                  ))}
-                </select>
+                {t.model}
+                <input
+                  spellCheck={false}
+                  placeholder={provider.defaultModel}
+                  value={draft.models[draft.provider]}
+                  onChange={(e) => edit({ models: { ...draft.models, [draft.provider]: e.target.value } })}
+                />
               </label>
-            ) : (
-              <p className="muted" role="note">
-                {t.voiceUnavailable}
-              </p>
-            )}
-            <label>
-              {t.model}
-              <input
-                spellCheck={false}
-                placeholder={provider.defaultModel}
-                value={draft.models[draft.provider]}
-                onChange={(e) => edit({ models: { ...draft.models, [draft.provider]: e.target.value } })}
-              />
-            </label>
-            {t.notes[provider.id].map((note) => (
-              <p key={note} className="muted">
-                {note}
-              </p>
-            ))}
-            <div className="row">
-              <button className="primary" onClick={() => void save()}>
-                {text.common.save}
-              </button>
-              {saved ? (
-                <span className="muted" role="status">
-                  {t.saved}
-                </span>
+            </section>
+
+            <section className="stack" aria-labelledby="settings-group-speech">
+              <h2 id="settings-group-speech">{t.groups.speech}</h2>
+              {availability && !availability.ok && voiceEnabled(lang) ? (
+                <p className="muted settings-group-status" role="status">
+                  {plainText(availability.reason)}
+                </p>
               ) : null}
-            </div>
-          </section>
-          <section className="stack">
-            <h2>{t.privacy}</h2>
-            <p className="muted">{whisperOn ? t.audioWhisper : t.audio}</p>
-            <p className="muted">
-              {t.sent[0]}
-              <strong>{provider.label}</strong>
-              {t.sent[1]}
-            </p>
-          </section>
-        </div>
+              {offered ? (
+                // Feature 016: the engine is a choice of two, saved at once like the language.
+                <>
+                  <span className="label" id="settings-engine">
+                    {t.whisper.engine}
+                  </span>
+                  <div className="row segmented" role="radiogroup" aria-labelledby="settings-engine">
+                    <button role="radio" aria-checked={!draft.whisper} onClick={() => void saveWhisper(false)}>
+                      {t.whisper.engineBrowser}
+                    </button>
+                    <button role="radio" aria-checked={draft.whisper} disabled={!canRecord} onClick={() => void saveWhisper(true)}>
+                      {t.whisper.engineWhisper}
+                    </button>
+                  </div>
+                  {canRecord ? (
+                    <p className="muted">{t.whisper.help}</p>
+                  ) : (
+                    <p className="muted" role="note">
+                      {t.whisper.unsupported}
+                    </p>
+                  )}
+                </>
+              ) : null}
+              {voiceEnabled(lang) ? (
+                <label>
+                  {t.region}
+                  <select value={draft.voiceLocale} onChange={(e) => edit({ voiceLocale: e.target.value })}>
+                    {locales.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.label} ({l.id})
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              ) : (
+                <p className="muted" role="note">
+                  {t.voiceUnavailable}
+                </p>
+              )}
+              {/* The Groq key stays editable whichever engine is chosen (015 FR-003). */}
+              {groqKey}
+            </section>
+
+            <section className="stack" aria-labelledby="settings-group-privacy">
+              <h2 id="settings-group-privacy">{t.groups.privacy}</h2>
+              <p className="muted">{whisperOn ? t.audioWhisper : t.audio}</p>
+              <p className="muted">
+                {t.sent[0]}
+                <strong>{provider.label}</strong>
+                {t.sent[1]}
+              </p>
+              {notes.data ? <p className="muted">{notes.data}</p> : null}
+              <label className="checkbox">
+                <input type="checkbox" checked={!draft.rememberKey} onChange={(e) => edit({ rememberKey: !e.target.checked })} />
+                {t.noRemember}
+              </label>
+            </section>
+
+            {import.meta.env.DEV && voiceEnabled(lang) ? (
+              <section className="stack" aria-labelledby="settings-group-dev">
+                <h2 id="settings-group-dev">{t.groups.dev}</h2>
+                <label className="checkbox">
+                  <input type="checkbox" checked={draft.checkClips} onChange={(e) => edit({ checkClips: e.target.checked })} />
+                  {t.whisper.checkClips}
+                </label>
+                {!canRecordAlongsideRecognizer() ? (
+                  <p className="muted" role="note">
+                    {t.whisper.checkClipsAndroid}
+                  </p>
+                ) : null}
+              </section>
+            ) : null}
+          </div>
+          {/* Feature 016 (US5): always in reach. Language and the engine choice still save at once. */}
+          <div className="settings-footer row">
+            <button className="primary" onClick={() => void save()}>
+              {text.common.save}
+            </button>
+            {saved ? (
+              <span className="muted" role="status">
+                {t.saved}
+              </span>
+            ) : null}
+          </div>
+        </>
       ) : null}
     </main>
   );

@@ -62,8 +62,13 @@ export function MergerSheet({ onClose }: { onClose: () => void }) {
               setIdentity("primary");
             }}
           >
-            <CompanyBadge company={c} size="sm" /> {c.name}
-            {c.altName ? ` / ${c.altName}` : ""}
+            <span className="choice-company">
+              <CompanyBadge company={c} size="sm" />
+              <span className="choice-company-name">
+                {c.name}
+                {c.altName ? ` / ${c.altName}` : ""}
+              </span>
+            </span>
           </button>
         ))}
       </div>

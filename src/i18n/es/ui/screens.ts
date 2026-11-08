@@ -20,6 +20,8 @@ export const home = {
   customGame: "Juego personalizado",
   importSession: "Importar partida",
   settings: "Ajustes",
+  /** Feature 016 (US3): the button beside the voice notice. */
+  voiceNoticeOpenSettings: "Abrir ajustes",
   fileLabel: "Archivo de partida",
   sessions: "Partidas",
   finished: "Completa",

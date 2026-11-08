@@ -2,6 +2,7 @@ import { useMessageText } from "../useMessage";
 import { useState, type ReactNode } from "react";
 import { useDispatch, useSession } from "../../app/useSession";
 import { availabilityOf } from "../../domain/actions/availability";
+import { certificateStatus } from "../../domain/actions/limits";
 import type { ActionContext } from "../../domain/actions/context";
 import { sharePrice } from "../../domain/actions/expand/stock";
 import { cashOf, unitsOf } from "../../domain/events/state";
@@ -12,6 +13,7 @@ import { useLang, useText } from "../../app/language";
 import { priceOf } from "../../domain/mechanics/market";
 import type { CompanyId, PlayerId } from "../../domain/types";
 import { CompanyBadge } from "../components/CompanyBadge";
+import { HoldingsTable } from "../components/HoldingsTable";
 import { Sheet } from "../components/Sheet";
 import { HolderSheet } from "./HolderSheet";
 
@@ -40,6 +42,8 @@ export function PlayerSheet({
   const t = text.sheets.player;
   const { lang } = useLang();
   const [mode, setMode] = useState<Mode>("menu");
+  /** Feature 016 (US2): the company a row's "Vender…" opened the sell view on. */
+  const [sellCompany, setSellCompany] = useState<CompanyId | undefined>();
   const player = meta.players.find((p) => p.id === playerId);
   if (!player) return null;
   const ref = `player:${playerId}` as const;
@@ -60,26 +64,38 @@ export function PlayerSheet({
     </button>
   );
 
-  if (mode === "sell") return <SellView playerId={playerId} holdings={holdings} back={back} onClose={onClose} run={run} />;
-  if (mode === "buy") return <BuyView playerId={playerId} back={back} onClose={onClose} run={run} />;
+  if (mode === "sell")
+    return (
+      <SellView 
+        playerId={playerId} 
+        holdings={holdings} 
+        initialCompany={sellCompany} 
+        back={back} 
+        onClose={onClose} 
+        run={run} 
+      />
+    );
+
+  if (mode === "buy")
+    return (
+      <BuyView 
+        playerId={playerId} 
+        back={back} 
+        onClose={onClose} 
+        run={run} 
+      />);
 
   const inSR = state.turn.round === "SR";
+  const certs = certificateStatus(meta.game, state, playerId, meta.players.length);
   const stock = (
     <>
-      {inSR
-        ? holdings.map((h) => (
-            <button key={h.company.id} onClick={() => void run({ type: "sellShares", seller: ref, company: h.company.id, count: 1 })}>
-              {t.sellOne[0]}
-              <CompanyBadge company={h.company} size="inline" />
-              {t.sellOne[1]}
-              {money(h.price)}
-            </button>
-          ))
-        : null}
       <button
         disabled={holdings.length === 0}
         title={holdings.length === 0 ? t.noSharesToSell : undefined}
-        onClick={() => setMode("sell")}
+        onClick={() => {
+          setSellCompany(undefined);
+          setMode("sell");
+        }}
       >
         {t.sellShares}
       </button>
@@ -106,7 +122,32 @@ export function PlayerSheet({
         )
       }
       extraActions={extraActions}
-      info={meta.walletMode === "appTruth" ? <p className="money sheet-figure">{money(cashOf(state, ref))}</p> : null}
+      info={
+        <>
+          <div className="sheet-figures">
+            {meta.walletMode === "appTruth" ? <p className="money sheet-figure">{money(cashOf(state, ref))}</p> : null}
+            {certs.rows.length > 0 ? (
+              <p className={`cert-summary${certs.level === "under" ? "" : ` ${certs.level}`}`}>
+                <span>
+                  {t.certSummary(certs.counted, certs.limit)}
+                  {certs.total !== certs.counted ? ` ${t.certAll(certs.total)}` : ""}
+                </span>
+                {certs.level === "at" ? <span className="badge warn">{t.atLimit}</span> : null}
+                {certs.level === "over" ? <span className="badge danger">{t.overLimit}</span> : null}
+              </p>
+            ) : null}
+          </div>
+          <HoldingsTable
+            playerId={playerId}
+            inSR={inSR}
+            onSellOne={(company) => void run({ type: "sellShares", seller: ref, company, count: 1 })}
+            onSellSome={(company) => {
+              setSellCompany(company);
+              setMode("sell");
+            }}
+          />
+        </>
+      }
     />
   );
 }
@@ -134,12 +175,15 @@ function Stepper({ value, onChange, min = 1, max }: { value: number; onChange: (
 function SellView({
   playerId,
   holdings,
+  initialCompany,
   back,
   onClose,
   run,
 }: {
   playerId: PlayerId;
   holdings: readonly Holding[];
+  /** Feature 016 (US2): preselected by a holdings row's "Vender…". */
+  initialCompany?: CompanyId | undefined;
   back: ReactNode;
   onClose: () => void;
   run: (action: unknown) => Promise<void>;
@@ -147,7 +191,9 @@ function SellView({
   const { meta } = useSession();
   const t = useText().sheets.player;
   const { lang } = useLang();
-  const [company, setCompany] = useState<CompanyId | null>(holdings.length === 1 ? (holdings[0]?.company.id ?? null) : null);
+  const [company, setCompany] = useState<CompanyId | null>(
+    initialCompany ?? (holdings.length === 1 ? (holdings[0]?.company.id ?? null) : null),
+  );
   const [count, setCount] = useState(1);
   const name = meta.players.find((p) => p.id === playerId)?.name ?? playerId;
   const chosen = holdings.find((h) => h.company.id === company);

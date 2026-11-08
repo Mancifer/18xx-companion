@@ -66,7 +66,7 @@ test.describe("English device", () => {
     await expect(page.getByRole("button", { name: "New game" })).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("lang", "en");
 
-    await page.getByRole("button", { name: "Settings" }).click();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Settings" })).toBeVisible();
     const t0 = await page.evaluate(() => performance.now());
     await page.getByRole("radio", { name: "Español" }).click();

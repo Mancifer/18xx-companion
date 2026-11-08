@@ -11,6 +11,29 @@ function item(text: RegExp | string): HTMLElement {
   return found;
 }
 
+describe("History from the board (016 US1)", () => {
+  const OR = [
+    { type: "startSR" },
+    { type: "parCompany", player: "p1", company: "PRR", price: 100 },
+    { type: "endSR" },
+    { type: "startOR" },
+  ];
+  for (const [round, actions] of [
+    ["SR", [{ type: "startSR" }]],
+    ["OR", OR],
+  ] as const) {
+    it(`${round}: «Historial» in the action row opens History in one tap; Volver returns`, async () => {
+      const { user } = await openSeededTable({ actions });
+      const row = document.querySelector<HTMLElement>(".round-controls");
+      expect(row).not.toBeNull();
+      await user.click(within(row!).getByRole("button", { name: "Historial" }));
+      expect(await screen.findByRole("heading", { name: "Historial" })).toBeTruthy();
+      await user.click(screen.getByRole("button", { name: "Volver" }));
+      expect(await screen.findByRole("button", { name: "Menú" })).toBeTruthy();
+    });
+  }
+});
+
 describe("History (US2)", () => {
   it("undo from History marks the entry reverted and balances revert", async () => {
     const { user } = await openSeededTable({ actions: [pay("player:p1", "bank", 100)] });

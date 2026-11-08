@@ -1,11 +1,16 @@
 import { useSession } from "../../app/useSession";
-import { cashOf, certificateCount, counterOf, isPlayerBankrupt, presidencyHolder, unitsOf } from "../../domain/events/state";
+import { certificateStatus } from "../../domain/actions/limits";
+import { cashOf, counterOf, isPlayerBankrupt } from "../../domain/events/state";
 import { formatMoney } from "../../i18n/format";
 import { useLang, useText } from "../../app/language";
 import type { Player } from "../../domain/types";
+import { CertDonut } from "./CertDonut";
 import { CompanyBadge } from "./CompanyBadge";
 
-/** Large tile per player (US1). Cash is hidden in "bank only" mode (US1-4). */
+/**
+ * Large tile per player (US1). Cash is hidden in "bank only" mode (US1-4). Feature 016 (US7): the
+ * companies held in a column with the certificate donut beside them.
+ */
 export function PlayerTile({ player, onOpen }: { player: Player; onOpen: () => void }) {
   const { meta, state } = useSession();
   const t = useText().table.playerTile;
@@ -13,9 +18,11 @@ export function PlayerTile({ player, onOpen }: { player: Player; onOpen: () => v
   const ref = `player:${player.id}` as const;
   const cash = cashOf(state, ref);
   const debt = counterOf(state, ref, "debt");
-  const holdings = meta.game.companies
-    .map((c) => ({ company: c, units: unitsOf(state, ref, c.id), president: presidencyHolder(state, c.id) === ref }))
-    .filter((h) => h.units > 0);
+  const certs = certificateStatus(meta.game, state, player.id, meta.players.length);
+  const holdings = certs.rows.flatMap((row) => {
+    const company = meta.game.companies.find((c) => c.id === row.company);
+    return company ? [{ company, row }] : [];
+  });
   return (
     <button className="player-tile" onClick={onOpen} style={{ borderLeftColor: player.color }}>
       <span className="player-tile-head">
@@ -32,26 +39,27 @@ export function PlayerTile({ player, onOpen }: { player: Player; onOpen: () => v
           —
         </span>
       )}
-      <span className="player-meta muted">
-        {certificateCount(meta.game, state, player.id)}
-        {t.certs}
-        {debt > 0 ? <span className="badge danger">
+      {debt > 0 ? (
+        <span className="player-meta muted">
+          <span className="badge danger">
             {t.debt}
             {formatMoney(debt, meta.game, lang)}
-          </span> : null}
-      </span>
-      {holdings.length > 0 ? (
-        <span className="holdings">
+          </span>
+        </span>
+      ) : null}
+      <span className="player-tile-body">
+        <span className="tile-holdings">
           {holdings.map((h) => (
             <span key={h.company.id} className="holding">
               <CompanyBadge company={h.company} size="sm" />
               <span className="money">
-                {(h.units * 100) / h.company.shareCount}%{h.president ? "★" : ""}
+                {h.row.percent}%{h.row.president ? "★" : ""}
               </span>
             </span>
           ))}
         </span>
-      ) : null}
+        <CertDonut status={certs} companies={meta.game.companies} />
+      </span>
     </button>
   );
 }

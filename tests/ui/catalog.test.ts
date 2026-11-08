@@ -32,6 +32,8 @@ const SAME_IN_BOTH = new Set([
   "Total",
   "Extra",
   " cert.",
+  // Feature 016: the speech engine's name (a product and its provider).
+  "Whisper (Groq)",
 ]);
 
 interface Finding {

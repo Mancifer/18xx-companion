@@ -72,8 +72,10 @@ export const table = {
   },
   playerTile: {
     eliminated: "Eliminado",
-    certs: " cert.",
     debt: "deuda ",
+    /** Feature 016 (US7, FR-033): the certificate donut's accessible name. */
+    certLabel: (counted: number, limit: number | undefined, level: "under" | "at" | "over") =>
+      `${counted}${limit !== undefined ? ` de ${limit} certificados` : counted === 1 ? " certificado" : " certificados"}${level === "at" ? ", en el límite" : level === "over" ? ", sobre el límite" : ""}`,
   },
   companyCard: {
     capitalPending: "flotada (capital al final de la ronda)",

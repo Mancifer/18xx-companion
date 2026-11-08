@@ -18,7 +18,8 @@ describe("Market (US7-3, FR-052)", () => {
 
     const to = screen.getByRole("button", { name: /^Casilla \$70 \(fila 2, columna 4\)/ });
     expect(await within(to).findByRole("button", { name: "Ficha PRR" })).toBeTruthy();
-    expect(screen.getByText(byLine(/PRR movida a mano a \$70/))).toBeTruthy();
+    // The toast can land a render after the token on a slow runner (CI flake, 2026-11-08): wait for it.
+    expect(await screen.findByText(byLine(/PRR movida a mano a \$70/))).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Volver" }));
     await openMenuItem(user, "Historial");

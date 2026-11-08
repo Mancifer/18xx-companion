@@ -1,20 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import { newSession, openCompany, showCompanies, toast, trade, typeAmount } from "./helpers";
+import { newSession, openCompany, saveKey, showCompanies, toast, trade, typeAmount } from "./helpers";
 
 /**
  * T164 (FR-093, quickstart 11): after the first load the app works offline, except the voice.
  * Also the plan's timing goals on the phone project: cold start to a rendered Table < 1 s, and
  * tap to updated tile < 100 ms.
  */
-
-async function saveKey(page: Page, key: string) {
-  await page.getByRole("button", { name: "Menú" }).click();
-  await page.getByRole("dialog").getByRole("button", { name: "Ajustes" }).click();
-  await page.getByLabel("Clave de Anthropic").fill(key);
-  await page.getByRole("button", { name: "Guardar" }).click();
-  await expect(page.getByText("Guardado")).toBeVisible();
-  await page.getByRole("button", { name: "Volver" }).click();
-}
 
 /** PRR floated with Ana as president, then the OR starts. */
 async function floatPrr(page: Page) {
@@ -41,9 +32,15 @@ test("quickstart 11: offline reload keeps the session and touch; the mic is unav
   if (info.project.name === "phone") expect(coldStartMs, "cold start to Table").toBeLessThan(1000);
 
   const mic = page.getByRole("button", { name: "Mantén pulsado para hablar" });
-  await expect(mic).toBeDisabled();
-  // Offline, or (in a browser without speech recognition) that reason first: unavailable either way.
-  await expect(page.locator(".mic-reason")).toHaveText(/Sin conexión|no reconoce la voz/);
+  // Feature 016 (US3): with speech recognition, offline keeps the disabled mic and says why;
+  // without it, that setup issue comes first and the Table shows no mic. Unavailable either way.
+  const hasRecognizer = await page.evaluate(() => "SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+  if (hasRecognizer) {
+    await expect(mic).toBeDisabled();
+    await expect(page.locator(".mic-reason")).toHaveText(/Sin conexión/);
+  } else {
+    await expect(mic).toHaveCount(0);
+  }
 
   await floatPrr(page);
   const operate = await openCompany(page, "PRR");

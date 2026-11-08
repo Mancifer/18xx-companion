@@ -203,15 +203,3 @@ export function unitsOutOfIpo(s: SessionState, company: CompanyId): number {
   return record.shareCount - unitsOf(s, `ipo:${company}`, company);
 }
 
-/** Certificates a player holds, where a presidency counts once (data-model §3). */
-export function certificateCount(game: GameDefinition, s: SessionState, player: PlayerId): number {
-  const ref: HolderRef = `player:${player}`;
-  let count = 0;
-  for (const c of game.companies) {
-    const units = unitsOf(s, ref, c.id);
-    if (units <= 0) continue;
-    if (presidencyHolder(s, c.id) === ref) count += 1 + Math.max(0, units - c.presidencyUnits);
-    else count += units;
-  }
-  return count;
-}

@@ -33,6 +33,17 @@ export const player = {
   sellTitle: "Vender",
   sellN: (count: number, money: string) => `Vender ${count} · cobra ${money}`,
   buyTitle: "Comprar",
+  /** Feature 016 (US2, contracts/ui.md §2): the holdings table and the certificate total. */
+  holdingsTitle: "Acciones",
+  certs: (n: number) => `${n} cert.`,
+  notCounted: "no cuenta",
+  certAll: (total: number) => `(${total} en total)`,
+  /** Feature 016 (US7, FR-034): the summary in the sheet header. */
+  certSummary: (counted: number, limit?: number) => `${counted}${limit !== undefined ? ` / ${limit}` : ""} cert.`,
+  atLimit: "en el límite",
+  overLimit: "sobre el límite",
+  noHoldings: "Sin acciones",
+  sellRow: "Vender…",
 };
 
 export const holder = {

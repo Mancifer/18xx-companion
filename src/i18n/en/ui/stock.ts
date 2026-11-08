@@ -34,6 +34,15 @@ export const player: Sheets["player"] = {
   sellTitle: "Sell",
   sellN: (count, money) => `Sell ${count} · gets ${money}`,
   buyTitle: "Buy",
+  holdingsTitle: "Shares",
+  certs: (n) => `${n} cert.`,
+  notCounted: "not counted",
+  certAll: (total) => `(${total} in all)`,
+  certSummary: (counted, limit) => `${counted}${limit !== undefined ? ` / ${limit}` : ""} certs`,
+  atLimit: "at the limit",
+  overLimit: "over the limit",
+  noHoldings: "No shares",
+  sellRow: "Sell…",
 };
 
 export const holder: Sheets["holder"] = {

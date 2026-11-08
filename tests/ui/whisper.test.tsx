@@ -154,16 +154,16 @@ afterEach(() => {
 });
 
 describe("Whisper in Settings (015 FR-002, FR-003, FR-005)", () => {
-  it("the toggle is off by default, the key field shows anyway, with the billing note", async () => {
+  it("the browser engine is chosen by default, the key field shows anyway, with the billing note", async () => {
     const { user } = await openSeededTable({ settings: KEYS, voiceDeps: rig().deps });
     await openSettingsFromTable(user);
-    const toggle = screen.getByRole<HTMLInputElement>("checkbox", { name: "Usar Whisper (Groq) para reconocer la voz" });
-    expect(toggle.checked).toBe(false);
-    expect(screen.getByLabelText("Clave de Groq")).toHaveProperty("type", "password");
+    const engine = screen.getByRole("radiogroup", { name: "Motor de reconocimiento" });
+    expect(within(engine).getByRole("radio", { name: "Del navegador" }).getAttribute("aria-checked")).toBe("true");
+    expect(within(engine).getByRole("radio", { name: "Whisper (Groq)" }).getAttribute("aria-checked")).toBe("false");
     expect(screen.getByText(/Groq puede cobrar según tu plan/)).toBeTruthy();
   });
 
-  it("saving a key leaves the toggle off; turning it on switches the privacy line to Groq", async () => {
+  it("saving a key leaves the browser engine chosen; choosing Whisper switches the privacy line to Groq", async () => {
     const { user, dbName } = await openSeededTable({ settings: KEYS, voiceDeps: rig().deps });
     await openSettingsFromTable(user);
     expect(screen.getByText(/servicio de voz del navegador/)).toBeTruthy();
@@ -172,7 +172,7 @@ describe("Whisper in Settings (015 FR-002, FR-003, FR-005)", () => {
     await screen.findByText("Guardado");
     expect(await storedSettings(dbName)).toMatchObject({ whisper: false, groqKey: "gsk_new" });
 
-    await user.click(screen.getByRole("checkbox", { name: "Usar Whisper (Groq) para reconocer la voz" }));
+    await user.click(screen.getByRole("radio", { name: "Whisper (Groq)" }));
     expect(screen.getByText(/se manda a Groq para pasarla a texto/)).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     await waitFor(async () => expect(await storedSettings(dbName)).toMatchObject({ whisper: true, groqKey: "gsk_new" }));
@@ -184,16 +184,28 @@ describe("Whisper in Settings (015 FR-002, FR-003, FR-005)", () => {
     const { user } = await openSeededTable({ settings: { ...KEYS, language: "en" }, voiceDeps: rig().deps });
     await openMenuItem(user, "Settings");
     await screen.findByRole("heading", { name: "Settings" });
-    expect(screen.getByRole("checkbox", { name: "Use Whisper (Groq) for speech recognition" })).toBeTruthy();
+    expect(within(screen.getByRole("radiogroup", { name: "Speech engine" })).getByRole("radio", { name: "Browser built-in" })).toBeTruthy();
     expect(screen.getByLabelText("Groq key")).toBeTruthy();
   });
 });
 
 describe("Whisper from the Table (015 US1)", () => {
-  it("US1-2: no recognizer and the toggle off → the mic is disabled and suggests Whisper", async () => {
+  it("016 US3-1: no recognizer and the toggle off → no mic and no voice message on the Table", async () => {
     await openSeededTable({ settings: KEYS, voiceDeps: rig().deps });
-    expect(await screen.findByText("Este navegador no reconoce la voz. Para usar la voz, activar Whisper en Ajustes")).toBeTruthy();
-    expect((await micButton()).disabled).toBe(true);
+    // Let the settings load before asserting absence.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Menú" })).toBeTruthy());
+    await act(() => new Promise((r) => setTimeout(r, 50)));
+    expect(screen.queryByRole("button", { name: HOLD })).toBeNull();
+    expect(screen.queryByText(/no reconoce la voz/)).toBeNull();
+  });
+
+  it("016 US3-3: turning Whisper on with a Groq key brings the mic back without remounting", async () => {
+    const { user } = await openSeededTable({ settings: { ...KEYS, groqKey: "gsk_test" }, voiceDeps: rig().deps });
+    expect(screen.queryByRole("button", { name: HOLD })).toBeNull();
+    await openSettingsFromTable(user);
+    await user.click(screen.getByRole("radio", { name: "Whisper (Groq)" }));
+    await user.click(screen.getByRole("button", { name: "Volver" }));
+    expect((await micButton()).disabled).toBe(false);
   });
 
   it("US1-1/US1-3: toggle on + key → hold, level ring, transcribing with Cancelar, card, confirm applies", async () => {
@@ -284,7 +296,7 @@ async function changeSettings(dbName: string, patch: Parameters<SettingsRepo["se
 }
 
 describe("Whisper where the browser also recognizes speech (015 US2)", () => {
-  it("the toggle saves at once: unchecked with no Guardar, back at the table the next command uses the browser", async () => {
+  it("the engine choice saves at once: back to the browser with no Guardar, back at the table the next command uses the browser", async () => {
     // Found on a phone, 2026-11-07: Guardar is off screen below the toggle, so the change was lost.
     const r = rig({ speech: true });
     const { user, dbName } = await openSeededTable({ actions: OR_SETUP, settings: WHISPER, voiceDeps: r.deps });
@@ -292,7 +304,7 @@ describe("Whisper where the browser also recognizes speech (015 US2)", () => {
     // An unsaved key edit stays a draft: the toggle saves only itself (FR-003).
     await user.clear(screen.getByLabelText("Clave de Groq"));
     await user.type(screen.getByLabelText("Clave de Groq"), "gsk_draft");
-    await user.click(screen.getByRole("checkbox", { name: "Usar Whisper (Groq) para reconocer la voz" }));
+    await user.click(screen.getByRole("radio", { name: "Del navegador" }));
     await waitFor(async () => expect(await storedSettings(dbName)).toMatchObject({ whisper: false, groqKey: "gsk_test" }));
 
     await user.click(screen.getByRole("button", { name: "Volver" }));
@@ -509,7 +521,7 @@ describe("Whisper language gate (015 FR-018)", () => {
     await release();
     expect(r.calls).toHaveLength(0);
     await openSettingsFromTable(user);
-    expect(screen.queryByRole("checkbox", { name: "Usar Whisper (Groq) para reconocer la voz" })).toBeNull();
+    expect(screen.queryByRole("radiogroup", { name: "Motor de reconocimiento" })).toBeNull();
     expect(screen.getByLabelText("Clave de Groq")).toBeTruthy();
   });
 });

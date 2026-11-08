@@ -22,7 +22,8 @@ export function CompanyCard({
   current?: boolean;
 }) {
   const { meta, state } = useSession();
-  const t = useText().table.companyCard;
+  const text = useText();
+  const t = text.table.companyCard;
   const dt = useDomainText();
   const { lang } = useLang();
   const def = meta.game.companies.find((c) => c.id === companyId);
@@ -71,6 +72,8 @@ export function CompanyCard({
       {pendingCondition ? <span className="badge warn">{gameText(meta.game, lang).ruleText("manualFloatCondition", "question") || condition.question}</span> : null}
       {hasTrains || loans > 0 ? (
         <span className="company-meta company-trains">
+          {/* Feature 016 (US6): named on large screens, where the cards have room (CSS). */}
+          {hasTrains ? <span className="label company-trains-label">{text.table.trains.label}</span> : null}
           {hasTrains ? <TrainCards company={companyId} size="sm" /> : null}
           {loans > 0 ? <span>
               {t.loans}

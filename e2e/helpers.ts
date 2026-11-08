@@ -92,3 +92,13 @@ export async function launch(page: Page, player: string, minor: string, bid: num
   await dialog.getByRole("button", { name: "Abrir", exact: true }).click();
   await expect(dialog).toBeHidden();
 }
+
+/** Saves the Anthropic key from the Table's Settings, then goes back to the Table. */
+export async function saveKey(page: Page, key: string) {
+  await page.getByRole("button", { name: "Menú" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Ajustes" }).click();
+  await page.getByLabel("Clave de Anthropic").fill(key);
+  await page.getByRole("button", { name: "Guardar" }).click();
+  await expect(page.getByText("Guardado")).toBeVisible();
+  await page.getByRole("button", { name: "Volver" }).click();
+}

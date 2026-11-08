@@ -1,7 +1,9 @@
-import { useText } from "../../app/language";
+import { useLang, useText } from "../../app/language";
+import { SETTINGS_CHANGED, VoiceDepsContext, voiceAvailability, voiceSetupIssue } from "../../app/useVoice";
+import { voiceEnabled } from "../../i18n/lang";
 import type { Message } from "../../i18n/contract/domain";
 import { usePlainMessageText } from "../useMessage";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useAppActions, useServices } from "../../app/AppProvider";
 import { backfillOutcome, deleteSession } from "../../app/sessions";
 import type { SessionMeta } from "../../domain/session";
@@ -15,6 +17,36 @@ type Ready = Extract<ParsedImport, { ok: true }>;
 /** The players who won, by name ("Ganó Ana", "Ana and Bruno won") (features 007, 014). */
 function winnerNames(meta: SessionMeta, winners: readonly string[]): string[] {
   return winners.map((id) => meta.players.find((p) => p.id === id)?.name ?? id);
+}
+
+/**
+ * Feature 016 (US3, contracts/ui.md §3): why voice won't work until something is set up, read
+ * from the saved settings and re-read when they change. Nothing where voice isn't offered.
+ */
+function useVoiceSetupIssue(): Message | undefined {
+  const deps = useContext(VoiceDepsContext);
+  const { settings } = useServices();
+  const { lang } = useLang();
+  const [issue, setIssue] = useState<Message | undefined>();
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      if (!voiceEnabled(lang)) {
+        setIssue(undefined);
+        return;
+      }
+      void settings.get().then((s) => {
+        if (!cancelled) setIssue(voiceSetupIssue(voiceAvailability(deps, s, lang)));
+      });
+    };
+    load();
+    window.addEventListener(SETTINGS_CHANGED, load);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(SETTINGS_CHANGED, load);
+    };
+  }, [deps, settings, lang]);
+  return issue;
 }
 
 /**
@@ -36,6 +68,7 @@ export function Home() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const backfilled = useRef(new Set<string>());
+  const voiceIssue = useVoiceSetupIssue();
 
   /** Reads the list and the "Continuar" pointer from storage, the single source of truth. */
   const load = useCallback(() => Promise.all([sessions.listSessions(), settings.get()]), [sessions, settings]);
@@ -142,6 +175,14 @@ export function Home() {
     <main className="screen">
       <div className="screen-body">
         <h1>18xx Companion</h1>
+        {voiceIssue ? (
+          <div className="row voice-notice">
+            <p role="note" className="muted spacer">
+              {plainText(voiceIssue)}
+            </p>
+            <button onClick={() => go({ name: "settings" })}>{t.home.voiceNoticeOpenSettings}</button>
+          </div>
+        ) : null}
         {last ? (
           <button className="primary big" onClick={() => void open(last.id, isFinished(last))}>
             {t.home.continue} {last.name}

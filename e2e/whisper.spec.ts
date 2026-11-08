@@ -88,18 +88,21 @@ async function mockServices(page: Page, { groq = { text: "¿Cuánto tiene Ana?" 
   return { groqBodies };
 }
 
-/** Settings from the Table: the AI key, the Whisper toggle, the Groq key. */
+/** Settings from the Table: the AI key, the Groq key, the speech engine. */
 async function configure(page: Page, { whisper }: { whisper: boolean }) {
   await page.getByRole("button", { name: "Menú" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Ajustes" }).click();
-  const toggle = page.getByRole("checkbox", { name: "Usar Whisper (Groq) para reconocer la voz" });
+  const whisperEngine = page.getByRole("radiogroup", { name: "Motor de reconocimiento" }).getByRole("radio", { name: "Whisper (Groq)" });
   await expect(
-    toggle,
+    whisperEngine,
     "Whisper isn't offered in this build: stop the preview server on :4173 and re-run npm run test:e2e, so it rebuilds with VITE_WHISPER_LANGUAGES",
   ).toBeVisible();
   await page.getByLabel("Clave de Anthropic").fill("sk-ant-test");
   await page.getByLabel("Clave de Groq").fill("gsk_test");
-  if (whisper) await toggle.check();
+  if (whisper) {
+    await whisperEngine.click();
+    await expect(whisperEngine).toHaveAttribute("aria-checked", "true");
+  }
   await page.getByRole("button", { name: "Guardar" }).click();
   await expect(page.getByText("Guardado")).toBeVisible();
   await page.getByRole("button", { name: "Volver" }).click();
@@ -159,17 +162,21 @@ test.describe("Whisper (feature 015)", () => {
     await expect(page.getByRole("button", { name: "Pagar…" })).toBeVisible();
   });
 
-  test("FR-003: with the toggle off, a saved Groq key sends nothing to Groq", async ({ page, browserName }) => {
+  test("FR-003: with the browser engine chosen, a saved Groq key sends nothing to Groq", async ({ page, browserName }) => {
     await stubMediaOnWebKit(page, browserName);
     const mocks = await mockServices(page);
     await newSession(page, { players: ["Ana", "Bruno", "Carla"] });
     await configure(page, { whisper: false });
     const mic = page.getByRole("button", { name: "Mantén pulsado para hablar" });
-    await mic.hover();
-    await page.mouse.down();
-    await page.waitForTimeout(800);
-    await page.mouse.up();
-    await page.waitForTimeout(500);
+    // Feature 016 (US3): without speech recognition and the browser engine chosen, the Table shows no mic.
+    await page.waitForTimeout(300);
+    if ((await mic.count()) > 0) {
+      await mic.hover();
+      await page.mouse.down();
+      await page.waitForTimeout(800);
+      await page.mouse.up();
+      await page.waitForTimeout(500);
+    }
     expect(mocks.groqBodies).toHaveLength(0);
   });
 });

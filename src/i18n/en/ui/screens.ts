@@ -21,6 +21,7 @@ export const home: UiText["home"] = {
   customGame: "Custom game",
   importSession: "Import game",
   settings: "Settings",
+  voiceNoticeOpenSettings: "Open settings",
   fileLabel: "Game file",
   sessions: "Games",
   finished: "Finished",

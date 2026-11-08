@@ -35,6 +35,8 @@ export function MicButton({
   const busy = phase.phase === "interpreting" || transcribing;
   const level = listening ? phase.level : undefined;
   const style = level !== undefined ? ({ "--mic-level": level.toFixed(2) } as CSSProperties) : undefined;
+  // Feature 016 (research R4): a disabled mic does no work on a tap (the Firefox for Android lag).
+  const disabled = !availability.ok || busy;
   return (
     <div className="mic-area">
       {listening ? (
@@ -68,9 +70,10 @@ export function MicButton({
         style={style}
         aria-label={listening ? t.release : t.hold}
         aria-pressed={listening}
-        disabled={!availability.ok || busy}
+        disabled={disabled}
         title={reason}
         onPointerDown={(e) => {
+          if (disabled) return;
           // Keep the release on this button even if the finger slides off it.
           try {
             e.currentTarget.setPointerCapture(e.pointerId);
@@ -79,8 +82,8 @@ export function MicButton({
           }
           onPress();
         }}
-        onPointerUp={onRelease}
-        onPointerCancel={onRelease}
+        onPointerUp={disabled ? undefined : onRelease}
+        onPointerCancel={disabled ? undefined : onRelease}
         onContextMenu={(e) => e.preventDefault()}
       >
         🎤

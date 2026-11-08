@@ -1,5 +1,5 @@
 import type { SessionState } from "../events/state";
-import { certificateCount, hasOperated, isPlayerBankrupt, presidencyHolder, unitsOf } from "../events/state";
+import { hasOperated, isPlayerBankrupt, presidencyHolder, unitsOf } from "../events/state";
 import type { GameDefinition } from "../games/schema";
 import { cellAt } from "../mechanics/market";
 import { parseHolder, type CompanyId, type HolderRef } from "../types";
@@ -17,17 +17,53 @@ type Zone = "yellow" | "orange" | "brown" | undefined;
 const zoneOf = (game: GameDefinition, state: SessionState, company: CompanyId): Zone =>
   cellAt(game, state.companies[company]?.position)?.zone;
 
-/** Certificates toward the limit: 1830 yellow, orange and brown zones do not count (§5.4). */
-function limitedCertificates(game: GameDefinition, state: SessionState, player: string): number {
-  let count = certificateCount(game, state, player);
+/** Feature 016 (data-model): what a player holds in one company, as cards on the table. */
+export interface HoldingRow {
+  readonly company: CompanyId;
+  readonly units: number;
+  readonly percent: number;
+  /** Cards: the president's certificate is one, whatever its units. */
+  readonly certificates: number;
+  readonly president: boolean;
+  /** False where the market zone exempts the company from the limit (1830 yellow/orange/brown, §5.4). */
+  readonly counts: boolean;
+}
+
+export interface CertificateStatus {
+  readonly rows: readonly HoldingRow[];
+  readonly total: number;
+  readonly counted: number;
+  /** The game's limit for this player count; absent when the game defines none. */
+  readonly limit?: number;
+  readonly level: "under" | "at" | "over";
+}
+
+/**
+ * A player's certificates per company and toward the limit (FR-025; feature 016, US2). The one
+ * place this rule lives: the player sheet shows it and the limit warning reads it.
+ */
+export function certificateStatus(game: GameDefinition, state: SessionState, player: string, playerCount: number): CertificateStatus {
+  const ref: HolderRef = `player:${player}`;
+  const rows: HoldingRow[] = [];
   for (const c of game.companies) {
-    if (!zoneOf(game, state, c.id)) continue;
-    const ref: HolderRef = `player:${player}`;
     const units = unitsOf(state, ref, c.id);
     if (units <= 0) continue;
-    count -= presidencyHolder(state, c.id) === ref ? 1 + Math.max(0, units - c.presidencyUnits) : units;
+    const president = presidencyHolder(state, c.id) === ref;
+    const shareCount = state.companies[c.id]?.shareCount ?? c.shareCount;
+    rows.push({
+      company: c.id,
+      units,
+      percent: (units * 100) / shareCount,
+      certificates: president ? 1 + Math.max(0, units - c.presidencyUnits) : units,
+      president,
+      counts: !zoneOf(game, state, c.id),
+    });
   }
-  return count;
+  const total = rows.reduce((n, r) => n + r.certificates, 0);
+  const counted = rows.reduce((n, r) => n + (r.counts ? r.certificates : 0), 0);
+  const limit = game.limits.certificates[String(playerCount)];
+  const level = limit === undefined || counted < limit ? "under" : counted === limit ? "at" : "over";
+  return { rows, total, counted, ...(limit !== undefined ? { limit } : {}), level };
 }
 
 export function holdingWarnings(ctx: ActionContext, after: SessionState, holder: HolderRef, company: CompanyId): Warning[] {
@@ -35,10 +71,9 @@ export function holdingWarnings(ctx: ActionContext, after: SessionState, holder:
   const h = parseHolder(holder);
   if (h.kind !== "player") return warnings;
   const n = String(ctx.players.length);
-  const limit = ctx.game.limits.certificates[n];
-  const certs = limitedCertificates(ctx.game, after, h.id);
-  if (limit !== undefined && certs > limit) {
-    warnings.push(warning(ctx, "certificateLimit", { certs, limit }));
+  const status = certificateStatus(ctx.game, after, h.id, ctx.players.length);
+  if (status.limit !== undefined && status.level === "over") {
+    warnings.push(warning(ctx, "certificateLimit", { certs: status.counted, limit: status.limit }));
   }
   const zone = zoneOf(ctx.game, after, company);
   const percentLimit = ctx.game.limits.perCompanyPercentByPlayers?.[n] ?? ctx.game.limits.perCompanyPercent;

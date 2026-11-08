@@ -113,6 +113,8 @@ describe("Spanish golden snapshot (feature 014 T001)", () => {
     const user = userEvent.setup();
     render(<App dbName={freshDbName()} />);
     await screen.findByRole("button", { name: "Nueva partida" });
+    // Feature 016 (US3): this test browser has no speech recognition, so Home says so; wait for it.
+    await screen.findByRole("note");
     const out: Record<string, string> = { home: capture() };
     await user.click(screen.getByRole("button", { name: "Nueva partida" }));
     await screen.findByRole("heading", { name: "Nueva partida" });

@@ -5,6 +5,14 @@ import type { Around } from "./table";
 
 export const settings = {
   title: "Ajustes",
+  /** Feature 016 (US5): the screen's groups, in order. */
+  groups: {
+    language: "Idioma",
+    ai: "Interpretación (IA)",
+    speech: "Reconocimiento de voz",
+    privacy: "Privacidad",
+    dev: "Desarrollo",
+  },
   language: "Idioma",
   voice: "Voz",
   provider: "Proveedor",
@@ -16,18 +24,24 @@ export const settings = {
     anthropic: "Créala en console.anthropic.com, en un espacio de trabajo con límite de gasto mensual.",
     gemini: "Consigue una clave gratis en Google AI Studio (aistudio.google.com) → «Get API key».",
   } as Readonly<Record<ProviderId, string>>,
-  /** Privacy and limits notes shown when the provider is selected. */
+  /**
+   * Notes shown when the provider is selected, by name (feature 016): `data` goes under
+   * Privacidad, `limits` under Interpretación (IA).
+   */
   notes: {
-    anthropic: [],
-    gemini: [
-      "En el plan gratuito, Google puede usar las órdenes y respuestas para mejorar sus productos. Se envían el estado de la partida y la transcripción, no datos personales. Usa el plan de pago si te importa.",
-      "El plan gratuito tiene límites por minuto y por día. Si se alcanzan, la voz se pausa y el modo táctil sigue funcionando.",
-    ],
-  } as Readonly<Record<ProviderId, readonly string[]>>,
+    anthropic: {},
+    gemini: {
+      data: "En el plan gratuito, Google puede usar las órdenes y respuestas para mejorar sus productos. Se envían el estado de la partida y la transcripción, no datos personales. Usa el plan de pago si te importa.",
+      limits: "El plan gratuito tiene límites por minuto y por día. Si se alcanzan, la voz se pausa y el modo táctil sigue funcionando.",
+    },
+  } as Readonly<Record<ProviderId, { readonly data?: string; readonly limits?: string }>>,
   noRemember: "No recordar las claves en este dispositivo",
   /** Feature 015 (contracts/ui.md §1): Whisper on Groq, opt-in. */
   whisper: {
-    toggle: "Usar Whisper (Groq) para reconocer la voz",
+    /** Feature 016: the speech engine, a choice of two (the browser's own or Whisper). */
+    engine: "Motor de reconocimiento",
+    engineBrowser: "Del navegador",
+    engineWhisper: "Whisper (Groq)",
     help: "Graba tu orden y manda el audio a Groq. Funciona en más navegadores y reconoce mejor los nombres.",
     billing: "Groq puede cobrar según tu plan (cada orden cuenta como al menos 10 s de audio).",
     key: "Clave de Groq",

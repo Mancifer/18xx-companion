@@ -51,10 +51,12 @@ test("with 'no recordar la clave', a reload forgets the key and the mic is unava
   expect(stored).toBeNull();
 
   await page.reload();
+  // Feature 016 (US3): Home says why voice is off (without speech recognition in this browser that
+  // reason comes first), and the Table shows no mic.
+  await expect(page.getByRole("note")).toHaveText(/clave de Anthropic|no reconoce la voz/);
   await page.getByRole("button", { name: /^Continuar/ }).click();
-  await expect(page.getByRole("button", { name: "Mantén pulsado para hablar" })).toBeDisabled();
-  // Without speech recognition in this browser that reason comes first; either way, no voice.
-  await expect(page.locator(".mic-reason")).toHaveText(/clave de Anthropic|no reconoce la voz/);
+  await expect(page.getByRole("button", { name: "Menú" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Mantén pulsado para hablar" })).toHaveCount(0);
   await page.getByRole("button", { name: "Menú" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Ajustes" }).click();
   await expect(page.getByLabel("Clave de Anthropic")).toHaveValue("");

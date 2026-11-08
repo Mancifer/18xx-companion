@@ -1,11 +1,13 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { startSession } from "../../src/app/sessions";
 import { getBuiltInGame } from "../../src/domain/games";
 import { openCompanionDb } from "../../src/persistence/db";
 import { SessionRepo } from "../../src/persistence/sessionRepo";
-import { SettingsRepo } from "../../src/persistence/settingsRepo";
+import { SettingsRepo, type Settings } from "../../src/persistence/settingsRepo";
+import type { VoiceDeps } from "../../src/app/useVoice";
+import { browserRecognizer, type RecognizerLike } from "../../src/voice/speech";
 import { App } from "../../src/ui/App";
 import { makePlayers } from "../helpers/dispatch";
 import { freshDbName, setNavigatorLanguages } from "../helpers/session";
@@ -315,5 +317,56 @@ describe("Home in English (feature 014, T036)", () => {
     await screen.findByRole("button", { name: "New game" });
     await user.upload(screen.getByLabelText("Game file"), new File(["not json"], "x.json", { type: "application/json" }));
     expect((await screen.findByRole("alert")).textContent).toContain("The file isn't JSON.");
+  });
+});
+
+describe("Home: voice notice (016 US3)", () => {
+  const recognizerOk = () => ({}) as RecognizerLike;
+  const voiceDeps = ({ speech = true, online = true } = {}): VoiceDeps => ({
+    recognizer: speech ? recognizerOk : browserRecognizer,
+    online: () => online,
+    createInterpreter: () => () => Promise.reject(new Error("unused")),
+    media: () => undefined,
+  });
+
+  async function openHomeWith(deps: VoiceDeps, stored: Partial<Settings> = { apiKeys: { anthropic: "sk-ant-x" } }, ready = "Nueva partida") {
+    const dbName = freshDbName();
+    const db = await openCompanionDb(dbName);
+    await new SettingsRepo(db).set(stored);
+    db.close();
+    const user = userEvent.setup();
+    render(<App dbName={dbName} voiceDeps={deps} />);
+    await screen.findByRole("button", { name: ready });
+    // Let the settings load before asserting presence or absence.
+    await act(() => new Promise((r) => setTimeout(r, 50)));
+    return user;
+  }
+
+  it("no recognizer: a note with the reason and «Abrir ajustes», which opens Settings", async () => {
+    const user = await openHomeWith(voiceDeps({ speech: false }));
+    expect((await screen.findByRole("note")).textContent).toMatch(/no reconoce la voz/);
+    await user.click(screen.getByRole("button", { name: "Abrir ajustes" }));
+    expect(await screen.findByRole("heading", { name: "Ajustes" })).toBeTruthy();
+  });
+
+  it("a missing AI key is a setup issue too", async () => {
+    await openHomeWith(voiceDeps(), {});
+    expect((await screen.findByRole("note")).textContent).toMatch(/clave de Anthropic/);
+  });
+
+  it("no notice when voice is available or only offline", async () => {
+    await openHomeWith(voiceDeps());
+    expect(screen.queryByRole("button", { name: "Abrir ajustes" })).toBeNull();
+    cleanup();
+    await openHomeWith(voiceDeps({ online: false }));
+    expect(screen.queryByRole("button", { name: "Abrir ajustes" })).toBeNull();
+  });
+
+  it("no notice where voice isn't offered in the display language", async () => {
+    vi.stubEnv("VITE_VOICE_LANGUAGES", "");
+    setNavigatorLanguages(["en-US"]);
+    await openHomeWith(voiceDeps({ speech: false }), { language: "en", apiKeys: { anthropic: "sk-ant-x" } }, "New game");
+    expect(screen.queryByRole("note")).toBeNull();
+    vi.unstubAllEnvs();
   });
 });

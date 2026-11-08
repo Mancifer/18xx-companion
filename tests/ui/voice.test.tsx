@@ -68,6 +68,12 @@ const OR_SETUP = [
   { type: "startOR" },
 ];
 
+/** Feature 016 (US3): a setup issue renders no mic; let the settings load before checking. */
+async function expectNoMic() {
+  await act(() => new Promise((r) => setTimeout(r, 50)));
+  expect(screen.queryByRole("button", { name: "Mantén pulsado para hablar" })).toBeNull();
+}
+
 async function speak(user: User, text: string) {
   const mic = await screen.findByRole("button", { name: "Mantén pulsado para hablar" });
   await user.pointer({ keys: "[MouseLeft>]", target: mic });
@@ -77,10 +83,9 @@ async function speak(user: User, text: string) {
 }
 
 describe("voice (US5)", () => {
-  it("US5-5: the mic says why it is unavailable — no key, offline, no speech recognition", async () => {
+  it("US5-5 / 016 US3: no key → no mic on the Table (Home says why)", async () => {
     await openSeededTable({ voiceDeps: deps({}) });
-    expect(await screen.findByText("Añade tu clave de Anthropic en Ajustes")).toBeTruthy();
-    expect(screen.getByRole<HTMLButtonElement>("button", { name: "Mantén pulsado para hablar" }).disabled).toBe(true);
+    await expectNoMic();
   });
 
   it("offline", async () => {
@@ -88,9 +93,10 @@ describe("voice (US5)", () => {
     expect(await screen.findByText("Sin conexión: la voz no está disponible")).toBeTruthy();
   });
 
-  it("without SpeechRecognition (the default recognizer in this test browser)", async () => {
+  it("without SpeechRecognition (the default recognizer in this test browser): no mic, no message (016 US3)", async () => {
     await openSeededTable({ settings: KEY });
-    expect(await screen.findByText("Este navegador no reconoce la voz")).toBeTruthy();
+    await expectNoMic();
+    expect(screen.queryByText(/no reconoce la voz/)).toBeNull();
   });
 
   it("US5-1: live transcript while held; nothing changes until Confirmar", async () => {
@@ -278,8 +284,7 @@ describe("voice with a provider choice (005)", () => {
       settings: { provider: "gemini", apiKeys: { anthropic: "sk-ant-test" } },
       voiceDeps: providerDeps(created, () => Promise.resolve(recorded("payout"))),
     });
-    expect(await screen.findByText("Añade tu clave de Gemini en Ajustes")).toBeTruthy();
-    expect(screen.getByRole<HTMLButtonElement>("button", { name: "Mantén pulsado para hablar" }).disabled).toBe(true);
+    await expectNoMic();
     expect(created).toEqual([]);
   });
 
@@ -376,7 +381,7 @@ describe("voice with a provider choice (005)", () => {
       actions: OR_SETUP,
       voiceDeps: providerDeps(created, () => Promise.resolve(recorded("payout"))),
     });
-    expect(await screen.findByText("Añade tu clave de Anthropic en Ajustes")).toBeTruthy();
+    await expectNoMic();
     const db = await openCompanionDb(dbName);
     const tx = db.transaction("settings", "readwrite");
     await tx.store.put({ key: "apiKey", value: "sk-ant-legacy" });

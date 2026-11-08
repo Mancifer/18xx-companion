@@ -71,8 +71,9 @@ export const table: UiText["table"] = {
   },
   playerTile: {
     eliminated: "Eliminated",
-    certs: " cert.",
     debt: "debt ",
+    certLabel: (counted, limit, level) =>
+      `${counted}${limit !== undefined ? ` of ${limit} certificates` : counted === 1 ? " certificate" : " certificates"}${level === "at" ? ", at the limit" : level === "over" ? ", over the limit" : ""}`,
   },
   companyCard: {
     capitalPending: "floated (capital at the end of the round)",

@@ -6,6 +6,7 @@ import type { VoiceDeps } from "../../src/app/useVoice";
 import { getBuiltInGame } from "../../src/domain/games";
 import type { GameDefinition } from "../../src/domain/games/schema";
 import type { LogEntry } from "../../src/domain/ledger/entries";
+import type { WalletMode } from "../../src/domain/types";
 import { openCompanionDb } from "../../src/persistence/db";
 import { SessionRepo } from "../../src/persistence/sessionRepo";
 import { SettingsRepo } from "../../src/persistence/settingsRepo";
@@ -24,6 +25,8 @@ export interface SeedOptions {
   /** Raw entries appended after the actions, e.g. legacy revert/amend entries (feature 010). */
   readonly entries?: (log: readonly LogEntry[]) => readonly LogEntry[];
   readonly settings?: Parameters<SettingsRepo["set"]>[0];
+  /** Defaults to "appTruth" (the app holds the money). */
+  readonly walletMode?: WalletMode;
   readonly voiceDeps?: VoiceDeps;
   /** Rendered inside the App's providers (feature 014: a harness that switches the language). */
   readonly overlay?: ReactNode;
@@ -43,7 +46,7 @@ export async function openSeededTable(seed: SeedOptions = {}) {
     game,
     options: seed.options ?? {},
     players: makePlayers(seed.players ?? ["Ana", "Bruno", "Carla", "Dani"]),
-    walletMode: "appTruth",
+    walletMode: seed.walletMode ?? "appTruth",
   });
   for (const action of seed.actions ?? []) {
     const result = await store.dispatch(action);

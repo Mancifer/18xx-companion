@@ -78,6 +78,18 @@ export function voiceAvailability(deps: VoiceDeps, settings: Settings | null, la
   return { ok: true };
 }
 
+/** Feature 016 (research R4): reasons fixed in Settings or by the browser, not by waiting. */
+const SETUP_ISSUES: ReadonlySet<string> = new Set(["voice.noSpeech", "voice.noSpeechTryWhisper", "voice.noRecorder", "voice.noKey", "voice.noGroqKey"]);
+
+/**
+ * Feature 016 (data-model): the reason when voice can't work until something is set up; then the
+ * Table shows no mic and Home shows a notice. `undefined` when voice is available or the reason
+ * is transient (offline), where the disabled mic keeps saying why.
+ */
+export function voiceSetupIssue(availability: VoiceAvailability): Message | undefined {
+  return !availability.ok && SETUP_ISSUES.has(availability.reason.code) ? availability.reason : undefined;
+}
+
 type ClipSink = (recording: Recording, engine: "browser" | "whisper") => void;
 
 interface Engines {

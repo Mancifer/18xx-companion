@@ -4,6 +4,13 @@ import type { UiText } from "../../contract/ui";
 
 export const settings: UiText["settings"] = {
   title: "Settings",
+  groups: {
+    language: "Language",
+    ai: "Interpretation (AI)",
+    speech: "Speech recognition",
+    privacy: "Privacy",
+    dev: "Development",
+  },
   language: "Language",
   voice: "Voice",
   provider: "Provider",
@@ -15,15 +22,17 @@ export const settings: UiText["settings"] = {
     gemini: "Get a free key in Google AI Studio (aistudio.google.com) → “Get API key”.",
   },
   notes: {
-    anthropic: [],
-    gemini: [
-      "On the free plan, Google may use the commands and answers to improve its products. The game state and the transcript are sent, not personal data. Use the paid plan if that matters to you.",
-      "The free plan has per-minute and per-day limits. If they're reached, voice pauses and touch keeps working.",
-    ],
+    anthropic: {},
+    gemini: {
+      data: "On the free plan, Google may use the commands and answers to improve its products. The game state and the transcript are sent, not personal data. Use the paid plan if that matters to you.",
+      limits: "The free plan has per-minute and per-day limits. If they're reached, voice pauses and touch keeps working.",
+    },
   },
   noRemember: "Don't remember the keys on this device",
   whisper: {
-    toggle: "Use Whisper (Groq) for speech recognition",
+    engine: "Speech engine",
+    engineBrowser: "Browser built-in",
+    engineWhisper: "Whisper (Groq)",
     help: "Records your command and sends the audio to Groq. Works in more browsers and recognizes names better.",
     billing: "Groq may charge for this depending on your plan (each command counts as at least 10 s of audio).",
     key: "Groq key",

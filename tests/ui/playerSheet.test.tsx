@@ -159,3 +159,122 @@ describe("Ajustes show companies as badges (bug pay-modal-company-colors, featur
     expect(badge(ipo)?.textContent).toBe("PRR");
   });
 });
+
+describe("holdings table (016 US2, contracts/ui.md §2)", () => {
+  const give = (company: string, units: number, to = "p1") => ({
+    type: "transferShares",
+    company,
+    from: `ipo:${company}`,
+    to: `player:${to}`,
+    units,
+    presidency: null,
+  });
+  // Ana: the PRR presidency + 2 shares (40%, 3 cards) and one share each of NYC, B&O and C&O.
+  const FOUR = [
+    startSR,
+    par("p1", "PRR", 100),
+    buy("p1", "PRR", 2),
+    par("p2", "NYC", 100),
+    par("p3", "B&O", 100),
+    par("p4", "C&O", 100),
+    give("NYC", 1),
+    give("B&O", 1),
+    give("C&O", 1),
+  ];
+  const rowOf = (dialog: HTMLElement, short: string) =>
+    within(dialog)
+      .getAllByRole("row")
+      .find((r) => within(r).queryAllByText(short, { exact: true }).length > 0)!;
+
+  it("one row per company: %, ★ for the presidency, cards; the total against the limit", async () => {
+    const { user } = await openSeededTable({ actions: FOUR });
+    const dialog = await openPlayer(user, "p1");
+    const table = within(dialog).getByRole("table", { name: "Acciones" });
+    expect(within(table).getAllByRole("row")).toHaveLength(4);
+    const prr = rowOf(dialog, "PRR");
+    expect(prr.textContent).toMatch(/40%★/);
+    expect(prr.textContent).toMatch(/3 cert\./);
+    expect(rowOf(dialog, "NYC").textContent).toMatch(/10%.*1 cert\./);
+    expect(rowOf(dialog, "NYC").textContent).not.toMatch(/★/);
+    expect(within(dialog).getByText("6 / 16 cert.")).toBeTruthy();
+  });
+
+  it("the certificate summary sits in the header next to cash, not under the table (016 US7, FR-034)", async () => {
+    const { user } = await openSeededTable({ actions: FOUR });
+    const dialog = await openPlayer(user, "p1");
+    const figures = dialog.querySelector(".sheet-figures")!;
+    expect(figures.querySelector(".sheet-figure")?.textContent).toBe("$200");
+    expect(within(figures as HTMLElement).getByText("6 / 16 cert.")).toBeTruthy();
+    const table = within(dialog).getByRole("table", { name: "Acciones" });
+    expect(table.parentElement?.querySelector(".holdings-total")).toBeNull();
+    expect(within(dialog).queryByText(/^Certificados:/)).toBeNull();
+  });
+
+  it("the summary is shown when cash is hidden (bank only)", async () => {
+    const { user } = await openSeededTable({ actions: FOUR, walletMode: "bankOnly" });
+    const dialog = await openPlayer(user, "p1");
+    expect(dialog.querySelector(".sheet-figure")).toBeNull();
+    expect(within(dialog.querySelector(".sheet-figures") as HTMLElement).getByText("6 / 16 cert.")).toBeTruthy();
+  });
+
+  it("in the SR each row's Vender 1 sells that company in one tap", async () => {
+    const { user } = await openSeededTable({ actions: FOUR });
+    const dialog = await openPlayer(user, "p1");
+    await user.click(within(rowOf(dialog, "NYC")).getByRole("button", { name: "Vender 1 NYC · $100" }));
+    expect(await toastText(/Ana vende 1 NYC/)).toMatch(/Ana vende 1 NYC por \$100/);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("outside the SR each row's Vender… opens the count picker with that company chosen", async () => {
+    const { user } = await openSeededTable({ actions: [...FOUR, { type: "endSR" }, { type: "startOR" }] });
+    const dialog = await openPlayer(user, "p1");
+    expect(within(dialog).queryByRole("button", { name: /^Vender 1 / })).toBeNull();
+    await user.click(within(rowOf(dialog, "B&O")).getByRole("button", { name: "Vender…" }));
+    const sell = await screen.findByRole("dialog");
+    expect(within(sell).getByRole("button", { name: /B&O 10%/ }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(sell).getByRole("button", { name: "Vender 1 · cobra $100" })).toBeTruthy();
+  });
+
+  it("Vender acciones and Comprar acción stay; the old row of quick sells is gone", async () => {
+    const { user } = await openSeededTable({ actions: FOUR });
+    const dialog = await openPlayer(user, "p1");
+    const jugada = within(dialog).getByRole("group", { name: "Jugada" });
+    expect(within(jugada).getByRole("button", { name: "Vender acciones" })).toBeTruthy();
+    expect(within(jugada).getByRole("button", { name: "Comprar acción" })).toBeTruthy();
+    expect(within(jugada).queryByRole("button", { name: /^Vender 1 / })).toBeNull();
+  });
+
+  it("at and over the limit, a text badge; nothing is blocked", async () => {
+    // 6 cards so far. One more each of NYC, B&O and C&O ties their presidents (no takeover): 9.
+    // Then 7 shares of companies nobody has opened: 16.
+    const atLimit = [...FOUR, give("NYC", 1), give("B&O", 1), give("C&O", 1), give("CPR", 4), give("Erie", 3)];
+    const { user } = await openSeededTable({ actions: atLimit });
+    const dialog = await openPlayer(user, "p1");
+    expect(within(dialog).getByText("16 / 16 cert.")).toBeTruthy();
+    expect(within(dialog).getByText("en el límite")).toBeTruthy();
+    expect(within(dialog).getByRole<HTMLButtonElement>("button", { name: "Comprar acción" }).disabled).toBe(false);
+  });
+
+  it("over the limit", async () => {
+    const over = [...FOUR, give("NYC", 1), give("B&O", 1), give("C&O", 1), give("CPR", 4), give("Erie", 4)];
+    const { user } = await openSeededTable({ actions: over });
+    const dialog = await openPlayer(user, "p1");
+    expect(within(dialog).getByText("17 / 16 cert.")).toBeTruthy();
+    expect(within(dialog).getByText("sobre el límite")).toBeTruthy();
+  });
+
+  it("a yellow-zone company says it doesn't count, and the total adds all the cards", async () => {
+    const { user } = await openSeededTable({ actions: [...FOUR, { type: "setMarket", company: "NYC", cell: { row: 2, col: 1 } }] });
+    const dialog = await openPlayer(user, "p1");
+    expect(rowOf(dialog, "NYC").textContent).toMatch(/no cuenta/);
+    expect(rowOf(dialog, "PRR").textContent).not.toMatch(/no cuenta/);
+    expect(within(dialog).getByText("5 / 16 cert. (6 en total)")).toBeTruthy();
+  });
+
+  it("a player without shares sees «Sin acciones» and no total", async () => {
+    const { user } = await openSeededTable({ actions: [startSR, par("p1", "PRR", 100)] });
+    const dialog = await openPlayer(user, "p3");
+    expect(within(dialog).getByText("Sin acciones")).toBeTruthy();
+    expect(within(dialog).queryByText(/ cert\.$/)).toBeNull();
+  });
+});

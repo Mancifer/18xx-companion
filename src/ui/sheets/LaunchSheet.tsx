@@ -64,7 +64,10 @@ export function LaunchSheet({ companyId, onClose }: { companyId?: CompanyId; onC
         <div className="choice-grid">
           {minors.map((c) => (
             <button key={c.id} aria-pressed={company === c.id} aria-label={`${c.shortName} ${c.name}`} onClick={() => setCompany(c.id)}>
-              <CompanyBadge company={c} size="sm" /> {c.name}
+              <span className="choice-company">
+                <CompanyBadge company={c} size="sm" />
+                <span className="choice-company-name">{c.name}</span>
+              </span>
             </button>
           ))}
         </div>

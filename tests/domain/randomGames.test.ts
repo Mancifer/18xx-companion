@@ -9,6 +9,9 @@ import { stripMentions } from "../../src/i18n/mentions";
 import { entryBreakdown } from "../../src/domain/ledger/breakdown";
 import type { LogEntry } from "../../src/domain/ledger/entries";
 import { operatingPhase } from "../../src/domain/ledger/operatingPhase";
+import { groupHistory } from "../../src/domain/ledger/effectiveLog";
+import { involvedGroupIds, subjectRef, type HistorySubject } from "../../src/domain/ledger/involvement";
+import type { Movement } from "../../src/domain/ledger/breakdown";
 import { TestSession, makePlayers } from "../helpers/dispatch";
 import { FLOW, NAMES, candidates, rng } from "../helpers/randomWalk";
 
@@ -75,6 +78,53 @@ function checkMentions(s: TestSession, where: string): void {
   for (const x of b?.balances ?? []) same(`en balance ${x.holder}`, en.balanceLine(x, marked), en.balanceLine(x, plain));
 }
 
+/** Whether a breakdown movement names the subject, read off the breakdown's own fields. */
+function names(m: Movement, subject: HistorySubject): boolean {
+  const ref = subjectRef(subject);
+  const holders = [
+    "from" in m ? m.from : undefined,
+    "to" in m ? m.to : undefined,
+    "subject" in m ? m.subject : undefined,
+  ];
+  if (holders.includes(ref)) return true;
+  if (subject.kind !== "company") return false;
+  return ("company" in m && m.company === subject.id) || (m.kind === "turn" && m.event.company === subject.id);
+}
+
+/**
+ * Feature 017 (T039, SC-002, SC-003): for every company and player, the money in its filtered
+ * History adds up to its cash, and every entry left out has no breakdown movement naming it.
+ */
+function checkEntityHistory(s: TestSession, where: string): void {
+  const log: LogEntry[] = s.groups.map((e) => ({ kind: "group", ...e, warnings: [] }));
+  const history = groupHistory(log);
+  const breakdowns = new Map(s.groups.map((g) => [g.id, entryBreakdown(s.game, s.players, log, g.id)]));
+  const start = initialState(s.game, s.players);
+  const subjects: HistorySubject[] = [
+    ...s.game.companies.map((c) => ({ kind: "company", id: c.id }) as const),
+    ...s.players.map((p) => ({ kind: "player", id: p.id }) as const),
+  ];
+  for (const subject of subjects) {
+    const ref = subjectRef(subject);
+    const ids = involvedGroupIds(history, subject);
+    let sum = 0;
+    for (const g of s.groups) {
+      if (!ids.has(g.id)) {
+        const named = breakdowns.get(g.id)?.movements.find((m) => names(m, subject));
+        if (named) throw new Error(`${where}: ${g.id} (${g.action.type}) left out of ${ref}'s history but moves ${JSON.stringify(named)}`);
+        continue;
+      }
+      for (const e of g.events) {
+        if (e.t !== "moneyTransfer") continue;
+        if (e.to === ref) sum += e.amount;
+        if (e.from === ref) sum -= e.amount;
+      }
+    }
+    const expected = cashOf(s.state, ref) - cashOf(start, ref);
+    if (sum !== expected) throw new Error(`${where}: ${ref}'s history money ${sum} ≠ cash change ${expected}`);
+  }
+}
+
 function play(gameIndex: number, seed: number) {
   const game = builtInGames[gameIndex]!;
   const rand = rng(seed * 7919 + gameIndex);
@@ -94,6 +144,7 @@ function play(gameIndex: number, seed: number) {
     if (checkIncome(s, `${game.id} seed ${seed} step ${step}`)) phases++;
     if (step % 10 === 0) checkMentions(s, `${game.id} seed ${seed} step ${step}`);
   }
+  checkEntityHistory(s, `${game.id} seed ${seed}`);
   return { s, applied, phases };
 }
 

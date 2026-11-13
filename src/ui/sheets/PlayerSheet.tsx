@@ -29,9 +29,12 @@ export function PlayerSheet({
   onClose,
   gameActions,
   extraActions,
+  onHistory,
 }: {
   playerId: PlayerId;
   onClose: () => void;
+  /** Feature 017: "Historial" for this player. */
+  onHistory?: () => void;
   /** The Table's game actions for this player ("Canjear privada…"). */
   gameActions?: ReactNode;
   extraActions?: ReactNode;
@@ -108,6 +111,7 @@ export function PlayerSheet({
       holder={ref}
       title={player.name}
       onClose={onClose}
+      {...(onHistory ? { onHistory } : {})}
       gameActions={
         inSR ? (
           <>

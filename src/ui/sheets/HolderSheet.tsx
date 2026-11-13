@@ -23,6 +23,7 @@ export function HolderSheet({
   info,
   gameActions,
   extraActions,
+  onHistory,
 }: {
   holder: HolderRef;
   title: ReactNode;
@@ -30,6 +31,8 @@ export function HolderSheet({
   info?: ReactNode;
   gameActions?: ReactNode;
   extraActions?: ReactNode;
+  /** Feature 017: opens this player's or company's History. */
+  onHistory?: () => void;
 }) {
   const { meta, state } = useSession();
   const { dispatch } = useDispatch();
@@ -127,6 +130,11 @@ export function HolderSheet({
   return (
     <Sheet title={title} onClose={onClose}>
       {info}
+      {onHistory ? (
+        <div className="row">
+          <button onClick={onHistory}>{t.history}</button>
+        </div>
+      ) : null}
       {gameActions !== undefined ? (
         <>
           <fieldset className="choice-fieldset menu-section">

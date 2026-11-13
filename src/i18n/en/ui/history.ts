@@ -18,4 +18,6 @@ export const history: UiText["history"] = {
   undo: "Undo",
   movements: "Movements",
   balances: "Balances",
+  emptyFor: (name) => `Nothing involving ${name} yet.`,
+  showInFull: "Show in full history",
 };

@@ -68,7 +68,7 @@ test.describe("large screen", () => {
 test.describe("phone", () => {
   test.use({ viewport: PHONE });
 
-  test("tabs stay; no players' title and no train label (FR-019)", async ({ page }) => {
+  test("tabs stay; no players' title, but the train label shows", async ({ page }) => {
     await newSession(page, { players: ["Ana", "Bruno", "Carla", "Dani"] });
     await prrBuysATrain(page);
     await expect(page.getByRole("tablist")).toBeVisible();
@@ -76,7 +76,8 @@ test.describe("phone", () => {
     await showCompanies(page);
     const card = page.locator(".company-card", { has: page.getByTestId("treasury-PRR") });
     await expect(card.locator(".train-cards")).toBeVisible();
-    await expect(card.locator(".company-trains-label")).toBeHidden();
+    await expect(card.locator(".company-trains-label")).toHaveText("Trenes");
+    await expect(card.locator(".company-trains-label")).toBeVisible();
   });
 });
 

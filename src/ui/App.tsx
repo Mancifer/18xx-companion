@@ -25,9 +25,17 @@ function Screens({ screen }: { screen: Screen }): ReactNode {
     case "customGame":
       return <CustomGame />;
     case "table":
-      return <Table />;
+      return <Table {...(screen.reopen ? { reopen: screen.reopen } : {})} />;
     case "history":
-      return <History />;
+      // Keyed so that moving between filtered and full History remounts (focus runs once).
+      return (
+        <History
+          key={`${screen.subject?.kind ?? "all"}:${screen.subject?.id ?? ""}:${screen.focus ?? ""}`}
+          {...(screen.subject ? { subject: screen.subject } : {})}
+          {...(screen.focus ? { focus: screen.focus } : {})}
+          {...(screen.back ? { back: screen.back } : {})}
+        />
+      );
     case "market":
       return <Market />;
     case "results":

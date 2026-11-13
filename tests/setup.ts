@@ -18,6 +18,11 @@ beforeEach(() => {
   pinNavigatorLanguages(DEFAULT_TEST_LANGUAGES);
 });
 
+// Feature 017: jsdom has no layout, so no scrollIntoView; History calls it on a focused entry.
+if (typeof Element !== "undefined" && !("scrollIntoView" in Element.prototype)) {
+  Object.defineProperty(Element.prototype, "scrollIntoView", { value: function scrollIntoView() {}, configurable: true, writable: true });
+}
+
 // React Testing Library cleanup, only in the jsdom project (no jest-dom).
 afterEach(async () => {
   if (typeof document !== "undefined") {

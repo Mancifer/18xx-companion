@@ -58,6 +58,8 @@ export const holder = {
   now: (money: string) => `Ahora: ${money}`,
   newValue: "Nuevo valor",
   setTo: "Fijar en",
+  /** Feature 017: the History of this player or company. */
+  history: "Historial",
   payMenu: "Pagar…",
   receive: "Cobrar del banco",
   setMoney: "Fijar dinero",

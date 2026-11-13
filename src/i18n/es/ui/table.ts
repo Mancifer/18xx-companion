@@ -84,6 +84,8 @@ export const table = {
     noPresident: "Sin presidente",
     president: (name: string) => `Pres.: ${name}`,
     loans: "Préstamos: ",
+    /** Feature 017: the revenue of the company's most recent run. */
+    lastRun: "Última corrida",
   },
   trains: {
     label: "Trenes",

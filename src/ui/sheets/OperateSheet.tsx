@@ -54,6 +54,7 @@ export function OperateSheet({
   initialView = "run",
   onClose,
   onDetails,
+  onHistory,
   onCorrectTrains,
 }: {
   companyId: CompanyId;
@@ -63,6 +64,8 @@ export function OperateSheet({
   initialView?: OperateView;
   onClose: () => void;
   onDetails?: () => void;
+  /** Feature 017: the company's History, one tap from its card (SC-001). */
+  onHistory?: () => void;
   /** Opens the train correction view (feature 011, US3) from the trains line. */
   onCorrectTrains?: () => void;
 }) {
@@ -281,6 +284,7 @@ export function OperateSheet({
             );
           })}
         {onDetails ? <button onClick={onDetails}>{tx.details}</button> : null}
+        {onHistory ? <button onClick={onHistory}>{text.sheets.holder.history}</button> : null}
       </div>
       {inTurn ? (
         <div className="stack">

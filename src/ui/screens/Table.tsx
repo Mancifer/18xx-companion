@@ -25,6 +25,7 @@ import { companyGroups, currentORGroups, purchasablePrivates, upcomingCompanies,
 import type { CompanyId, HolderRef, PlayerId } from "../../domain/types";
 import { CompanyName } from "../components/CompanyBadge";
 import { CompanyCard } from "../components/CompanyCard";
+import { lastRuns } from "../../domain/ledger/lastRun";
 import { MicButton } from "../components/MicButton";
 import { PlayerTile } from "../components/PlayerTile";
 import { RoundIndicator } from "../components/RoundIndicator";
@@ -33,7 +34,7 @@ import { TopBar } from "../components/TopBar";
 import { StartChipsNotice } from "../components/StartChipsNotice";
 import { UndoToast } from "../components/UndoToast";
 import { VoicePanel } from "../components/VoicePanel";
-import { useNav } from "../nav";
+import { useNav, type ReopenSheet } from "../nav";
 import { useExportSession } from "../useExport";
 import { CompanySheet } from "../sheets/CompanySheet";
 import { BatchSheet } from "../sheets/BatchSheet";
@@ -83,7 +84,7 @@ function around([before, after]: readonly [string, string], name: ReactNode): Re
 }
 
 /** The main screen: a tile per player and a card per company (US1), with round controls (US3). */
-export function Table({ topCenter }: { topCenter?: ReactNode }) {
+export function Table({ topCenter, reopen }: { topCenter?: ReactNode; reopen?: ReopenSheet }) {
   const reasonText = useMessageText();
   const t = useText().table;
   const { lang } = useLang();
@@ -91,6 +92,8 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
   const { meta, state, effective, gameEnd } = useSession();
   const { dispatch } = useDispatch();
   const groups = companyGroups(meta.game, state);
+  // Feature 017: one fold for every card (not one per card).
+  const runs = useMemo(() => lastRuns(meta.game, effective), [meta.game, effective]);
   const { closeSession } = useAppActions();
   const exportSession = useExportSession();
   const voice = useVoice();
@@ -116,12 +119,20 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
     setTabRound(round);
     setTab(tabFor(round));
   }
-  const [open, setOpen] = useState<Open>(null);
+  // Feature 017 (research R3): coming back from a player or company History reopens its sheet.
+  const [open, setOpen] = useState<Open>(reopen ?? null);
   /** "Entendido" on the start notice: this view only, nothing written (feature 008, R9). */
   const [chipsNoticeDismissed, setChipsNoticeDismissed] = useState(false);
   useWakeLock(true);
 
   const close = () => setOpen(null);
+  // Feature 017: a player's or company's History; coming back reopens the same sheet (R3).
+  const historyOf = (reopenSheet: ReopenSheet) => () =>
+    go({
+      name: "history",
+      subject: reopenSheet.kind === "player" ? { kind: "player", id: reopenSheet.id } : { kind: "company", id: reopenSheet.id },
+      back: { name: "table", reopen: reopenSheet },
+    });
   const ctx: ActionContext = { game: meta.game, players: meta.players, state };
   const players = [...meta.players].sort((a, b) => a.seat - b.seat);
   // FR-011: in an OR only the current company's card opens its turn; the others show details.
@@ -382,6 +393,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
                       key={id}
                       companyId={id}
                       current={state.turn.currentCompany === id}
+                      lastRun={runs.get(id)}
                       onOpen={() => setOpen({ kind: "company", id, view: companyView(id) })}
                     />
                   ))}
@@ -393,7 +405,13 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
       </div>
 
       {open?.kind === "player" ? (
-        <PlayerSheet playerId={open.id} onClose={close} gameActions={playerGameActions(open.id)} extraActions={playerActions(open.id)} />
+        <PlayerSheet
+          playerId={open.id}
+          onClose={close}
+          gameActions={playerGameActions(open.id)}
+          extraActions={playerActions(open.id)}
+          onHistory={historyOf({ kind: "player", id: open.id })}
+        />
       ) : null}
       {open?.kind === "company" && open.view === "operate" ? (
         <OperateSheet
@@ -402,6 +420,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
           initialView={open.discard ? "discard" : "run"}
           onClose={close}
           onDetails={() => setOpen({ kind: "company", id: open.id, view: "details" })}
+          onHistory={historyOf({ kind: "company", id: open.id, view: "operate" })}
           onCorrectTrains={() => setOpen({ kind: "trainCorrection", company: open.id })}
         />
       ) : null}
@@ -412,6 +431,7 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
           onClose={close}
           onOperate={() => setOpen({ kind: "company", id: open.id, view: "operate" })}
           onDetails={() => setOpen({ kind: "company", id: open.id, view: "details" })}
+          onHistory={historyOf({ kind: "company", id: open.id, view: "stock" })}
         />
       ) : null}
       {open?.kind === "batch" ? <BatchSheet onClose={close} /> : null}
@@ -424,7 +444,12 @@ export function Table({ topCenter }: { topCenter?: ReactNode }) {
       {open?.kind === "privates" ? <PrivatesSheet onClose={close} /> : null}
       {open?.kind === "exchange" ? <ExchangeSheet player={open.player} onClose={close} /> : null}
       {open?.kind === "company" && open.view === "details" ? (
-        <CompanySheet companyId={open.id} onClose={close} extraActions={companyActions(open.id)} />
+        <CompanySheet
+          companyId={open.id}
+          onClose={close}
+          extraActions={companyActions(open.id)}
+          onHistory={historyOf({ kind: "company", id: open.id, view: "details" })}
+        />
       ) : null}
       {open?.kind === "confirm" ? (
         <ConfirmSheet

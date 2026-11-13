@@ -83,6 +83,9 @@ export const trainCorrection = {
 export const company = {
   price: (money: string) => ` · precio ${money}`,
   par: (money: string) => ` · par ${money}`,
+  /** Feature 017: the last run, how it was paid and its OR. */
+  lastRun: "Última corrida: ",
+  runModes: { full: "repartió", withhold: "retuvo", half: "mitad" },
 };
 
 export const income = {

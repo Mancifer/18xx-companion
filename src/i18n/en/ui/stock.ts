@@ -57,6 +57,7 @@ export const holder: Sheets["holder"] = {
   now: (money) => `Now: ${money}`,
   newValue: "New value",
   setTo: "Set to",
+  history: "History",
   payMenu: "Pay…",
   receive: "Collect from the bank",
   setMoney: "Set money",

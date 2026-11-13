@@ -393,6 +393,24 @@ describe("Merger sheet (US7)", () => {
     expect(card.querySelector(".company-alt-name")?.textContent).toBe("Firm");
   });
 
+  it("the merged major shows no last run from its minors until it runs itself (feature 017, FR-017)", async () => {
+    const run = (company: string, amount: number) => ({ type: "runAndPayout", company, parts: [{ part: "revenue", amount }], mode: "full" });
+    await openSeededTable({
+      game: "rotla",
+      players: three,
+      actions: [
+        launch("TUN", "p2", 140),
+        launch("EXP", "p1", 160),
+        run("EXP", 70),
+        run("TUN", 50),
+        toMR,
+        { type: "mergeCompanies", a: "EXP", b: "TUN", into: "FED", identity: null },
+      ],
+    });
+    expect(screen.getByTestId("treasury-FED")).toBeTruthy();
+    expect(screen.queryByTestId("last-run-FED")).toBeNull();
+  });
+
   it("with Landmarks, Authority / Alliance and League / LLC (feature 013, US4)", async () => {
     const { user } = await openSeededTable({
       game: "rotla",

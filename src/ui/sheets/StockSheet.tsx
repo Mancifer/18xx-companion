@@ -27,11 +27,14 @@ export function StockSheet({
   onClose,
   onOperate,
   onDetails,
+  onHistory,
 }: {
   companyId: CompanyId;
   onClose: () => void;
   onOperate?: () => void;
   onDetails?: () => void;
+  /** Feature 017: the company's History, one tap from its card (SC-001). */
+  onHistory?: () => void;
 }) {
   const reasonText = useMessageText();
   const text = useText();
@@ -74,6 +77,7 @@ export function StockSheet({
     <div className="choice-grid">
       {onOperate ? <button onClick={onOperate}>{text.table.operateMenu}</button> : null}
       {onDetails ? <button onClick={onDetails}>{text.sheets.operate.details}</button> : null}
+      {onHistory ? <button onClick={onHistory}>{text.sheets.holder.history}</button> : null}
     </div>
   );
 

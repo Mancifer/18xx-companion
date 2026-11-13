@@ -82,6 +82,7 @@ export const table: UiText["table"] = {
     noPresident: "No president",
     president: (name) => `Pres.: ${name}`,
     loans: "Loans: ",
+    lastRun: "Last run",
   },
   trains: {
     label: "Trains",

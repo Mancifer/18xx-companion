@@ -162,9 +162,16 @@ button[aria-pressed="true"] {
   line-height: 1.1;
 }
 
-.player-meta,
+.player-meta, 
 .company-meta {
   font-size: var(--text-sm);
+}
+
+.company-meta {  
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  margin-top: var(--space-1);
 }
 
 .player-tile-body {
@@ -575,6 +582,18 @@ button[aria-pressed="true"] {
 .history-panel ul {
   margin: 0;
   padding-left: var(--space-4);
+}
+
+/* Feature 017 (FR-006): in a player's or company's History, its own lines come first, bold and
+   with a marker, so color is never the only cue. */
+.history-panel li.history-mine {
+  font-weight: 600;
+  list-style: none;
+  margin-left: calc(-1 * var(--space-3));
+}
+
+.history-panel li.history-mine::before {
+  content: "▸ ";
 }
 
 .field-row {
@@ -1480,8 +1499,9 @@ button.income-toggle {
 .company-trains {
   display: flex;
   flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
 }
 
 /* Where shares can be bought (feature 013, US3): one tile per source, count large, price small.

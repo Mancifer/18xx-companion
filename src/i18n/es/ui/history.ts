@@ -16,4 +16,7 @@ export const history = {
   undo: "Deshacer",
   movements: "Movimientos",
   balances: "Saldos",
+  /** Feature 017: a player's or company's History. */
+  emptyFor: (name: string) => `No hay movimientos de ${name} todavía.`,
+  showInFull: "Ver en el historial completo",
 };

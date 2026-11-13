@@ -7,6 +7,7 @@ import { floatPending } from "../../domain/mechanics/capitalization";
 import { floatConditionConfig } from "../../domain/mechanics/custom/manualFloatCondition";
 import { priceOf } from "../../domain/mechanics/market";
 import { displayName } from "../../domain/mechanics/traits";
+import type { LastRun } from "../../domain/ledger/lastRun";
 import type { CompanyId } from "../../domain/types";
 import { CompanyBadge } from "./CompanyBadge";
 import { TrainCards } from "./TrainCards";
@@ -16,10 +17,13 @@ export function CompanyCard({
   companyId,
   onOpen,
   current = false,
+  lastRun,
 }: {
   companyId: CompanyId;
   onOpen: () => void;
   current?: boolean;
+  /** Feature 017: the company's last run, worked out once by the Table for every card. */
+  lastRun?: LastRun | undefined;
 }) {
   const { meta, state } = useSession();
   const text = useText();
@@ -41,6 +45,8 @@ export function CompanyCard({
     record.status === "parred" &&
     floatPending({ game: meta.game, state }, companyId) === "condition";
   const status = record.capitalPending ? t.capitalPending : dt.status[record.status];
+  // data-model §6: hidden before the first run, when unreadable, and once closed (FR-016).
+  const revenue = lastRun && record.status !== "closed" ? lastRun.revenue : null;
   return (
     <button
       className={`company-card status-${record.status}${current ? " current" : ""}`}
@@ -70,15 +76,27 @@ export function CompanyCard({
         {def.kind === "national" || !presidentName ? t.noPresident : t.president(presidentName)}
       </span>
       {pendingCondition ? <span className="badge warn">{gameText(meta.game, lang).ruleText("manualFloatCondition", "question") || condition.question}</span> : null}
-      {hasTrains || loans > 0 ? (
-        <span className="company-meta company-trains">
+      {hasTrains || loans > 0 || revenue !== null ? (
+        <span className="company-meta">
           {/* Feature 016 (US6): named on large screens, where the cards have room (CSS). */}
-          {hasTrains ? <span className="label company-trains-label">{text.table.trains.label}</span> : null}
-          {hasTrains ? <TrainCards company={companyId} size="sm" /> : null}
           {loans > 0 ? <span>
               {t.loans}
               {loans}
             </span> : null}
+          {revenue !== null ? (
+            <span className="company-last-run">
+              <span className="label">{t.lastRun}</span>{" "}
+              <span className="money" data-testid={`last-run-${companyId}`}>
+                {formatMoney(revenue, meta.game, lang)}
+              </span>
+            </span>
+          ) : null}
+          {hasTrains ? (
+            <span className="company-trains">
+              <span className="label company-trains-label">{text.table.trains.label}</span>
+              <TrainCards company={companyId} size="sm" />
+            </span>
+          ) : null}
         </span>
       ) : null}
     </button>

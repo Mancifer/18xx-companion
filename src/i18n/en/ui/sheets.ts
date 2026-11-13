@@ -83,6 +83,8 @@ export const trainCorrection: Sheets["trainCorrection"] = {
 export const company: Sheets["company"] = {
   price: (money) => ` · price ${money}`,
   par: (money) => ` · par ${money}`,
+  lastRun: "Last run: ",
+  runModes: { full: "paid out", withhold: "withheld", half: "half" },
 };
 
 export const income: Sheets["income"] = {

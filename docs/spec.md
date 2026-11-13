@@ -525,7 +525,7 @@ English (the same actions):
      (", en el límite" / ", sobre el límite"). Tap opens the player's sheet. Its header shows the
      cash and, beside it, "11 / 16 cert." ("(N en total)" when some don't count) with "en el
      límite" or "sobre el límite" as text badges, also in "bank only" mode; nothing is blocked.
-     Below, "Acciones" lists one row per company held: badge, percentage ("40%★"
+     "Historial" opens the player's History (item 7). Below, "Acciones" lists one row per company held: badge, percentage ("40%★"
      with the presidency), certificates ("3 cert.", the president's certificate counting as one)
      and "no cuenta" where the market zone exempts it (1830). Each row ends with a sell button: in
      an SR "Vender 1 PRR · $67" (two taps from the Table), otherwise "Vender…", which opens the
@@ -539,7 +539,16 @@ English (the same actions):
      `buyShare` as the company card's.
    - **Company grid** (tab or second row): treasury, price, president, and the trains as small
      cards, one per train, like the physical train cards (a rusted one kept for a last run is
-     dashed and says "oxidado"). On phones the
+     dashed and says "oxidado"). Next to the trains, "Última corrida $160": the total revenue of
+     the company's most recent run still in effect (all parts summed in 21Moon; a run of 0, or a
+     turn passed with "No corrió", shows $0). It stays through later ORs until the company runs
+     again, and an undo falls back to the previous run. It is not shown before the company's first
+     run, once it is closed, for a national company (the 1848 BoE, which has no run of its own), or
+     for a RotLA major formed by a merger until it runs itself (it takes nothing from its minors).
+     The details sheet repeats it with how it was paid and its OR ("Última corrida: $160 ·
+     repartió · OR 2.1"; "retuvo" when withheld, including a forced withhold), and in 21Moon one
+     line per part. The details, stock and operate sheets all offer "Historial", the company's
+     History (item 7), so it is two taps from the card in every round. On phones the
      stock and corporate rounds open on this tab, so a buy or sell stays two taps. In an OR, the
      current company's card opens its turn; other cards open their details, where "Operar fuera
      de turno…" records actions out of order, marked "fuera de turno" in History (never blocked).
@@ -549,8 +558,9 @@ English (the same actions):
      "Fuera de juego"; and "Dar un tren" with the stack's types and an optional payment.
    - Tablets in landscape and large screens show players and companies side by side, with no
      tabs. The players' pane has a "Jugadores" title like the company groups', so the first
-     player card and the first company card line up; company cards name their trains with a
-     "Trenes" label. Phones keep the tabs and neither the title nor the label.
+     player card and the first company card line up. Phones keep the tabs and no title. On every
+     screen, company cards show their trains under a "Trenes" label, to the right of the loans
+     and the last run.
    - Floating **mic button** (push-to-talk) and **undo** button. The mic shows only once voice is
      set up (see Home); offline it stays, disabled, and says why.
 4. **Operate sheet** (the operating turn): under the title, the trains line: "Trenes 2/4" and a
@@ -582,6 +592,19 @@ English (the same actions):
    unlimited), plus the transcript and warnings. Summaries with a single money movement show its
    amount. "Deshacer" sits on the newest entry; "Deshacer hasta acá" is in the panel of every
    other active entry.
+   **Player or company History** ("Historial · Ana", "Historial · PRR"), from the player's or the
+   company's sheet: only the entries that involve them, in the same round sections (only those
+   holding a listed entry), undone entries included and marked. An entry involves a company when
+   money moves in or out of its treasury, any of its shares move (between any holders, so a pool
+   buy is listed), its price, status, trains, privates or counters change, or the turn passes to
+   it; it involves a player when their money, shares, certificates, presidencies, privates or
+   counters change. Notes are never matched. In the expanded entry the subject's own movements
+   and balance come first, in bold with a "▸" marker. This view is read-only: no "Deshacer" nor
+   "Deshacer hasta acá" and no undo toast; each panel offers "Ver en el historial completo"
+   instead, which opens the full History with that entry expanded, where undo works as above (its
+   confirmation counts every entry, including those that did not involve the subject). Back goes
+   to the filtered History, then to the Table with the sheet it came from open again. With
+   nothing involving the subject it says "No hay movimientos de <name> todavía."
 8. **Market view**: grid with company tokens stacked by arrival, plus 1-D tracks such as the
    1848 BoE. A token moves by dragging it, or by tapping it and then a cell; each move is a
    recorded manual override, so cell effects (receivership, closed) still apply. Closed companies

@@ -174,8 +174,7 @@ h3 {
 }
 
 /* Feature 016 (US4, US6): shown only side by side, where the panes have no tabs and cards have room. */
-.players-pane-title,
-.company-card .company-trains-label {
+.players-pane-title {
   display: none;
 }
 
@@ -187,10 +186,6 @@ h3 {
 
   .players-pane-title {
     display: block;
-  }
-
-  .company-card .company-trains-label {
-    display: inline;
   }
 
   .table-tabs {

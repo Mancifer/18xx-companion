@@ -7,6 +7,8 @@ import { touchesOf, type GroupEntry, type LogEntry } from "../../src/domain/ledg
 import { entryBreakdown } from "../../src/domain/ledger/breakdown";
 import { effectiveLog, groupHistory } from "../../src/domain/ledger/effectiveLog";
 import { operatingPhase } from "../../src/domain/ledger/operatingPhase";
+import { involvedGroupIds } from "../../src/domain/ledger/involvement";
+import { lastRuns } from "../../src/domain/ledger/lastRun";
 import { roundSections } from "../../src/domain/ledger/rounds";
 import { domainText } from "../../src/i18n";
 import { replay } from "../../src/domain/ledger/replay";
@@ -191,5 +193,27 @@ describe("performance with RotLA mergers (T100)", () => {
     expect(merges).toBeGreaterThan(0);
     const ms = timeIt(() => replay(rotla, rotlaPlayers, log));
     expect(ms).toBeLessThan(budget(50));
+  });
+});
+
+/** Feature 017 (T032, research R8): the cards' last runs and a filtered History, on a long game. */
+describe("performance of player and company histories (feature 017)", () => {
+  const rotla = getBuiltInGame("rotla");
+  const rotlaPlayers = players.slice(0, 4);
+  const { log } = longGame(rotla, rotlaPlayers);
+  const effective = effectiveLog(log);
+  const history = groupHistory(log);
+
+  it(`folds every company's last run over ${GROUPS} groups in under 20 ms`, () => {
+    expect(lastRuns(rotla, effective).size).toBeGreaterThan(0);
+    expect(timeIt(() => lastRuns(rotla, effective))).toBeLessThan(budget(20));
+  });
+
+  it(`filters ${GROUPS} groups for every player and company in under 20 ms`, () => {
+    const subjects = [
+      ...rotla.companies.map((c) => ({ kind: "company", id: c.id }) as const),
+      ...rotlaPlayers.map((p) => ({ kind: "player", id: p.id }) as const),
+    ];
+    expect(timeIt(() => subjects.forEach((s) => involvedGroupIds(history, s)))).toBeLessThan(budget(20));
   });
 });
